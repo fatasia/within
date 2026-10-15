@@ -177,7 +177,6 @@ export function App() {
         'ruhua.preferences.v1',
         JSON.stringify({
           painting: state.painting,
-          quality: state.quality,
           mist: state.mist,
           speed: state.speed,
           period: state.period,
@@ -186,7 +185,7 @@ export function App() {
     } catch {
       /* Storage is optional in private browsing. */
     }
-  }, [state.painting, state.quality, state.mist, state.speed, state.period]);
+  }, [state.painting, state.mist, state.speed, state.period]);
   const selectPainting = (id: PaintingId) => {
     if (recording !== null) return;
     lastProgress.current = 0;
@@ -295,7 +294,7 @@ export function App() {
             入<br />画
           </span>
           <span className="brand-name">
-            入画<span>LIVING LANDSCAPES</span>
+            入画<span>WITHIN</span>
           </span>
         </button>
         {state.entered ? (
@@ -532,8 +531,8 @@ export function App() {
                 value={state.quality}
                 onChange={(e) => patch({ quality: e.target.value as ExperienceState['quality'] })}
               >
-                <option value="high">精细 · 高分辨率</option>
-                <option value="balanced">均衡 · 推荐</option>
+                <option value="high">精细 · 最高画质</option>
+                <option value="balanced">均衡</option>
                 <option value="low">流畅 · 低分辨率</option>
               </select>
               <button

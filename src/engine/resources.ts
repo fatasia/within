@@ -24,11 +24,15 @@ export function batchStatic(group: THREE.Group): THREE.Group {
     }
     const geometry = object.geometry.clone().applyMatrix4(object.matrixWorld);
     geometry.deleteAttribute('uv');
-    if (geometry.index) {
-      const flat = geometry.toNonIndexed();
-      geometry.dispose();
-      bucket.geometries.push(flat);
-    } else bucket.geometries.push(geometry);
+    // mergeGeometries requires consistent indexing. Index the few unindexed parts
+    // instead of expanding every indexed roof, sphere and cylinder into triangles.
+    if (!geometry.index) {
+      const count = geometry.getAttribute('position').count;
+      const indices = count > 65535 ? new Uint32Array(count) : new Uint16Array(count);
+      for (let i = 0; i < count; i++) indices[i] = i;
+      geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+    }
+    bucket.geometries.push(geometry);
   });
   const result = new THREE.Group();
   for (const bucket of buckets.values()) {

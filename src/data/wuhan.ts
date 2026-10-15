@@ -41,7 +41,7 @@ export const WUHAN_PAINTING: Painting = {
     {
       title: '石径听雨',
       subtitle: 'THE WET STONE PATH',
-      description: '落花散在石缝与浅浅水洼间，脚边是细雨，路旁是低垂的桂枝与安静石凳。',
+      description: '落桂聚在树影下，也散进深浅不一的湿石缝里；低头看一会儿，细雨还在轻轻落。',
       progress: 0.43,
     },
     {

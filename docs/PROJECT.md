@@ -1,4 +1,4 @@
-# 项目说明
+# 入画 · WITHIN 项目说明
 
 ## 结构
 
@@ -18,7 +18,9 @@
 | `src/state.ts`                | 状态默认值与本地偏好校验             |
 | `tests`                       | 桌面与手机端集成测试                 |
 
-连续渲染由 requestAnimationFrame 驱动，React 仅接收低频状态。切换世界时释放旧几何、材质和纹理。静态建筑按材质合批，树林、岩石与草叶使用 InstancedMesh。画质控制像素比，流畅档关闭薄雾；高画质启用 2048 像素方向光软阴影。
+连续渲染由 requestAnimationFrame 驱动，React 仅接收低频状态。切换世界时释放旧几何、材质和纹理。静态建筑与通用舟船按材质合批，合并几何保留索引，树林、岩石与草叶使用 InstancedMesh。关闭引擎时释放阴影资源。
+
+电脑与手机每次进入均使用最高画质，不读取旧的画质偏好；本次访问仍可手动切换。最高、均衡、流畅三档像素比上限分别为 1.75、1.25、0.8；流畅档关闭薄雾，最高档启用 2048 像素方向光软阴影。武汉远景枝叶与花瓣数量随档位变化，近景焦点位置保持一致。
 
 ## 画面与模型
 
@@ -30,6 +32,18 @@
 
 原作识别特征、近景取舍和演绎范围见 [美术方向](ART-DIRECTION.md)。逐项缺口见 [山水三卷核对](restoration-paintings.md)与[清明上河图核对](restoration-qingming.md)；有同类模型不等于已经还原原画对应物体。
 
+### 武汉：秋雨桂园
+
+场景以东湖秋季桂花为主题，包含对生叶片、腋生四瓣小花、疏落花瓣、湿石接缝与雨滴水纹；小片硫华菊花境作为季节补充。桂花季节依据[武汉市政府的东湖秋景报道](https://www.wuhan.gov.cn/zjwh/whly/202410/t20241012_2467368.shtml)，花境种类参考[东湖四季赏花菜单](https://wlj.wuhan.gov.cn/zwgk_27/zwdt/xydt/202602/t20260209_2726280.shtml)。这些资料说明区域季相，不证明模型中的花木在同一地点、同一天共同盛开。
+
+园路、亭子、岸线和植物位置为场景编排，不是桂园测绘复原。香气通过花簇、落花、雨声与文字联想表达，网页不产生实际气味。近景仍为程序化模型，材质、山形及原画逐物对应继续按核对清单修订。
+
+### 性能与设备范围
+
+最高画质优先呈现细节，不等于所有手机都能稳定流畅；当前不自动降档。需要降低负载时，在画境设置中切换均衡或流畅。浏览器模拟手机尺寸只验证布局和交互，不能替代真机功耗、温升与持续帧率测试。
+
+`scripts/profile-scenes.mjs` 可记录固定视点的帧间隔、渲染调用和重复切景资源计数，结果写入已忽略的 `artifacts/performance/report.json`。它使用开发服务器，统计为 JS/驱动墙钟时间及 WebGL 计数，不是独立 GPU 时间或完整显存字节；软件 WebGL 数据不作为 60 fps 保证。运行诊断时不要并行截图或录制视频。
+
 ## 操作
 
 展卷：滚轮、左右拖动、左右方向键；空格自动游览；1—5 跳转章节。Ctrl + 滚轮、加减号或双指捏合调整远近。
@@ -40,7 +54,7 @@
 
 V 切换视角，T 切换天色，Q 切换画质，F 全屏，H 操作说明。星月夜与山中冬夜保持夜景色调。
 
-声音在用户点击后启动，通过 Web Audio 本地合成。偏好只存储选画、画质、薄雾、速度与时代，不自动恢复声音或播放。
+声音在用户点击后启动，通过 Web Audio 本地合成。选画、薄雾、速度与时代可恢复；旧本地存储键保留兼容。画质每次重置为最高，不自动恢复声音或播放。
 
 ## 配乐与场景音效
 
@@ -139,19 +153,20 @@ npm run build
 
 发布状态（2026-10-16）：
 
-- [GitHub Pages](https://fatasia.github.io/shanshui-atlas/) 是持续发布入口，`main` 提交通过检查后由 Actions 更新。具体在线版本以仓库最新成功的 Pages 工作流为准。
-- CloudBase 已上传本轮十景预览至 `/shanshui/`，9 个构建文件一致性校验通过；首页、JS、CSS、WOFF2 均返回 200，MIME 正确。默认测试域名会显示平台访问提示，普通 HTTP 请求带 `Content-Disposition: attachment`。实际浏览器点击“确定访问”后已验证十景选择页与武汉近景加载。
-- 下一次发布为预览更新，不代表原画细节或视觉效果已获验收。
+- [GitHub Pages](https://fatasia.github.io/within/) 是持续发布入口，`main` 提交通过检查后由 Actions 更新。具体在线版本以仓库最新成功的 Pages 工作流为准。
+- 仓库已由 `fatasia/shanshui-atlas` 重命名为 [`fatasia/within`](https://github.com/fatasia/within)，保留原提交历史。新 Pages 路径 `/within/` 返回 200；旧 `/shanshui-atlas/` 实测返回 404，不提供自动跳转。
+- CloudBase 已将 WITHIN 构建发布至 `/within/`，9 个文件一致性校验通过。旧 `/shanshui/` 预览保留，根目录未修改。默认测试域名会显示平台访问提示，普通 HTTP 请求带 `Content-Disposition: attachment`。
+- 当前发布为预览更新，不代表原画细节或视觉效果已获验收。
 
 GitHub Pages：工作流 `.github/workflows/pages.yml` 在 `main` 提交后运行检查并发布 `dist`。仓库 Pages 来源选择 GitHub Actions。
 
-CloudBase：目标环境 `local-d8gckl1vx0d145939`，发布子目录 `/shanshui/`，不修改根站点。需要已登录并开通静态托管：
+CloudBase：目标环境 `local-d8gckl1vx0d145939`，发布子目录 `/within/`，不修改根站点。需要已登录并开通静态托管：
 
 ```sh
-npm exec --yes --package=@cloudbase/cli@3.8.7 -- tcb hosting deploy ./dist shanshui -e local-d8gckl1vx0d145939 --safe --verify --json
+npm exec --yes --package=@cloudbase/cli@3.8.7 -- tcb hosting deploy ./dist within -e local-d8gckl1vx0d145939 --safe --verify --json
 ```
 
-CLI 3.8.7 的 `--verify` 对带前导斜杠的路径存在 manifest 键不一致问题，命令使用 `shanshui`，实际 URL 仍为 `/shanshui/`。只上传构建完成的 `dist`，不使用 `--prune`，不修改托管根目录。项目路径为 `https://local-d8gckl1vx0d145939-1321978125.tcloudbaseapp.com/shanshui/`。
+CLI 3.8.7 的 `--verify` 对带前导斜杠的路径存在 manifest 键不一致问题，命令使用 `within`，实际 URL 为 `/within/`。只上传构建完成的 `dist`，不使用 `--prune`，不修改托管根目录。项目路径为 `https://local-d8gckl1vx0d145939-1321978125.tcloudbaseapp.com/within/`。
 
 默认域名的提示页与附件响应属于[平台访问规则](https://docs.cloudbase.net/service/alias)；正式对外使用应另行配置自定义域名。当前未绑定或修改任何自定义域名。
 

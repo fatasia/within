@@ -64,13 +64,18 @@ describe('experience state', () => {
     expect(restorePreferences('{oops').painting).toBe('qianli');
     expect(
       restorePreferences('{"painting":"unknown","period":900,"quality":"ultra"}'),
-    ).toMatchObject({ painting: 'qianli', period: 4, quality: 'balanced' });
+    ).toMatchObject({ painting: 'qianli', period: 4, quality: 'high' });
   });
   it('restores preferences but never autoplays sound or movement', () => {
     expect(
       restorePreferences('{"painting":"starry","sound":true,"playing":true,"quality":"high"}'),
     ).toMatchObject({ painting: 'starry', sound: false, playing: false, quality: 'high' });
     expect(restorePreferences('{"painting":"winter"}').painting).toBe('winter');
+  });
+  it('opens at high quality even after a previous manually reduced session', () => {
+    for (const quality of ['high', 'balanced', 'low'])
+      expect(restorePreferences(JSON.stringify({ quality })).quality).toBe('high');
+    expect(restorePreferences(null).quality).toBe('high');
   });
   it('cycles the three playback speeds', () =>
     expect([nextSpeed(0.5), nextSpeed(1), nextSpeed(2)]).toEqual([1, 2, 0.5]));

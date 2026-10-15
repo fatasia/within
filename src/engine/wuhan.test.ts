@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { WUHAN_PAINTING } from '../data/wuhan';
 import { buildWuhan, updateWuhan } from './wuhan';
-import { getWuhanGround, wuhanPath } from './wuhanLayout';
+import { getWuhanGround, wuhanPath, WUHAN_FLOWER_FOCUS } from './wuhanLayout';
 import { disposeObject } from './resources';
 import { getCinematicKeyframes } from './cinematography';
 
@@ -27,38 +27,108 @@ describe('East Lake osmanthus garden', () => {
     }
   });
 
-  it('uses open leaf sprays rather than opaque crowns within 15 draws and 350,000 triangles', () => {
-    const group = buildWuhan(WUHAN_PAINTING);
+  for (const [quality, budget, petalLimit] of [
+    ['low', 180000, 60],
+    ['balanced', 350000, 140],
+    ['high', 450000, 220],
+  ] as const) {
+    it(`${quality}: preserves the hero flowers within the draw and geometry budgets`, () => {
+      const group = buildWuhan(WUHAN_PAINTING, quality);
+      try {
+        let draws = 0,
+          triangles = 0;
+        group.traverse((object) => {
+          if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) draws++;
+          if (!(object instanceof THREE.Mesh)) return;
+          const instances = object instanceof THREE.InstancedMesh ? object.count : 1;
+          triangles +=
+            ((object.geometry.index?.count ?? object.geometry.attributes.position!.count) / 3) *
+            instances;
+          if (object instanceof THREE.InstancedMesh)
+            expect(Array.from(object.instanceMatrix.array).every(Number.isFinite)).toBe(true);
+        });
+        expect(draws).toBeLessThan(25);
+        expect(triangles).toBeLessThanOrEqual(budget);
+        expect(group.getObjectByName('Dense evergreen crown interiors')).toBeUndefined();
+        expect(group.userData.flowerFocus).toHaveLength(3);
+        expect(group.userData.flowerFocus.every(Number.isFinite)).toBe(true);
+        expect(group.userData.flowerFocus).toEqual([...WUHAN_FLOWER_FOCUS]);
+        const flying = group.getObjectByName(
+          'Sparse windborne osmanthus petals',
+        ) as THREE.InstancedMesh;
+        expect(flying.count).toBeLessThanOrEqual(petalLimit);
+        const flowers = group.getObjectByName(
+          'Golden four-petal flower clusters',
+        ) as THREE.InstancedMesh;
+        const matrix = new THREE.Matrix4(),
+          point = new THREE.Vector3();
+        let nearest = Infinity;
+        for (let i = 0; i < flowers.count; i++) {
+          flowers.getMatrixAt(i, matrix);
+          point.setFromMatrixPosition(matrix);
+          nearest = Math.min(nearest, point.distanceTo(new THREE.Vector3(...WUHAN_FLOWER_FOCUS)));
+        }
+        expect(nearest).toBeLessThan(0.00001);
+        const flowerShot = getCinematicKeyframes(WUHAN_PAINTING).find(
+          (shot) => shot.progress === 0.21,
+        )!;
+        expect(
+          new THREE.Vector3(...flowerShot.target).distanceTo(
+            new THREE.Vector3(...group.userData.flowerFocus),
+          ),
+        ).toBeLessThan(0.01);
+        expect(group.getObjectByName('Golden four-petal flower clusters')).toBeInstanceOf(
+          THREE.InstancedMesh,
+        );
+        expect(group.getObjectByName('Opposite glossy osmanthus leaves')).toBeInstanceOf(
+          THREE.InstancedMesh,
+        );
+      } finally {
+        disposeObject(group);
+      }
+    });
+  }
+
+  it('keeps the detailed near-tree leaf positions identical across quality tiers', () => {
+    const low = buildWuhan(WUHAN_PAINTING, 'low'),
+      high = buildWuhan(WUHAN_PAINTING, 'high');
     try {
-      let draws = 0,
-        triangles = 0;
-      group.traverse((object) => {
-        if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) draws++;
-        if (!(object instanceof THREE.Mesh)) return;
-        const instances = object instanceof THREE.InstancedMesh ? object.count : 1;
-        triangles +=
-          ((object.geometry.index?.count ?? object.geometry.attributes.position!.count) / 3) *
-          instances;
-        if (object instanceof THREE.InstancedMesh)
-          expect(Array.from(object.instanceMatrix.array).every(Number.isFinite)).toBe(true);
-      });
-      expect(draws).toBeLessThanOrEqual(15);
-      expect(triangles).toBeLessThanOrEqual(350000);
-      expect(group.getObjectByName('Dense evergreen crown interiors')).toBeUndefined();
-      expect(group.userData.flowerFocus).toHaveLength(3);
-      expect(group.userData.flowerFocus.every(Number.isFinite)).toBe(true);
-      const flowerShot = getCinematicKeyframes(WUHAN_PAINTING).find(
-        (shot) => shot.progress === 0.21,
-      )!;
-      expect(
-        new THREE.Vector3(...flowerShot.target).distanceTo(
-          new THREE.Vector3(...group.userData.flowerFocus),
-        ),
-      ).toBeLessThan(0.01);
-      expect(group.getObjectByName('Golden four-petal flower clusters')).toBeInstanceOf(
-        THREE.InstancedMesh,
+      const nearLow = low.getObjectByName(
+        'Opposite glossy osmanthus leaves',
+      ) as THREE.InstancedMesh;
+      const nearHigh = high.getObjectByName(
+        'Opposite glossy osmanthus leaves',
+      ) as THREE.InstancedMesh;
+      expect(nearLow.count).toBe(nearHigh.count);
+      expect(Array.from(nearLow.instanceMatrix.array)).toEqual(
+        Array.from(nearHigh.instanceMatrix.array),
       );
-      expect(group.getObjectByName('Opposite glossy osmanthus leaves')).toBeInstanceOf(
+    } finally {
+      disposeObject(low);
+      disposeObject(high);
+    }
+  });
+
+  it('animates sparse falling flowers deterministically and offsets rain ripple cycles', () => {
+    const group = buildWuhan(WUHAN_PAINTING, 'balanced');
+    try {
+      const petals = group.getObjectByName(
+        'Sparse windborne osmanthus petals',
+      ) as THREE.InstancedMesh;
+      const before = Array.from(petals.instanceMatrix.array.slice(0, 16));
+      updateWuhan(group, 7.4, 0.2);
+      const after = Array.from(petals.instanceMatrix.array);
+      expect(after.slice(0, 16)).not.toEqual(before);
+      updateWuhan(group, 7.4, 0.2);
+      expect(Array.from(petals.instanceMatrix.array)).toEqual(after);
+      const rings = group.getObjectByName('Expanding lake raindrop rings') as THREE.InstancedMesh;
+      expect(new Set(Array.from(rings.geometry.attributes.cycleSpeed!.array)).size).toBeGreaterThan(
+        60,
+      );
+      expect((rings.material as THREE.ShaderMaterial).uniforms.uTime!.value).toBe(7.4);
+      updateWuhan(group, Number.NaN, Number.POSITIVE_INFINITY);
+      expect(Array.from(petals.instanceMatrix.array).every(Number.isFinite)).toBe(true);
+      expect(group.getObjectByName('Fallen golden flowers below osmanthus crowns')).toBeInstanceOf(
         THREE.InstancedMesh,
       );
     } finally {

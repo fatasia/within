@@ -4,7 +4,7 @@ import { clamp, seededRandom } from './math';
 import { groundHeight } from './terrain';
 import { landscapeRiverCenter } from './geography';
 import { qingmingBridgeHeight, qingmingRiver } from './cityLayout';
-import { wuhanPath } from './wuhanLayout';
+import { wuhanPath, WUHAN_FLOWER_FOCUS } from './wuhanLayout';
 import { XISHAN_CARAVAN_FOCUS, XISHAN_EAVE_FOCUS } from './xishanLayout';
 
 export interface CinematicView {
@@ -237,15 +237,15 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       break;
     }
     case 'wuhan': {
-      const flower: Vec3 = [-18.5721, 5.3782, 10.0074];
-      const stone = ground(p, -5, wuhanPath(-5) + 3.8, 0.65);
+      const flower: Vec3 = WUHAN_FLOWER_FOCUS;
+      const stone = ground(p, -18.5, wuhanPath(-18.5), 0.05);
       const shelter = ground(p, 23, wuhanPath(23) + 1.6, 3.1);
       frames = [
         overview(p, 0),
         frame(0.1, '临湖桂树与石径', [-40, 9, 34], [-18, 4, 12]),
         frame(0.21, '桂枝的对生叶与花簇', offset(flower, 1.8, 0.7, 4.7), flower, true),
         frame(0.32, '细雨里的花与叶', offset(flower, 1.17, 0.32, 2.8), flower, true),
-        frame(0.43, '石凳与湿润石径', offset(stone, 4, 1.9, 4), stone, true),
+        frame(0.43, '湿石上的落桂与石缝', offset(stone, 1.9, 2, 2.6), stone, true),
         frame(0.66, '湖亭的瓦檐与木柱', offset(shelter, -10, 1.8, 10), shelter, true),
         frame(0.87, '烟水与远岸', [36, 5, 19], [6, 4, -94]),
         overview(p, 1),

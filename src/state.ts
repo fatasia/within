@@ -8,7 +8,7 @@ export const initialState: ExperienceState = {
   speed: 1,
   progress: 0,
   time: 'journey',
-  quality: 'balanced',
+  quality: 'high',
   sound: false,
   mist: true,
   period: 2,
@@ -32,9 +32,8 @@ export function restorePreferences(value: string | null): ExperienceState {
     return {
       ...initialState,
       painting: ids.includes(data.painting as PaintingId) ? data.painting! : initialState.painting,
-      quality: ['high', 'balanced', 'low'].includes(data.quality ?? '')
-        ? data.quality!
-        : initialState.quality,
+      // Every visit starts at full quality; manual changes apply to the current visit.
+      quality: initialState.quality,
       mist: typeof data.mist === 'boolean' ? data.mist : true,
       speed: [0.5, 1, 2].includes(data.speed ?? 0) ? data.speed! : 1,
       period: Math.round(clamp(data.period ?? 2, 0, 4)),
