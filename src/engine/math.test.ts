@@ -17,7 +17,7 @@ describe('deterministic landscape generation', () => {
   it('keeps noise bounded', () => {
     for (let i = -20; i < 20; i++) expect(noise(i * 0.34, i * 0.71, 4)).toBeGreaterThanOrEqual(0);
   });
-  it('has finite terrain and submerged edges in all nine worlds', () => {
+  it('has finite terrain and submerged edges in all ten worlds', () => {
     for (const p of PAINTINGS)
       for (const peak of p.peaks) {
         expect(Number.isFinite(peakHeight(peak, peak.x, peak.z))).toBe(true);
@@ -50,7 +50,7 @@ describe('deterministic landscape generation', () => {
 });
 describe('experience state', () => {
   it('has ordered reachable chapters and valid routes', () => {
-    expect(new Set(PAINTINGS.map((p) => p.id)).size).toBe(9);
+    expect(new Set(PAINTINGS.map((p) => p.id)).size).toBe(10);
     for (const p of PAINTINGS) {
       expect(p.route.length).toBeGreaterThan(3);
       expect(p.chapters).toHaveLength(5);

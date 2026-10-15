@@ -94,14 +94,14 @@ function buildGraph(
   wet.connect(music);
   const noise = noiseBuffer(context, 8, p.seed);
 
-  function loopBed(kind: 'wind' | 'water', level: number): void {
+  function loopBed(kind: 'wind' | 'water' | 'rain', level: number): void {
     if (!level) return;
     const source = own(context.createBufferSource());
     source.buffer = noise;
     source.loop = true;
     const filter = own(context.createBiquadFilter());
-    filter.type = kind === 'wind' ? 'bandpass' : 'lowpass';
-    filter.frequency.value = kind === 'wind' ? 390 : 1850;
+    filter.type = kind === 'wind' ? 'bandpass' : kind === 'rain' ? 'highpass' : 'lowpass';
+    filter.frequency.value = kind === 'wind' ? 390 : kind === 'rain' ? 2400 : 1850;
     filter.Q.value = kind === 'wind' ? 0.45 : 0.7;
     const gain = own(context.createGain());
     gain.gain.value = level * (kind === 'wind' ? 0.19 : 0.16);
@@ -119,6 +119,7 @@ function buildGraph(
   }
   loopBed('wind', p.wind);
   loopBed('water', p.water);
+  loopBed('rain', p.rain ?? 0);
   if (p.market) {
     // Three soft, irregular bands evoke a distant crowd without fabricated speech.
     // All layers remain on the environmental bus, including their slow modulation.

@@ -18,7 +18,7 @@ async function setTime(page: Page, label: '晴昼' | '夜色'): Promise<void> {
   await page.getByRole('button', { name: '关闭设置', exact: true }).click();
 }
 
-test('nine worlds, navigation, settings, dialogs and screenshots', async ({ page }) => {
+test('ten worlds, navigation, settings, dialogs and screenshots', async ({ page }) => {
   // Procedural rebuilds and screenshots can exceed a minute on software WebGL.
   test.setTimeout(120000);
   const errors = trackErrors(page);
@@ -34,6 +34,7 @@ test('nine worlds, navigation, settings, dialogs and screenshots', async ({ page
     ['qingming', '清明上河图'],
     ['guilin', '漓江 · 黄布倒影'],
     ['zhangjiajie', '武陵源 · 云起峰林'],
+    ['wuhan', '武汉 · 桂雨东湖'],
     ['empire', '帝国的进程'],
   ]) {
     await page.getByRole('button', { name: `选择${title}`, exact: true }).click();

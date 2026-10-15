@@ -14,12 +14,18 @@ import { getWalkStart, walkFieldOfView } from './viewpoints';
 import { createPainterlyStarrySky, buildStarryDetails } from './starry';
 import { buildRiver, type River } from './river';
 import { paintFilmFrame } from './film';
+import { getCinematicView } from './cinematography';
+import { buildEasterEgg } from './easterEgg';
 import { buildQingming } from './qingming';
 import { buildLandscapeDetails } from './landscapes';
+import { buildWuhan, updateWuhan } from './wuhan';
+import { getWuhanGround, wuhanPath } from './wuhanLayout';
+import { pointerDistance, scrollZoom, walkInput, wheelPixels } from './interaction';
 
 interface Callbacks {
   onTelemetry: (data: Telemetry) => void;
   onError: (message: string) => void;
+  onEncounter?: () => void;
 }
 const vector = (v: readonly number[]) => new THREE.Vector3(v[0], v[1], v[2]);
 export class Experience {
@@ -35,6 +41,7 @@ export class Experience {
   private halos: THREE.Mesh | null = null;
   private mist = new THREE.Group();
   private empire: THREE.Group | null = null;
+  private wuhan: THREE.Group | null = null;
   private boats: THREE.Group[] = [];
   private birds: THREE.LineSegments | null = null;
   private route: THREE.CatmullRomCurve3;
@@ -47,7 +54,16 @@ export class Experience {
   private yaw = 0;
   private pitch = 0;
   private keys = new Set<string>();
-  private pointer: { x: number; y: number; id: number } | null = null;
+  private pointers = new Map<number, { x: number; y: number }>();
+  private walkPointer: number | null = null;
+  private pointerTravel = 0;
+  private pickPointers = new Map<number, { x: number; y: number; travel: number }>();
+  private pickBlocked = false;
+  private suppressPointerLockClick = false;
+  private encounterRay = new THREE.Raycaster();
+  private walkInitialized = false;
+  private stick = { x: 0, y: 0 };
+  private scrollMagnification = 1;
   private frame = 0;
   private lastTime = 0;
   private statsTime = 0;
@@ -88,9 +104,16 @@ export class Experience {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.065;
-    this.controls.minDistance = 8;
+    this.controls.minDistance = 1.2;
     this.controls.maxDistance = 300;
     this.controls.maxPolarAngle = Math.PI * 0.48;
+    this.controls.mouseButtons = {
+      LEFT: THREE.MOUSE.PAN,
+      MIDDLE: THREE.MOUSE.DOLLY,
+      RIGHT: THREE.MOUSE.ROTATE,
+    };
+    this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+    this.renderer.domElement.style.touchAction = 'none';
     this.controls.enabled = false;
     this.scene.add(this.sun, this.ambient, this.content);
     this.sun.position.set(-80, 140, 60);
@@ -115,6 +138,12 @@ export class Experience {
     this.frame = requestAnimationFrame(this.tick);
   }
   private loadPainting(): void {
+    this.clearInput();
+    this.releasePointerLock();
+    this.walkInitialized = false;
+    this.scrollMagnification = 1;
+    this.camera.zoom = 1;
+    this.camera.updateProjectionMatrix();
     this.river?.dispose();
     this.river = null;
     disposeObject(this.content);
@@ -123,11 +152,12 @@ export class Experience {
     this.sky = null;
     this.halos = null;
     this.empire = null;
+    this.wuhan = null;
     this.painting = getPainting(this.state.painting);
     this.route = new THREE.CatmullRomCurve3(this.painting.route.map(vector));
     this.progress = 0;
     const terrain = buildTerrain(this.painting);
-    const custom = ['qingming', 'zhangjiajie', 'guilin'].includes(this.painting.id);
+    const custom = ['qingming', 'zhangjiajie', 'guilin', 'wuhan'].includes(this.painting.id);
     const village = custom ? new THREE.Group() : buildVillage(this.painting);
     this.halos = createWindowHalos(village);
     this.content.add(
@@ -142,6 +172,23 @@ export class Experience {
     if (this.painting.id === 'qingming') this.content.add(buildQingming(this.painting));
     if (this.painting.id === 'zhangjiajie' || this.painting.id === 'guilin')
       this.content.add(buildLandscapeDetails(this.painting));
+    if (this.painting.id === 'wuhan') {
+      this.wuhan = buildWuhan(this.painting);
+      this.content.add(this.wuhan);
+    }
+    this.content.add(
+      buildEasterEgg(
+        this.painting,
+        this.painting.id === 'wuhan'
+          ? {
+              x: 18,
+              z: wuhanPath(18) - 0.5,
+              y: getWuhanGround(18, wuhanPath(18) - 0.5) + 0.05,
+              yaw: 0,
+            }
+          : undefined,
+      ),
+    );
     this.rebuildRiver();
     if (this.painting.id === 'starry' || this.painting.id === 'winter') {
       this.sky = this.painting.id === 'starry' ? createPainterlyStarrySky() : createWinterSky();
@@ -154,7 +201,8 @@ export class Experience {
       this.empire = batchStatic(buildEmpire(this.state.period));
       this.content.add(this.empire);
     }
-    if (!custom && this.painting.id !== 'starry' && this.painting.id !== 'winter') {
+    // Xishan is a mountain stream composition, not a navigable river village.
+    if (!custom && !['starry', 'winter', 'xishan'].includes(this.painting.id)) {
       for (let i = 0; i < 5; i++) {
         const b = boat(this.painting.id === 'empire' ? 'classical' : 'river');
         b.scale.setScalar(0.6 + i * 0.04);
@@ -165,16 +213,7 @@ export class Experience {
         this.boats.push(b);
         this.content.add(b);
       }
-      if (this.painting.id !== 'empire')
-        this.content.add(
-          batchStatic(
-            bridge(
-              this.painting,
-              this.painting.id === 'xishan' ? -3 : 1,
-              this.painting.id === 'xishan' ? 19 : 7,
-            ),
-          ),
-        );
+      if (this.painting.id !== 'empire') this.content.add(batchStatic(bridge(this.painting, 1, 7)));
     }
     for (let i = 0; i < 10; i++) {
       const mesh = new THREE.Mesh(
@@ -245,13 +284,22 @@ export class Experience {
     if (next.quality !== previous.quality) this.setQuality();
     if (next.period !== previous.period && next.painting === 'empire') this.setPeriod(next.period);
     if (next.mode !== previous.mode || next.entered !== previous.entered) {
+      this.clearInput();
+      if (next.mode !== 'walk' || !next.entered) this.releasePointerLock();
       this.resize();
       this.controls.enabled = next.entered && next.mode === 'orbit';
       if (next.mode === 'orbit') {
-        this.controls.target.copy(this.currentTarget);
+        // Flush old orbit inertia without inheriting an earlier visit's camera.
+        const eye = this.currentEye.clone(),
+          target = this.currentTarget.clone();
+        this.controls.enableDamping = false;
         this.controls.update();
+        this.camera.position.copy(eye);
+        this.controls.target.copy(target);
+        this.controls.update();
+        this.controls.enableDamping = true;
       }
-      if (next.mode === 'walk') this.resetWalk();
+      if (next.mode === 'walk' && !this.walkInitialized) this.resetWalk();
     }
     this.mist.visible = next.mist && next.quality !== 'low';
   }
@@ -264,6 +312,7 @@ export class Experience {
     this.content.add(this.empire);
   }
   private resetWalk(): void {
+    this.walkInitialized = true;
     const p = this.painting;
     const { x, z, yaw, pitch } = getWalkStart(p.id);
     this.walkingPosition.set(x, Math.max(0.3, groundHeight(p, x, z)) + 1.8, z);
@@ -294,19 +343,77 @@ export class Experience {
     this.camera.aspect = w / h;
     this.camera.fov =
       this.state.entered && this.state.mode === 'walk' ? walkFieldOfView(w, h) : w < h ? 52 : 39;
+    this.camera.zoom =
+      this.state.entered && this.state.mode === 'scroll' && !this.filmActive
+        ? this.scrollMagnification
+        : 1;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(w, h, false);
   }
   private bindEvents(): void {
     const canvas = this.renderer.domElement,
       options = { signal: this.abort.signal };
+    // Picking tracks its own gesture so it also works while OrbitControls owns navigation.
+    canvas.addEventListener(
+      'pointerdown',
+      (event) => {
+        if (!this.state.entered || this.filmActive || event.button !== 0) return;
+        if (this.pickPointers.size === 0) {
+          this.pickBlocked = false;
+          this.suppressPointerLockClick = false;
+          this.pointerTravel = 0;
+        } else this.pickBlocked = true;
+        this.pickPointers.set(event.pointerId, { x: event.clientX, y: event.clientY, travel: 0 });
+      },
+      options,
+    );
+    canvas.addEventListener(
+      'pointermove',
+      (event) => {
+        const pointer = this.pickPointers.get(event.pointerId);
+        if (!pointer) return;
+        pointer.travel +=
+          document.pointerLockElement === canvas
+            ? Math.hypot(event.movementX, event.movementY)
+            : Math.hypot(event.clientX - pointer.x, event.clientY - pointer.y);
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+      },
+      options,
+    );
+    canvas.addEventListener(
+      'pointerup',
+      (event) => {
+        const pointer = this.pickPointers.get(event.pointerId);
+        if (
+          pointer &&
+          event.button === 0 &&
+          !this.pickBlocked &&
+          this.pickPointers.size === 1 &&
+          pointer.travel <= 6 &&
+          this.pointerTravel <= 6 &&
+          this.pickEncounter(event.clientX, event.clientY)
+        ) {
+          this.suppressPointerLockClick = true;
+        }
+        this.pickPointers.delete(event.pointerId);
+      },
+      options,
+    );
+    const cancelPick = (event: PointerEvent) => this.pickPointers.delete(event.pointerId);
+    canvas.addEventListener('pointercancel', cancelPick, options);
+    canvas.addEventListener('lostpointercapture', cancelPick, options);
     canvas.addEventListener(
       'wheel',
       (e) => {
-        if (this.state.mode === 'scroll' && this.state.entered) {
+        if (this.state.mode === 'scroll' && this.state.entered && !this.filmActive) {
           e.preventDefault();
-          this.state.playing = false;
-          this.progress = clamp(this.progress + e.deltaY * 0.00035);
+          const delta = wheelPixels(e, this.host.clientHeight);
+          if (e.ctrlKey) this.adjustScrollZoom(Math.exp(-clamp(delta.dominant, -500, 500) * 0.002));
+          else {
+            this.state.playing = false;
+            this.progress = clamp(this.progress + clamp(delta.dominant, -1000, 1000) * 0.00035);
+          }
           this.emitStats();
         }
       },
@@ -315,44 +422,129 @@ export class Experience {
     canvas.addEventListener(
       'pointerdown',
       (e) => {
-        if (this.state.mode === 'orbit' || this.filmActive) return;
+        if (this.state.mode === 'orbit' || this.filmActive || !this.state.entered) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if (this.state.mode === 'walk') {
+          // The left half belongs to the joystick; one right-hand pointer owns look.
+          if (
+            e.pointerType === 'touch' &&
+            e.clientX < canvas.getBoundingClientRect().left + canvas.clientWidth / 2
+          )
+            return;
+          if (this.walkPointer !== null) return;
+          this.walkPointer = e.pointerId;
+        }
         canvas.focus({ preventScroll: true });
-        this.pointer = { x: e.clientX, y: e.clientY, id: e.pointerId };
-        canvas.setPointerCapture(e.pointerId);
+        if (this.pointers.size >= 2) return;
+        this.pointerTravel = 0;
+        this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (document.pointerLockElement !== canvas) canvas.setPointerCapture(e.pointerId);
       },
       options,
     );
     canvas.addEventListener(
       'pointermove',
       (e) => {
-        if (!this.pointer) return;
-        const dx = e.clientX - this.pointer.x,
-          dy = e.clientY - this.pointer.y;
+        if (this.filmActive || document.pointerLockElement === canvas) return;
+        const pointer = this.pointers.get(e.pointerId);
+        if (!pointer) return;
+        const distance = pointerDistance(this.pointers.values());
+        const dx = e.clientX - pointer.x,
+          dy = e.clientY - pointer.y;
+        this.pointerTravel += Math.hypot(dx, dy);
+        this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (this.state.mode === 'walk') {
-          this.yaw -= dx * 0.004;
-          this.pitch = clamp(this.pitch - dy * 0.003, -1, 1);
-        } else if (this.state.entered) {
-          this.progress = clamp(this.progress - dx * 0.001);
+          if (e.pointerId === this.walkPointer) this.look(dx, dy);
+        } else if (this.state.mode === 'scroll' && this.state.entered) {
+          if (this.pointers.size === 2) {
+            const nextDistance = pointerDistance(this.pointers.values());
+            if (distance > 1 && nextDistance > 1) this.adjustScrollZoom(nextDistance / distance);
+          } else this.progress = clamp(this.progress - dx * 0.001);
           this.state.playing = false;
+          this.emitStats();
         }
-        this.pointer = { x: e.clientX, y: e.clientY, id: e.pointerId };
       },
       options,
     );
-    const release = () => {
-      this.pointer = null;
+    const release = (event: PointerEvent) => {
+      this.pointers.delete(event.pointerId);
+      if (this.walkPointer === event.pointerId) this.walkPointer = null;
     };
     canvas.addEventListener('pointerup', release, options);
     canvas.addEventListener('pointercancel', release, options);
+    canvas.addEventListener('lostpointercapture', release, options);
+    canvas.addEventListener(
+      'click',
+      (event) => {
+        if (this.suppressPointerLockClick) {
+          this.suppressPointerLockClick = false;
+          return;
+        }
+        if (
+          this.state.mode !== 'walk' ||
+          !this.state.entered ||
+          this.filmActive ||
+          (event instanceof PointerEvent && event.pointerType !== 'mouse') ||
+          this.pointerTravel > 5 ||
+          !canvas.requestPointerLock ||
+          document.pointerLockElement === canvas
+        )
+          return;
+        try {
+          // Unsupported or denied pointer lock falls back to drag-to-look.
+          const request = canvas.requestPointerLock();
+          if (request) void request.catch(() => {});
+        } catch {
+          /* Drag-to-look remains available. */
+        }
+      },
+      options,
+    );
+    document.addEventListener(
+      'mousemove',
+      (event) => {
+        if (
+          document.pointerLockElement === canvas &&
+          this.state.mode === 'walk' &&
+          !this.filmActive
+        )
+          this.look(event.movementX, event.movementY);
+      },
+      options,
+    );
+    document.addEventListener(
+      'pointerlockchange',
+      () => {
+        this.clearInput();
+      },
+      options,
+    );
     window.addEventListener(
       'keydown',
       (e) => {
         if (
           e.target instanceof HTMLInputElement ||
           e.target instanceof HTMLSelectElement ||
-          e.target instanceof HTMLTextAreaElement
+          e.target instanceof HTMLTextAreaElement ||
+          (e.target instanceof HTMLElement && e.target.isContentEditable) ||
+          document.querySelector('dialog[open]') ||
+          this.filmActive
         )
           return;
+        if (e.code === 'Escape') {
+          this.releasePointerLock();
+          this.clearInput();
+          return;
+        }
+        if (
+          this.state.entered &&
+          this.state.mode === 'scroll' &&
+          ['Equal', 'Minus', 'NumpadAdd', 'NumpadSubtract'].includes(e.code)
+        ) {
+          e.preventDefault();
+          this.adjustScrollZoom(['Minus', 'NumpadSubtract'].includes(e.code) ? 1 / 1.12 : 1.12);
+          return;
+        }
         if (
           [
             'KeyW',
@@ -364,22 +556,35 @@ export class Experience {
             'ArrowLeft',
             'ArrowRight',
             'ShiftLeft',
+            'ShiftRight',
           ].includes(e.code) &&
           this.state.entered
         ) {
           e.preventDefault();
           this.keys.add(e.code);
+          if (this.state.mode === 'scroll' && ['ArrowLeft', 'ArrowRight'].includes(e.code)) {
+            this.state.playing = false;
+            this.emitStats();
+          }
         }
       },
       options,
     );
     window.addEventListener('keyup', (e) => this.keys.delete(e.code), options);
-    window.addEventListener('blur', () => this.keys.clear(), options);
+    window.addEventListener(
+      'blur',
+      () => {
+        this.clearInput();
+        this.releasePointerLock();
+      },
+      options,
+    );
     document.addEventListener(
       'visibilitychange',
       () => {
         this.lastTime = 0;
-        this.keys.clear();
+        this.clearInput();
+        if (document.hidden) this.releasePointerLock();
       },
       options,
     );
@@ -393,6 +598,59 @@ export class Experience {
       options,
     );
   }
+  private look(dx: number, dy: number): void {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    this.yaw -= dx * 0.004;
+    this.pitch = clamp(this.pitch - dy * 0.003, -1.35, 1.35);
+  }
+  private pickEncounter(clientX: number, clientY: number): boolean {
+    if (!this.state.entered || this.filmActive || !this.callbacks.onEncounter) return false;
+    const visitor = this.content.getObjectByName('Quiet visitor');
+    if (!visitor || !visitor.visible) return false;
+    const canvas = this.renderer.domElement;
+    const bounds = canvas.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return false;
+    const point =
+      document.pointerLockElement === canvas
+        ? new THREE.Vector2(0, 0)
+        : new THREE.Vector2(
+            ((clientX - bounds.left) / bounds.width) * 2 - 1,
+            1 - ((clientY - bounds.top) / bounds.height) * 2,
+          );
+    this.camera.updateMatrixWorld();
+    visitor.updateWorldMatrix(true, true);
+    this.encounterRay.setFromCamera(point, this.camera);
+    if (!this.encounterRay.intersectObject(visitor, true).length) return false;
+    this.state.playing = false;
+    this.emitStats();
+    this.clearInput();
+    this.releasePointerLock();
+    this.callbacks.onEncounter();
+    return true;
+  }
+  private adjustScrollZoom(factor: number): void {
+    this.scrollMagnification = scrollZoom(this.scrollMagnification, factor);
+    this.camera.zoom = this.scrollMagnification;
+    this.camera.updateProjectionMatrix();
+  }
+  private releasePointerLock(): void {
+    if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock();
+  }
+  private clearInput(): void {
+    this.keys.clear();
+    this.stick = { x: 0, y: 0 };
+    for (const id of this.pointers.keys()) {
+      if (this.renderer.domElement.hasPointerCapture(id))
+        this.renderer.domElement.releasePointerCapture(id);
+    }
+    this.pointers.clear();
+    this.pickPointers.clear();
+    this.walkPointer = null;
+  }
+  /** Analogue movement: x is right, y is forward; releasing the stick sends (0, 0). */
+  setWalkInput(x: number, y: number): void {
+    this.stick = walkInput(x, y);
+  }
   setMovement(key: string, pressed: boolean): void {
     if (pressed) this.keys.add(key);
     else this.keys.delete(key);
@@ -400,16 +658,18 @@ export class Experience {
   private walk(dt: number): void {
     let forward =
       Number(this.keys.has('KeyW') || this.keys.has('ArrowUp')) -
-      Number(this.keys.has('KeyS') || this.keys.has('ArrowDown'));
+      Number(this.keys.has('KeyS') || this.keys.has('ArrowDown')) +
+      this.stick.y;
     let side =
       Number(this.keys.has('KeyD') || this.keys.has('ArrowRight')) -
-      Number(this.keys.has('KeyA') || this.keys.has('ArrowLeft'));
+      Number(this.keys.has('KeyA') || this.keys.has('ArrowLeft')) +
+      this.stick.x;
     const magnitude = Math.hypot(forward, side);
-    if (magnitude > 0) {
+    if (magnitude > 1) {
       forward /= magnitude;
       side /= magnitude;
     }
-    const speed = this.keys.has('ShiftLeft') ? 11 : 5;
+    const speed = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? 11 : 5;
     const x =
       this.walkingPosition.x +
       (-Math.sin(this.yaw) * forward + Math.cos(this.yaw) * side) * dt * speed;
@@ -444,50 +704,9 @@ export class Experience {
       let eye = overviewEye,
         target = overviewTarget;
       if (this.state.entered) {
-        const p = this.route.getPointAt(clamp(this.progress)),
-          next = this.route.getPointAt(clamp(this.progress + 0.07));
-        const height = this.painting.id === 'qianli' ? 43 : 29;
-        eye = new THREE.Vector3(
-          p.x + 21,
-          height + Math.sin(this.progress * Math.PI) * 7,
-          p.z + 104,
-        );
-        target = new THREE.Vector3(next.x, this.painting.id === 'qianli' ? 27 : 16, -30);
-        if (this.painting.id === 'xishan') {
-          eye.set(p.x + 28, 34 + this.progress * 18, p.z + 155);
-          target.set(0, 47, -35);
-        }
-        if (this.painting.id === 'starry') {
-          eye.set(p.x + 18, 15 + this.progress * 9, p.z + 49);
-          target.set(next.x, 13, -32);
-        }
-        if (this.painting.id === 'winter') {
-          eye.set(
-            18 - this.progress * 26,
-            11 + Math.sin(this.progress * Math.PI) * 9,
-            142 - this.progress * 38,
-          );
-          target.set(0, 35, -65);
-        }
-        if (this.painting.id === 'qingming') {
-          eye.set(p.x + 24, 37 + Math.sin(this.progress * Math.PI) * 9, p.z + 100);
-          target.set(next.x, 4, -25);
-        }
-        if (this.painting.id === 'zhangjiajie') {
-          eye.set(p.x + 12, 44 + Math.sin(this.progress * Math.PI) * 13, p.z + 130);
-          target.set(next.x, 39, -30);
-        }
-        if (this.painting.id === 'guilin') {
-          eye.set(p.x + 18, 25 + Math.sin(this.progress * Math.PI) * 9, p.z + 112);
-          target.set(next.x, 22, -37);
-        }
-        // Gentle establish and resolve: avoid an abrupt jump into a cropped mountain.
-        const intro = 1 - THREE.MathUtils.smoothstep(this.progress, 0, 0.12);
-        eye.lerp(overviewEye, intro);
-        target.lerp(overviewTarget, intro);
-        const end = THREE.MathUtils.smoothstep(this.progress, 0.82, 1);
-        eye.lerp(overviewEye, end);
-        target.lerp(overviewTarget, end);
+        const shot = getCinematicView(this.painting, this.progress);
+        eye = vector(shot.eye);
+        target = vector(shot.target);
       } else {
         eye.x += Math.sin(this.idleTime * 0.07) * 2;
         eye.z += Math.cos(this.idleTime * 0.07) * 2;
@@ -542,6 +761,7 @@ export class Experience {
       if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.copy(color);
     }
     this.river?.update(this.elapsed, this.night);
+    if (this.wuhan) updateWuhan(this.wuhan, this.elapsed, this.night);
     if (this.sky) {
       const uniforms = (this.sky.material as THREE.ShaderMaterial).uniforms;
       if (uniforms.uTime) uniforms.uTime.value = this.elapsed;
@@ -574,9 +794,10 @@ export class Experience {
       this.state.mode === 'scroll'
     )
       this.progress = clamp(this.progress + (dt * this.state.speed) / 150);
-    if (this.state.mode === 'scroll' && this.state.entered) {
+    if (this.state.mode === 'scroll' && this.state.entered && !this.filmActive) {
       const direction = Number(this.keys.has('ArrowRight')) - Number(this.keys.has('ArrowLeft'));
-      this.progress = clamp(this.progress + direction * dt * 0.075);
+      const boost = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? 4 : 1;
+      this.progress = clamp(this.progress + direction * dt * 0.075 * boost);
     }
     this.updateCamera(dt);
     this.updateAtmosphere(dt);
@@ -609,6 +830,9 @@ export class Experience {
   }
   resetView(): void {
     this.progress = 0;
+    this.scrollMagnification = 1;
+    this.clearInput();
+    this.resize();
     if (this.state.mode === 'walk') this.resetWalk();
     if (this.state.mode === 'orbit') {
       this.camera.position.copy(vector(this.painting.overview.eye));
@@ -651,6 +875,7 @@ export class Experience {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.fov = width < height ? 52 : 39;
+    this.camera.zoom = 1;
     this.camera.updateProjectionMatrix();
   }
   renderOfflineFrame(progress: number, time: number): string {
@@ -845,6 +1070,8 @@ export class Experience {
   }
   dispose(): void {
     this.disposed = true;
+    this.clearInput();
+    this.releasePointerLock();
     this.filmCancel?.();
     cancelAnimationFrame(this.frame);
     this.abort.abort();

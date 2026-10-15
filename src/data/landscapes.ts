@@ -80,31 +80,34 @@ export const REAL_LANDSCAPES: Painting[] = [
       {
         title: '峰林初见',
         subtitle: 'THE STONE FOREST',
-        description: '细长石柱与深谷相间，山的尺度从这里展开。',
+        description:
+          '细长砂岩石柱在林木后方错落升起，柱顶的小树与谷底溪水相隔很远，先看清峰谷尺度。',
         progress: 0,
       },
       {
         title: '溪谷听泉',
         subtitle: 'THE STREAM',
-        description: '低头看溪石与浅滩，抬头才见石峰的全貌。',
+        description: '溪边浅滩散着湿色岸石，石板沿水线铺成小路；从低处抬头，石峰越过树冠伸向天空。',
         progress: 0.22,
       },
       {
         title: '绝壁松影',
         subtitle: 'PINES ON THE CLIFF',
-        description: '根系握住岩隙，树冠在砂岩的层理上投下细影。',
+        description:
+          '弯曲松干与扁平树冠停在石峰顶部，近峰岩面可见横向层纹；深绿树色衬出砂岩的灰黄。',
         progress: 0.43,
       },
       {
         title: '云过群峰',
         subtitle: 'PASSING CLOUDS',
-        description: '近峰有纹理，远峰只留下青灰色轮廓。',
+        description: '近处石柱保留层纹与岩壁折面，后方峰林逐渐变淡；薄雾穿在山间，把几重距离分开。',
         progress: 0.66,
       },
       {
         title: '山海无声',
         subtitle: 'BEYOND THE RIDGES',
-        description: '回望谷地，连绵的峰林在雾中隐去。',
+        description:
+          '回望溪谷与岸边石路，前后石柱交错成林；远峰在青灰薄雾里相接，谷底只留一道水光。',
         progress: 0.87,
       },
     ],
@@ -159,31 +162,35 @@ export const REAL_LANDSCAPES: Painting[] = [
       {
         title: '江上初晴',
         subtitle: 'AFTER THE RAIN',
-        description: '石峰沿江展开，山色被平静的水面轻轻接住。',
+        description:
+          '圆肩石峰沿宽阔江面排开，较低近山与后排高峰彼此错开，岸边小石让远近更容易分辨。',
         progress: 0,
       },
       {
         title: '竹岸微风',
         subtitle: 'THE BAMBOO BANK',
-        description: '近岸竹节清晰，细长叶片透出天光。',
+        description:
+          '近岸竹竿留着一节节细环，侧枝伸出狭长叶片；从竹丛间望出去，江面与石峰仍有留白。',
         progress: 0.21,
       },
       {
         title: '黄布倒影',
         subtitle: 'MOUNTAINS REFLECTED',
-        description: '留一片宽阔江面，让山与倒影共同构图。',
+        description: '把视线放低，让宽阔江面占据前景；水纹与山色相叠，远岸圆肩石峰沿天际疏密展开。',
         progress: 0.43,
       },
       {
         title: '竹筏归来',
         subtitle: 'THE RAFT',
-        description: '竹筏擦过浅滩，撑篙、竹节与岸石近在眼前。',
+        description:
+          '竹筏的并排竹竿与横向绑绳清晰可见，戴斗笠的人立在筏上持篙，岸边还有低矮木栈台。',
         progress: 0.66,
       },
       {
         title: '江天一色',
         subtitle: 'RIVER AND SKY',
-        description: '江水向两侧远去，峰林留在安静的天际。',
+        description:
+          '江面向远处敞开，竹岸与竹筏退成小小细节；几重灰绿石峰相互掩映，天水之间留出空隙。',
         progress: 0.87,
       },
     ],

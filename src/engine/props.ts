@@ -3,6 +3,13 @@ import type { Painting } from '../types';
 import { groundHeight, peakHeight } from './terrain';
 import { seededRandom } from './math';
 import { curveRod, gableGeometry, pineCrownGeometry, rod } from './modelGeometry';
+import {
+  isXishanClearing,
+  XISHAN_HOUSE,
+  XISHAN_CARAVAN_FOCUS,
+  XISHAN_EAVE_FOCUS,
+  xishanPathCenter,
+} from './xishanLayout';
 
 function material(color: string): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, roughness: 1 });
@@ -342,7 +349,7 @@ export function buildForest(painting: Painting): THREE.Group {
     for (let i = 0; i < count; i++) {
       const x = peak.x + (random() - 0.5) * peak.radius * 1.75,
         z = peak.z + (random() - 0.5) * peak.radius * 1.4;
-      const y = peakHeight(peak, x, z);
+      const y = painting.id === 'xishan' ? groundHeight(painting, x, z) : peakHeight(peak, x, z);
       const slope = Math.hypot(
         peakHeight(peak, x + 0.6, z) - peakHeight(peak, x - 0.6, z),
         peakHeight(peak, x, z + 0.6) - peakHeight(peak, x, z - 0.6),
@@ -354,63 +361,107 @@ export function buildForest(painting: Painting): THREE.Group {
         groundHeight(painting, x, z) > y + 0.5
       )
         continue;
-      transforms.push({ x, y, z, s: 0.7 + random() * 1.2, r: random() * Math.PI * 2 });
+      const s = 0.7 + random() * 1.2,
+        r = random() * Math.PI * 2;
+      if (painting.id === 'xishan' && isXishanClearing(x, z, s * 3)) continue;
+      transforms.push({ x, y, z, s, r });
     }
   }
-  const bark = material('#514a35');
-  const trunk = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.055, 0.16, 3.3, 6),
-    bark,
-    transforms.length,
-  );
-  const branches = new THREE.InstancedMesh(
-    new THREE.CylinderGeometry(0.025, 0.075, 1, 5),
-    bark,
-    transforms.length * 6,
-  );
-  const canopy = new THREE.InstancedMesh(
-    pineCrownGeometry(),
-    material(painting.palette.leaf),
-    transforms.length * 6,
-  );
+  const sparse = painting.id === 'fuchun',
+    dense = painting.id === 'xishan';
+  // Placement remains stable; the shape stream varies branching without moving the forest.
+  const shapeRandom = seededRandom(painting.seed + 840);
+  const trees = transforms.map((tree) => ({
+    ...tree,
+    crowns: (sparse ? 3 : dense ? 5 : 4) + Math.floor(shapeRandom() * 3),
+    height: 0.83 + shapeRandom() * 0.38,
+    width: 0.77 + shapeRandom() * 0.45,
+    bend: (shapeRandom() - 0.5) * 0.17,
+  }));
+  const crownCount = trees.reduce((count, tree) => count + tree.crowns, 0);
+  const bark = material(sparse ? '#6c6656' : dense ? '#49483b' : '#514a35');
+  const trunkGeometry = new THREE.CylinderGeometry(0.045, 0.14, 3.3, 6, 3);
+  const trunkCenter = (t: number) => [
+    0.2 * t * t + Math.sin(t * Math.PI) * 0.13,
+    Math.sin(t * Math.PI * 1.3) * 0.06,
+  ];
+  const trunkPositions = trunkGeometry.getAttribute('position');
+  for (let i = 0; i < trunkPositions.count; i++) {
+    const y = trunkPositions.getY(i),
+      t = (y + 1.65) / 3.3;
+    const [x, z] = trunkCenter(t);
+    trunkPositions.setXYZ(i, trunkPositions.getX(i) + x!, y, trunkPositions.getZ(i) + z!);
+  }
+  trunkGeometry.computeVertexNormals();
+  const branchGeometry = new THREE.CylinderGeometry(0.018, 0.065, 1, 5, 2);
+  const branchPositions = branchGeometry.getAttribute('position');
+  for (let i = 0; i < branchPositions.count; i++) {
+    const y = branchPositions.getY(i);
+    branchPositions.setX(i, branchPositions.getX(i) + Math.sin((y + 0.5) * Math.PI) * 0.09);
+  }
+  branchGeometry.computeVertexNormals();
+  const trunk = new THREE.InstancedMesh(trunkGeometry, bark, trees.length);
+  const branches = new THREE.InstancedMesh(branchGeometry, bark, crownCount);
+  // Instance colors are the leaf pigment; a white base avoids multiplying that pigment twice.
+  const canopy = new THREE.InstancedMesh(pineCrownGeometry(), material('#ffffff'), crownCount);
+  trunk.name = 'Bent pine trunks';
+  branches.name = 'Irregular pine branches';
+  canopy.name = 'Broken needle sprays';
   const dummy = new THREE.Object3D(),
     up = new THREE.Vector3(0, 1, 0);
   const start = new THREE.Vector3(),
     end = new THREE.Vector3(),
     direction = new THREE.Vector3();
   const leafColor = new THREE.Color(painting.palette.leaf);
-  transforms.forEach((t, i) => {
-    dummy.position.set(
-      t.x + Math.cos(t.r) * t.s * 0.13,
-      t.y + t.s * 1.58,
-      t.z + Math.sin(t.r) * t.s * 0.13,
-    );
-    dummy.scale.setScalar(t.s);
-    dummy.rotation.set(Math.sin(t.r) * 0.1, t.r, -Math.cos(t.r) * 0.1);
+  if (sparse) leafColor.lerp(new THREE.Color('#a5a18b'), 0.23);
+  if (dense) leafColor.multiplyScalar(0.76);
+  let crownIndex = 0;
+  trees.forEach((t, i) => {
+    dummy.position.set(t.x, t.y + t.s * t.height * 1.65, t.z);
+    dummy.scale.set(t.s * t.width, t.s * t.height, t.s * t.width);
+    dummy.rotation.set(0, t.r, 0);
     dummy.updateMatrix();
     trunk.setMatrixAt(i, dummy.matrix);
-    for (let j = 0; j < 6; j++) {
-      const angle = t.r + j * 2.35;
-      const spread = (1.05 - j * 0.09) * t.s;
-      const yy = t.y + t.s * (1.65 + j * 0.3);
-      start.set(t.x, yy - 0.35 * t.s, t.z);
-      end.set(t.x + Math.cos(angle) * spread, yy, t.z + Math.sin(angle) * spread);
+    for (let j = 0; j < t.crowns; j++) {
+      const level = (j + 0.22 + shapeRandom() * 0.54) / t.crowns;
+      const attachment = 0.38 + level * 0.58;
+      const [localX, localZ] = trunkCenter(attachment);
+      const sx = localX! * t.s * t.width,
+        sz = localZ! * t.s * t.width;
+      const angle = t.r + (j % 2 ? Math.PI : 0) + (shapeRandom() - 0.5) * 1.65;
+      const spread = (0.66 + shapeRandom() * 0.68) * (1 - level * 0.42) * t.s * t.width;
+      start.set(
+        t.x + sx * Math.cos(t.r) + sz * Math.sin(t.r),
+        t.y + attachment * 3.3 * t.s * t.height,
+        t.z - sx * Math.sin(t.r) + sz * Math.cos(t.r),
+      );
+      end
+        .copy(start)
+        .add(
+          new THREE.Vector3(
+            Math.cos(angle) * spread,
+            (0.11 + shapeRandom() * 0.25 + t.bend) * t.s,
+            Math.sin(angle) * spread,
+          ),
+        );
       direction.copy(end).sub(start);
       dummy.position.copy(start).add(end).multiplyScalar(0.5);
       dummy.quaternion.setFromUnitVectors(up, direction.clone().normalize());
       dummy.scale.set(t.s, direction.length(), t.s);
       dummy.updateMatrix();
-      branches.setMatrixAt(i * 6 + j, dummy.matrix);
+      branches.setMatrixAt(crownIndex, dummy.matrix);
       dummy.position.copy(end);
-      dummy.rotation.set(0.06 * Math.sin(angle), angle, 0.1 * Math.cos(angle));
+      dummy.rotation.set((shapeRandom() - 0.5) * 0.22, angle, (shapeRandom() - 0.5) * 0.3);
+      const size = t.s * (0.77 + shapeRandom() * 0.3) * (1 - level * 0.35);
       dummy.scale.set(
-        t.s * (0.95 - j * 0.06),
-        t.s * (0.78 + (j % 2) * 0.2),
-        t.s * (0.7 - j * 0.035),
+        size * t.width * (sparse ? 0.8 : 1),
+        size * (dense ? 1.25 : sparse ? 0.75 : 1),
+        size * (0.65 + shapeRandom() * 0.27) * (sparse ? 0.78 : 1),
       );
       dummy.updateMatrix();
-      canopy.setMatrixAt(i * 6 + j, dummy.matrix);
-      canopy.setColorAt(i * 6 + j, leafColor.clone().multiplyScalar(0.79 + random() * 0.35));
+      canopy.setMatrixAt(crownIndex, dummy.matrix);
+      canopy.setColorAt(crownIndex, leafColor.clone().multiplyScalar(0.84 + shapeRandom() * 0.23));
+      crownIndex++;
     }
   });
   group.add(trunk, branches, canopy);
@@ -548,6 +599,254 @@ export function buildVillage(painting: Painting): THREE.Group {
       cypress.rotation.y = random() * Math.PI;
       group.add(cypress);
     }
+  } else if (painting.id === 'xishan') {
+    const caravan = new THREE.Group();
+    caravan.name = 'Xishan pack caravan';
+    const cloth = material('#686453'),
+      darkCloth = material('#4d4a3f'),
+      hide = material('#716b59'),
+      muzzle = material('#49483d'),
+      rope = material('#8c8067'),
+      skin = material('#a39173');
+    const sphere = (
+      parent: THREE.Group,
+      at: [number, number, number],
+      scale: [number, number, number],
+      mat: THREE.Material,
+    ) => {
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 7), mat);
+      mesh.position.set(...at);
+      mesh.scale.set(...scale);
+      parent.add(mesh);
+      return mesh;
+    };
+    const beasts: { x: number; y: number; z: number }[] = [];
+    for (let index = 0; index < 3; index++) {
+      const x = 47.5 + index * 2.8,
+        z = xishanPathCenter(x);
+      const y = groundHeight(painting, x, z);
+      const animal = new THREE.Group();
+      animal.name = 'Small laden pack animal';
+      animal.userData.role = 'pack-animal';
+      animal.position.set(x, y, z);
+      // Head faces +X. Separate haunches, neck and muzzle keep it legible without blocks.
+      sphere(animal, [0, 0.92, 0], [0.64, 0.29, 0.23], hide);
+      sphere(animal, [-0.37, 0.9, 0], [0.28, 0.3, 0.235], hide);
+      curveRod(
+        animal,
+        [
+          new THREE.Vector3(0.41, 0.92, 0),
+          new THREE.Vector3(0.58, 1.18, 0),
+          new THREE.Vector3(0.67, 1.38, 0),
+        ],
+        0.15,
+        hide,
+        6,
+      );
+      sphere(animal, [0.76, 1.39, 0], [0.22, 0.16, 0.135], hide);
+      sphere(animal, [0.94, 1.29, 0], [0.2, 0.105, 0.12], muzzle);
+      for (const side of [-1, 1]) {
+        const ear = sphere(animal, [0.68, 1.67, side * 0.085], [0.045, 0.2, 0.036], hide);
+        ear.rotation.z = -0.12 + side * 0.12;
+        sphere(animal, [0.79, 1.44, side * 0.127], [0.018, 0.018, 0.012], muzzle);
+        for (const front of [-1, 1]) {
+          const hipX = front * 0.4,
+            footX = hipX + (side === front ? 0.11 : -0.12);
+          const footZ = side * 0.19;
+          const floor = groundHeight(painting, x + footX, z + footZ) - y;
+          const hip = new THREE.Vector3(hipX, 0.83, side * 0.17);
+          const knee = new THREE.Vector3(hipX - front * 0.08, (0.83 + floor) / 2, side * 0.19);
+          const ankle = new THREE.Vector3(footX, floor + 0.12, footZ);
+          rod(animal, hip, knee, 0.065, hide, 0.72);
+          rod(animal, knee, ankle, 0.046, hide, 0.7);
+          sphere(animal, [footX + 0.025, floor + 0.06, footZ], [0.085, 0.06, 0.065], muzzle);
+        }
+        // Coarse paired panniers sit on a dark saddle cloth, not oversized decorative cargo.
+        const bag = sphere(animal, [-0.09, 1.06, side * 0.29], [0.33, 0.29, 0.18], cloth);
+        bag.rotation.x = side * 0.16;
+        curveRod(
+          animal,
+          [
+            new THREE.Vector3(-0.29, 0.98, side * 0.42),
+            new THREE.Vector3(-0.23, 1.34, side * 0.24),
+            new THREE.Vector3(-0.2, 1.38, 0),
+          ],
+          0.017,
+          rope,
+          6,
+        );
+        curveRod(
+          animal,
+          [
+            new THREE.Vector3(0.97, 1.3, side * 0.12),
+            new THREE.Vector3(0.78, 1.34, side * 0.145),
+            new THREE.Vector3(0.61, 1.49, side * 0.1),
+          ],
+          0.018,
+          darkCloth,
+          5,
+        );
+      }
+      box(animal, [0.64, 0.07, 0.55], [-0.08, 1.19, 0], darkCloth);
+      curveRod(
+        animal,
+        [
+          new THREE.Vector3(-0.57, 0.99, 0),
+          new THREE.Vector3(-0.75, 0.64, 0.035),
+          new THREE.Vector3(-0.72, 0.33, 0.08),
+        ],
+        0.027,
+        muzzle,
+        7,
+      );
+      caravan.add(animal);
+      beasts.push({ x, y, z });
+    }
+    const adults: { hand: THREE.Vector3; x: number; y: number; z: number }[] = [];
+    for (const [index, x, z] of [
+      [0, 57.1, xishanPathCenter(57.1) + 0.25],
+      [1, 46.1, xishanPathCenter(46.1) + 0.35],
+    ]) {
+      const y = groundHeight(painting, x!, z!);
+      const person = new THREE.Group();
+      person.name = 'Adult caravan traveler';
+      person.userData = { role: 'adult-traveler', height: 1.68 };
+      person.position.set(x!, y, z!);
+      const robe = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16, 0.25, 0.81, 9),
+        index ? darkCloth : cloth,
+      );
+      robe.position.set(0, 0.96, 0);
+      person.add(robe);
+      sphere(person, [0, 1.51, 0], [0.12, 0.15, 0.12], skin);
+      sphere(person, [-0.015, 1.625, 0], [0.125, 0.055, 0.125], darkCloth);
+      rod(person, new THREE.Vector3(0, 1.28, 0), new THREE.Vector3(0, 1.41, 0), 0.055, skin);
+      for (const side of [-1, 1]) {
+        const footX = side * 0.14,
+          footZ = side * 0.09;
+        const floor = groundHeight(painting, x! + footX, z! + footZ) - y;
+        rod(
+          person,
+          new THREE.Vector3(0, 0.7, side * 0.08),
+          new THREE.Vector3(footX, floor + 0.1, footZ),
+          0.065,
+          darkCloth,
+          0.8,
+        );
+        sphere(person, [footX + 0.045, floor + 0.055, footZ], [0.12, 0.055, 0.067], darkCloth);
+        const hand = new THREE.Vector3(
+          side === 1 ? -0.31 : 0.16,
+          side === 1 ? 1.02 : 0.84,
+          side * 0.17,
+        );
+        curveRod(
+          person,
+          [
+            new THREE.Vector3(0, 1.24, side * 0.15),
+            new THREE.Vector3(-0.11, 1.05, side * 0.21),
+            hand,
+          ],
+          0.075,
+          index ? darkCloth : cloth,
+          5,
+        );
+        sphere(person, [hand.x, hand.y, hand.z], [0.05, 0.065, 0.047], skin);
+      }
+      caravan.add(person);
+      adults.push({ x: x!, y, z: z!, hand: new THREE.Vector3(x! - 0.31, y + 1.02, z! + 0.17) });
+    }
+    beasts.forEach((beast, index) => {
+      const start = new THREE.Vector3(beast.x + 0.93, beast.y + 1.29, beast.z + 0.12);
+      const next = beasts[index + 1];
+      const end = next
+        ? new THREE.Vector3(next.x - 0.18, next.y + 1.29, next.z + 0.2)
+        : adults[0]!.hand;
+      const middle = start.clone().lerp(end, 0.5);
+      middle.y = Math.max(middle.y - 0.18, groundHeight(painting, middle.x, middle.z) + 0.12);
+      curveRod(caravan, [start, middle, end], 0.012, rope, 8).name = 'Slack caravan lead rope';
+    });
+    caravan.userData.focus = [...XISHAN_CARAVAN_FOCUS];
+    group.add(caravan);
+
+    // A single modest eave behind the right woodland; no signboard or lit lantern.
+    const dwelling = new THREE.Group();
+    dwelling.name = 'Xishan secluded woodland eave';
+    const site = XISHAN_HOUSE;
+    const floor = groundHeight(painting, site.x, site.z);
+    const wall = material('#8a816a'),
+      timber = material('#4c493b');
+    // Wall tops follow the actual curved roof at the wall perimeter, including the gables.
+    const roofHeight = (x: number, z: number) => {
+      const t = Math.abs(z) / 1.625;
+      return (
+        1.65 + 0.84 * (1 - t) + t ** 4 * 0.84 * 0.37 + (Math.abs(x) / 2.025) ** 5 * 0.84 * 0.17
+      );
+    };
+    const wallVertices: number[] = [];
+    const corners = [
+      [-1.65, -1.25],
+      [-1.65, 1.25],
+      [1.65, 1.25],
+      [1.65, -1.25],
+    ];
+    for (let side = 0; side < 4; side++) {
+      const a = corners[side]!,
+        b = corners[(side + 1) % 4]!;
+      for (let segment = 0; segment < 12; segment++) {
+        const x1 = a[0]! + ((b[0]! - a[0]!) * segment) / 12,
+          z1 = a[1]! + ((b[1]! - a[1]!) * segment) / 12;
+        const x2 = a[0]! + ((b[0]! - a[0]!) * (segment + 1)) / 12,
+          z2 = a[1]! + ((b[1]! - a[1]!) * (segment + 1)) / 12;
+        const y1 = roofHeight(x1, z1) + 0.01,
+          y2 = roofHeight(x2, z2) + 0.01;
+        wallVertices.push(
+          x1,
+          -0.08,
+          z1,
+          x2,
+          -0.08,
+          z2,
+          x1,
+          y1,
+          z1,
+          x2,
+          -0.08,
+          z2,
+          x2,
+          y2,
+          z2,
+          x1,
+          y1,
+          z1,
+        );
+      }
+    }
+    const wallGeometry = new THREE.BufferGeometry();
+    wallGeometry.setAttribute('position', new THREE.Float32BufferAttribute(wallVertices, 3));
+    wallGeometry.computeVertexNormals();
+    const walls = new THREE.Mesh(wallGeometry, wall);
+    walls.name = 'Continuous ground-to-eave walls';
+    dwelling.add(walls);
+    box(dwelling, [3.4, 0.16, 2.6], [0, 0.02, 0], material('#77715f'));
+    box(dwelling, [0.6, 1.35, 0.04], [0.3, 0.675, 1.27], timber);
+    box(dwelling, [0.5, 0.55, 0.04], [-0.78, 1.08, 1.27], timber);
+    const roof = chineseRoof(4.05, 3.25, 0.84, '#535448');
+    roof.position.y = 1.65;
+    dwelling.add(roof);
+    for (const sx of [-1, 1])
+      for (const sz of [-1, 1]) {
+        const localGround = groundHeight(painting, site.x + sx * 1.5, site.z + sz * 1.1) - floor;
+        rod(
+          dwelling,
+          new THREE.Vector3(sx * 1.5, localGround, sz * 1.1),
+          new THREE.Vector3(sx * 1.5, 1.8, sz * 1.1),
+          0.08,
+          timber,
+        );
+      }
+    dwelling.position.set(site.x, floor, site.z);
+    dwelling.userData.focus = [...XISHAN_EAVE_FOCUS];
+    group.add(dwelling);
   } else if (painting.id !== 'empire') {
     painting.peaks
       .filter((p) => p.height < 20)
@@ -558,18 +857,9 @@ export function buildVillage(painting: Painting): THREE.Group {
           group.add(pavilion(painting, x, z, 0.65 + random() * 0.25, i === 0));
         }
       });
-    group.add(
-      pavilion(
-        painting,
-        painting.id === 'xishan' ? -37 : 22,
-        painting.id === 'xishan' ? 2 : -13,
-        0.85,
-        true,
-      ),
-    );
+    group.add(pavilion(painting, 22, -13, 0.85, true));
     const robe = material('#756c4e');
     const skin = material('#b69b77');
-    const coat = material('#62533e');
     for (let i = 0; i < 7; i++) {
       const traveler = new THREE.Group();
       const body = new THREE.Mesh(new THREE.ConeGeometry(0.23, 0.9, 7), robe);
@@ -578,13 +868,6 @@ export function buildVillage(painting: Painting): THREE.Group {
       const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), skin);
       head.position.y = 1.2;
       traveler.add(head);
-      if (painting.id === 'xishan' && i % 2 === 0) {
-        box(traveler, [1, 0.48, 0.35], [0.9, 0.57, 0], coat);
-        box(traveler, [0.24, 0.48, 0.24], [1.35, 0.85, 0], coat);
-        for (const dx of [0.55, 1.2])
-          for (const dz of [-0.12, 0.12]) box(traveler, [0.08, 0.4, 0.08], [dx, 0.2, dz], coat);
-        box(traveler, [0.6, 0.35, 0.65], [0.85, 0.98, 0], robe);
-      }
       const peak =
         painting.peaks.find((p) => p.height < 20) ?? painting.peaks[painting.peaks.length - 1]!;
       const x = peak.x - 4 + i * 1.1,

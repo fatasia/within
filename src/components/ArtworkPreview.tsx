@@ -870,6 +870,71 @@ function winter(ctx: Canvas, random: () => number) {
     disc(ctx, random() * W, random() * H, 0.4 + random() * 0.5, '#e7e9e3aa');
 }
 
+function wuhan(ctx: Canvas, random: () => number) {
+  wash(ctx, '#c6d2ca', '#849c8d');
+  for (let i = 0; i < 5; i++) hill(ctx, 30 + i * 100, 81, 100, 20 + random() * 14, '#879b8d');
+  ctx.fillStyle = '#88a69a';
+  ctx.fillRect(0, 83, W, 77);
+  for (let i = 0; i < 45; i++) {
+    const x = random() * W,
+      y = 86 + random() * 65;
+    line(
+      ctx,
+      [
+        [x, y],
+        [x + 7 + random() * 14, y],
+      ],
+      '#bdccc077',
+      0.5,
+    );
+  }
+  ctx.fillStyle = '#687b59';
+  ctx.beginPath();
+  ctx.moveTo(0, 147);
+  ctx.quadraticCurveTo(230, 114, W, 137);
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.fill();
+  ctx.strokeStyle = '#a7aaa0';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(0, 155);
+  ctx.quadraticCurveTo(230, 128, W, 146);
+  ctx.stroke();
+  for (const x of [26, 85, 139, 329, 394]) {
+    const y = 140 + random() * 14;
+    line(
+      ctx,
+      [
+        [x, y],
+        [x - 3, y - 32],
+      ],
+      '#5a5947',
+      2.4,
+    );
+    for (let j = 0; j < 13; j++) {
+      const tx = x + (random() - 0.5) * 38,
+        ty = y - 29 - random() * 19;
+      disc(ctx, tx, ty, 5 + random() * 8, j % 2 ? '#4c6950' : '#617b55');
+      disc(ctx, tx + 2, ty + 4, 0.8, '#cab363');
+    }
+  }
+  chineseHouse(ctx, 253, 136, 0.58, '#4d5b52');
+  for (let i = 0; i < 80; i++) {
+    const x = random() * W,
+      y = random() * H;
+    line(
+      ctx,
+      [
+        [x, y],
+        [x - 1.5, y + 4],
+      ],
+      '#e3ebe744',
+      0.45,
+    );
+  }
+}
+
 export function ArtworkPreview({ painting }: { painting: Painting }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -881,6 +946,9 @@ export function ArtworkPreview({ painting }: { painting: Painting }) {
     ctx.lineJoin = 'round';
     const random = seededRandom(painting.seed);
     switch (painting.id) {
+      case 'wuhan':
+        wuhan(ctx, random);
+        break;
       case 'qingming':
         qingming(ctx, random);
         break;

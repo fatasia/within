@@ -14,6 +14,8 @@ describe('Qingming city', () => {
 
   it('keeps the batched model within the geometry budget', () => {
     const model = buildQingming(QINGMING);
+    expect(model.userData.bridgePassage.name).toBe('qingming-bridge-passage-boat');
+    expect(model.userData.bridgePassage.pose).toBe('fixed-lowered-rig');
     let triangles = 0,
       meshes = 0;
     model.traverse((object) => {

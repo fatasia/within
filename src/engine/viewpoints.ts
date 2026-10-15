@@ -1,4 +1,5 @@
 import type { PaintingId } from '../types';
+import { wuhanPath } from './wuhanLayout';
 
 export interface WalkStart {
   readonly x: number;
@@ -26,6 +27,7 @@ export const WALK_STARTS = {
   qingming: { x: -20, z: 22.34, yaw: 0, pitch: 0.04 },
   zhangjiajie: { x: -32, z: 19.76, yaw: 0, pitch: 0.2 },
   guilin: { x: -32, z: 19.1, yaw: 0, pitch: 0.06 },
+  wuhan: { x: -14, z: wuhanPath(-14), yaw: 0, pitch: 0.025 },
 } as const satisfies Record<PaintingId, WalkStart>;
 
 export function getWalkStart(id: PaintingId): WalkStart {

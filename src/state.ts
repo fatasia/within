@@ -23,6 +23,7 @@ const ids: PaintingId[] = [
   'qingming',
   'zhangjiajie',
   'guilin',
+  'wuhan',
 ];
 export function restorePreferences(value: string | null): ExperienceState {
   if (!value) return { ...initialState };
