@@ -2,6 +2,7 @@ import type { Painting, PaintingId } from '../types';
 import { QINGMING } from './qingming';
 import { REAL_LANDSCAPES } from './landscapes';
 import { WUHAN_PAINTING } from './wuhan';
+import { EMPIRE_PEAKS } from '../engine/empireLandform';
 const chapter = (title: string, subtitle: string, description: string, progress: number) => ({
   title,
   subtitle,
@@ -40,7 +41,7 @@ const COLLECTION: Painting[] = [
       { x: -43, z: 16, radius: 19, height: 11, seed: 11 },
       { x: 55, z: 18, radius: 21, height: 16, seed: 21 },
     ],
-    overview: { eye: [102, 64, 215], target: [15, 20, -24] },
+    overview: { eye: [40, 30, 112], target: [0, 23, -35] },
     route: [
       [-100, 2, 25],
       [-61, 2, 4],
@@ -114,7 +115,7 @@ const COLLECTION: Painting[] = [
       { x: -38, z: 12, radius: 24, height: 6, seed: 20 },
       { x: 54, z: 15, radius: 20, height: 9, seed: 29 },
     ],
-    overview: { eye: [90, 55, 170], target: [9, 13, -22] },
+    overview: { eye: [30, 20, 105], target: [8, 14, -28] },
     route: [
       [-102, 2, 24],
       [-60, 2, 2],
@@ -187,7 +188,7 @@ const COLLECTION: Painting[] = [
       { x: -15, z: 37, radius: 17, height: 13, seed: 8 },
       { x: 57, z: 35, radius: 22, height: 17, seed: 17 },
     ],
-    overview: { eye: [75, 68, 215], target: [0, 43, -32] },
+    overview: { eye: [47, 45, 165], target: [0, 53, -29] },
     route: [
       [-45, 2, 55],
       [-26, 2, 32],
@@ -317,20 +318,13 @@ const COLLECTION: Painting[] = [
       sky: '#ddd9c9',
       water: '#729b9b',
       low: '#717b4f',
-      high: '#7c8768',
+      high: '#8b8978',
       ink: '#3b503e',
       leaf: '#3d5e40',
     },
     seed: 1836,
-    peaks: [
-      { x: -74, z: -57, radius: 33, height: 48, seed: 33 },
-      { x: -30, z: -66, radius: 34, height: 62, seed: 2 },
-      { x: 17, z: -65, radius: 32, height: 42, seed: 5 },
-      { x: 65, z: -49, radius: 32, height: 54, seed: 31 },
-      { x: 104, z: -59, radius: 33, height: 35, seed: 25 },
-      { x: -54, z: 12, radius: 23, height: 10, seed: 9 },
-    ],
-    overview: { eye: [97, 62, 146], target: [8, 21, -25] },
+    peaks: EMPIRE_PEAKS,
+    overview: { eye: [24, 24, 92], target: [6, 12, -43] },
     route: [
       [-91, 2, 33],
       [-54, 2, 25],
@@ -405,7 +399,7 @@ const COLLECTION: Painting[] = [
       { x: -112, z: -35, radius: 63, height: 8, seed: 8, stretch: 0.7 },
       { x: 109, z: -32, radius: 59, height: 10, seed: 61, stretch: 0.7 },
     ],
-    overview: { eye: [0, 28, 189], target: [0, 27, -105] },
+    overview: { eye: [0, 17, 123], target: [0, 29, -90] },
     route: [
       [-29, 2, 49],
       [-21, 2, 30],

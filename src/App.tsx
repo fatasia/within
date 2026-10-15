@@ -7,6 +7,7 @@ import {
   BookOpen,
   Camera,
   CaretRight,
+  CaretDown,
   Check,
   Compass,
   FilmStrip,
@@ -26,6 +27,8 @@ import {
   ArrowCounterClockwise,
   CloudFog,
   CircleNotch,
+  ArrowsClockwise,
+  ImageSquare,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 import { PAINTINGS, getPainting, chapterAt, PERIODS } from './data/paintings';
@@ -39,6 +42,8 @@ import { Dialog } from './components/Dialog';
 import { MiniMap } from './components/MiniMap';
 import { WalkJoystick } from './components/WalkJoystick';
 import { ENCOUNTER_TEXT } from './engine/easterEgg';
+import { afterPaint, requestDisplayOrientation } from './components/displayControls';
+import { OriginalViewer } from './components/OriginalViewer';
 
 const modes: { id: ViewMode; label: string; icon: Icon }[] = [
   { id: 'scroll', label: '展卷', icon: BookOpen },
@@ -51,7 +56,7 @@ const times: { id: TimeMode; label: string; icon: Icon }[] = [
   { id: 'sunset', label: '薄暮', icon: SunHorizon },
   { id: 'night', label: '夜色', icon: Moon },
 ];
-type Modal = 'about' | 'help' | 'film' | 'encounter' | null;
+type Modal = 'about' | 'help' | 'film' | 'encounter' | 'original' | 'scenes' | null;
 function download(url: string, name: string) {
   const a = document.createElement('a');
   a.href = url;
@@ -71,6 +76,7 @@ function loadInitial(): ExperienceState {
 export function App() {
   const [state, setState] = useState<ExperienceState>(loadInitial),
     [ready, setReady] = useState(false),
+    [sceneLoading, setSceneLoading] = useState(false),
     [error, setError] = useState('');
   const [modal, setModal] = useState<Modal>(null),
     [settings, setSettings] = useState(false),
@@ -78,6 +84,8 @@ export function App() {
     [recording, setRecording] = useState<number | null>(null),
     [portrait, setPortrait] = useState(false),
     [fullscreen, setFullscreen] = useState(false),
+    [landscape, setLandscape] = useState(() => window.innerWidth > window.innerHeight),
+    [rotating, setRotating] = useState(false),
     [musicVolume, setMusicVolume] = useState(0.58),
     [ambienceVolume, setAmbienceVolume] = useState(0.62),
     [stats, setStats] = useState<Telemetry>({ progress: 0, fps: 0, drawCalls: 0, triangles: 0 });
@@ -85,10 +93,15 @@ export function App() {
     collectionList = useRef<HTMLDivElement>(null),
     engine = useRef<Experience | null>(null),
     audio = useRef<AmbientAudio | null>(null),
+    soundStarted = useRef(false),
     current = useRef(state),
+    configuredPainting = useRef<PaintingId | null>(null),
+    pendingPainting = useRef<PaintingId | null>(null),
+    cancelSceneChange = useRef<(() => void) | null>(null),
     toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
     lastProgress = useRef(0);
   const painting = getPainting(state.painting),
+    paintingIndex = PAINTINGS.findIndex((item) => item.id === state.painting),
     chapterIndex = chapterAt(painting, state.progress),
     chapter = painting.chapters[chapterIndex]!;
   const patch = useCallback(
@@ -114,8 +127,28 @@ export function App() {
   }, []);
   useEffect(() => {
     current.current = state;
-    engine.current?.configure(state);
-  }, [state]);
+    if (!engine.current) return;
+    if (configuredPainting.current === state.painting && pendingPainting.current === null) {
+      engine.current.configure(state);
+      return;
+    }
+    if (pendingPainting.current === state.painting) return;
+    cancelSceneChange.current?.();
+    pendingPainting.current = state.painting;
+    setSceneLoading(true);
+    cancelSceneChange.current = afterPaint(() => {
+      try {
+        engine.current?.configure(current.current);
+        configuredPainting.current = current.current.painting;
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '画境加载失败');
+      } finally {
+        pendingPainting.current = null;
+        cancelSceneChange.current = null;
+        setSceneLoading(false);
+      }
+    });
+  }, [state, ready]);
   useEffect(() => {
     audio.current?.setPainting(state.painting);
   }, [state.painting]);
@@ -127,13 +160,29 @@ export function App() {
     audio.current = new AmbientAudio();
     audio.current.setPainting(current.current.painting);
     audio.current.setMix(0.58, 0.62);
+    const sound = audio.current;
+    // Start both buses on the first gesture, without requiring a separate sound click.
+    const activateSound = (event: Event) => {
+      if (
+        soundStarted.current ||
+        !current.current.sound ||
+        (event instanceof KeyboardEvent && !['Enter', ' '].includes(event.key))
+      )
+        return;
+      soundStarted.current = true;
+      void sound.setEnabled(true).catch(() => {
+        soundStarted.current = false;
+      });
+    };
+    document.addEventListener('click', activateSound);
+    document.addEventListener('keyup', activateSound);
     import('./engine/Experience')
       .then(({ Experience }) => {
         if (!active || !host.current) return;
         try {
           engine.current = new Experience(host.current, current.current, {
             onTelemetry: (data) => {
-              if (!active) return;
+              if (!active || pendingPainting.current !== null) return;
               setStats(data);
               if (
                 Math.abs(lastProgress.current - data.progress) > 0.002 ||
@@ -157,6 +206,7 @@ export function App() {
               setModal('encounter');
             },
           });
+          configuredPainting.current = current.current.painting;
           setReady(true);
         } catch (e) {
           setError(e instanceof Error ? e.message : '无法初始化三维场景');
@@ -165,6 +215,11 @@ export function App() {
       .catch(() => setError('场景引擎加载失败，请检查网络后刷新。'));
     return () => {
       active = false;
+      document.removeEventListener('click', activateSound);
+      document.removeEventListener('keyup', activateSound);
+      soundStarted.current = false;
+      cancelSceneChange.current?.();
+      pendingPainting.current = null;
       engine.current?.dispose();
       engine.current = null;
       audio.current?.dispose();
@@ -188,22 +243,29 @@ export function App() {
   }, [state.painting, state.mist, state.speed, state.period]);
   const selectPainting = (id: PaintingId) => {
     if (recording !== null) return;
+    setModal(null);
+    setSettings(false);
+    if (id === state.painting) return;
     lastProgress.current = 0;
     patch({
       painting: id,
       progress: 0,
-      playing: false,
+      playing: state.entered ? state.playing : false,
       mode: 'scroll',
+      period: 0,
       time: ['starry', 'winter'].includes(id) ? 'night' : 'journey',
     });
-    setSettings(false);
   };
   const toggleSound = useCallback(async () => {
+    const enabled = !current.current.sound;
+    // Update intent before the click bubbles to the first-gesture listener.
+    current.current = { ...current.current, sound: enabled };
+    patch({ sound: enabled });
+    if (enabled) soundStarted.current = true;
     try {
-      const enabled = !current.current.sound;
       await audio.current?.setEnabled(enabled);
-      patch({ sound: enabled });
     } catch {
+      soundStarted.current = false;
       notify('浏览器暂未允许音频播放，请再次点击声音按钮。');
     }
   }, [patch, notify]);
@@ -215,6 +277,24 @@ export function App() {
       notify('当前浏览器不支持全屏；可使用浏览器的全屏功能。');
     }
   }, [notify]);
+  const rotateDisplay = useCallback(async () => {
+    if (rotating) return;
+    const target = landscape ? 'portrait' : 'landscape';
+    const label = landscape ? '竖屏' : '横屏';
+    setRotating(true);
+    const result = await requestDisplayOrientation(target);
+    setRotating(false);
+    notify(
+      result === 'locked'
+        ? `已锁定${label}`
+        : `此浏览器不能自动切换方向，请转动设备使用${label}；如未旋转，请关闭系统方向锁定。`,
+    );
+  }, [landscape, rotating, notify]);
+  useEffect(() => {
+    const sync = () => setLandscape(window.innerWidth > window.innerHeight);
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, []);
   useEffect(() => {
     const sync = () => setFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', sync);
@@ -281,22 +361,75 @@ export function App() {
       className={`app ${state.entered ? 'is-exploring' : 'is-gallery'} ${['starry', 'winter'].includes(state.painting) ? 'is-starry' : ''} ${state.time === 'night' || (state.time === 'journey' && state.progress > 0.75) ? 'is-night' : ''} ${recording !== null ? 'is-recording' : ''}`}
       style={{ '--accent': painting.accent } as React.CSSProperties}
     >
-      <div ref={host} className="world" data-testid="world" />
+      <div
+        ref={host}
+        className="world"
+        data-testid="world"
+        aria-busy={sceneLoading}
+        data-scene-switching={sceneLoading}
+      />
       <div className="paper-grain" aria-hidden="true" />
       <div className="gallery-wash" aria-hidden="true" />
       <header className="site-header">
         <button
-          className="brand"
+          className={state.entered ? 'home-button' : 'brand'}
           onClick={() => patch({ entered: false, playing: false, mode: 'scroll' })}
           aria-label="返回画境首页"
         >
-          <span className="seal">
-            入<br />画
-          </span>
-          <span className="brand-name">
-            入画<span>WITHIN</span>
-          </span>
+          {state.entered ? (
+            <>
+              <ArrowLeft size={18} />
+              <span>返回首页</span>
+            </>
+          ) : (
+            <>
+              <span className="seal">
+                入<br />画
+              </span>
+              <span className="brand-name">
+                入画<span>WITHIN</span>
+              </span>
+            </>
+          )}
         </button>
+        {state.entered && (
+          <nav className="scene-switcher" aria-label="切换画境">
+            <button
+              aria-label="上一个画境"
+              title="上一个画境"
+              disabled={recording !== null}
+              onClick={() =>
+                selectPainting(
+                  PAINTINGS[(paintingIndex - 1 + PAINTINGS.length) % PAINTINGS.length]!.id,
+                )
+              }
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <button
+              className="scene-switcher-current"
+              aria-label={`选择画境，当前${painting.shortTitle}`}
+              aria-haspopup="dialog"
+              aria-expanded={modal === 'scenes'}
+              disabled={recording !== null}
+              onClick={() => {
+                setSettings(false);
+                setModal('scenes');
+              }}
+            >
+              <span>{painting.shortTitle}</span>
+              <CaretDown size={13} />
+            </button>
+            <button
+              aria-label="下一个画境"
+              title="下一个画境"
+              disabled={recording !== null}
+              onClick={() => selectPainting(PAINTINGS[(paintingIndex + 1) % PAINTINGS.length]!.id)}
+            >
+              <ArrowRight size={16} />
+            </button>
+          </nav>
+        )}
         {state.entered ? (
           <div className="view-switch" aria-label="选择视角">
             {modes.map(({ id, label, icon: Icon }) => (
@@ -344,7 +477,11 @@ export function App() {
           >
             {fullscreen ? <ArrowsIn size={20} /> : <ArrowsOut size={20} />}
           </button>
-          <button className="icon-button" aria-label="操作说明" onClick={() => setModal('help')}>
+          <button
+            className="icon-button help-button"
+            aria-label="操作说明"
+            onClick={() => setModal('help')}
+          >
             <Info size={20} />
           </button>
         </div>
@@ -366,7 +503,7 @@ export function App() {
             <p className="hero-description">{painting.introduction}</p>
             <button
               className="enter-button"
-              disabled={!ready || !!error}
+              disabled={!ready || sceneLoading || !!error}
               onClick={() => {
                 patch({ entered: true, mode: 'scroll', playing: true, progress: 0 });
                 notify('滚轮展卷 · 拖动画面 · 空格暂停');
@@ -374,6 +511,10 @@ export function App() {
             >
               <span>走进画中</span>
               <ArrowRight size={23} />
+            </button>
+            <button className="original-link" onClick={() => setModal('original')}>
+              <ImageSquare size={18} />
+              查看原作与出处
             </button>
           </section>
 
@@ -445,19 +586,31 @@ export function App() {
       {state.entered && (
         <>
           <div className="experience-title">
-            <button
-              className="back-link"
-              onClick={() => patch({ entered: false, playing: false, mode: 'scroll' })}
-            >
-              <ArrowLeft size={15} />
-              返回画馆
-            </button>
             <h1>{painting.shortTitle}</h1>
             <span>
               {painting.artist} · {painting.technique}
             </span>
           </div>
           <aside className="scene-tools">
+            <button
+              className="tool-button tool-labelled"
+              aria-label="查看原作与出处"
+              title="查看原作与出处"
+              onClick={() => setModal('original')}
+            >
+              <ImageSquare size={20} />
+              <span>原作</span>
+            </button>
+            <button
+              className="tool-button tool-labelled orientation-button"
+              aria-label={landscape ? '切换竖屏' : '切换横屏'}
+              title={landscape ? '切换竖屏' : '切换横屏'}
+              disabled={rotating}
+              onClick={() => void rotateDisplay()}
+            >
+              <ArrowsClockwise size={20} />
+              <span>{landscape ? '竖屏' : '横屏'}</span>
+            </button>
             <button
               className="tool-button"
               aria-label="取景保存"
@@ -551,6 +704,16 @@ export function App() {
                 <span>{stats.fps} FPS</span>
                 <span>{stats.drawCalls} 绘制批次</span>
               </div>
+              <button
+                className="settings-help"
+                onClick={() => {
+                  setSettings(false);
+                  setModal('help');
+                }}
+              >
+                <Info size={17} />
+                操作说明与快捷键
+              </button>
               <div className="sound-mixer">
                 <p className="sound-caption">
                   <strong>{SOUND_PALETTES[state.painting].title}</strong>
@@ -715,6 +878,12 @@ export function App() {
           <span>叠山理水，展卷入境…</span>
         </div>
       )}
+      {ready && sceneLoading && !error && (
+        <div className="scene-loading" role="status">
+          <CircleNotch className="spin" size={17} />
+          正在展开{painting.shortTitle}…
+        </div>
+      )}
       {error && (
         <div className="error-state" role="alert">
           <Mountains size={32} />
@@ -743,6 +912,33 @@ export function App() {
             再看一会儿风景 <ArrowRight size={16} />
           </button>
         </Dialog>
+      )}
+      {modal === 'scenes' && (
+        <Dialog title="切换画境" onClose={() => setModal(null)} className="scene-picker-dialog">
+          <p className="scene-picker-hint">从展卷起点开始，保留当前播放、画质与声音设置。</p>
+          <div className="scene-picker-list">
+            {PAINTINGS.map((item, index) => (
+              <button
+                key={item.id}
+                aria-label={`切换到${item.title}`}
+                aria-current={state.painting === item.id ? 'true' : undefined}
+                onClick={() => selectPainting(item.id)}
+              >
+                <span className="scene-picker-number">{String(index + 1).padStart(2, '0')}</span>
+                <span className="scene-picker-label">
+                  <strong>{item.shortTitle}</strong>
+                  <small>
+                    {item.artist} · {item.era}
+                  </small>
+                </span>
+                {state.painting === item.id ? <Check size={18} /> : <CaretRight size={15} />}
+              </button>
+            ))}
+          </div>
+        </Dialog>
+      )}
+      {modal === 'original' && (
+        <OriginalViewer painting={painting} onClose={() => setModal(null)} />
       )}
       {modal === 'help' && (
         <Dialog title="游览指南" onClose={() => setModal(null)}>
@@ -787,7 +983,7 @@ export function App() {
       {modal === 'about' && (
         <Dialog title="让风景，成为一段经历。" onClose={() => setModal(null)}>
           <p className="about-lead">
-            入画是一座可以游览的数字风景画馆。七幅画作、两处实景，用不同的方式看待天地与时间。
+            入画是一座可以游览的数字风景画馆。七组画作、三处实景，用不同的方式看待天地与时间。
           </p>
           <p>
             所有山体、树木、舟桥与建筑由程序生成，在浏览器中实时渲染。作品依据原画的构图、色彩与情绪进行三维意境演绎，并非对原画每一处细节的测绘复原。
@@ -804,7 +1000,7 @@ export function App() {
             ))}
           </div>
           <p className="dialog-note">
-            馆藏链接用于了解原作。站内三维模型与预览图均为程序生成，未使用馆藏高清图作为模型贴图。配乐与场景音效由浏览器本地合成。
+            「查看原作」提供画作图像与馆藏出处，可与三维演绎对照；帝国的进程包含五幅组画。三维模型与场景缩略图由程序生成，原作图像不作模型贴图。实景场景提供地域资料。配乐与场景音效由浏览器本地合成。
           </p>
         </Dialog>
       )}

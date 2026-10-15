@@ -145,7 +145,7 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
         frame(0.22, '柏树轮廓', offset(cypress, 7, 2, 8), cypress, true),
         frame(0.34, '街边屋顶', offset(window, 7, 3.5, 12), offset(window, 0, 1.1, 0)),
         frame(0.44, '窗格与暖光', offset(window, 2.5, 0.8, 6), window, true),
-        frame(0.65, '笔触星河', [3, 8, 4], [0, 39, -48]),
+        frame(0.65, '笔触星河', [3, 8, 4], [-27, 21, -80]),
         frame(0.87, '弯月与蓝丘', [42, 22, 72], [6, 25, -50]),
         overview(p, 1),
       ];
@@ -197,8 +197,8 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
           [-23, bridgeY + 1, river + 5],
           true,
         ),
-        frame(0.65, '城门砖缝与窗格', [43, 5.2, -45], [55, 7.2, -45], true),
-        frame(0.83, '市井檐窗与招牌', [71, 6.5, -43.6], [67.6, 7, -50.8], true),
+        frame(0.65, '城门前的挽具与货车', [48, 5, -38.8], [46, 4, -45.2], true),
+        frame(0.83, '酒肆欢门与邻铺', [89, 6, -41], [84.4, 5.7, -48.2], true),
         overview(p, 1),
       ];
       break;
@@ -238,14 +238,20 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
     }
     case 'wuhan': {
       const flower: Vec3 = WUHAN_FLOWER_FOCUS;
-      const stone = ground(p, -18.5, wuhanPath(-18.5), 0.05);
+      const stone = ground(p, -18.5, wuhanPath(-18.5) - 1.2, 0.06);
       const shelter = ground(p, 23, wuhanPath(23) + 1.6, 3.1);
       frames = [
         overview(p, 0),
         frame(0.1, '临湖桂树与石径', [-40, 9, 34], [-18, 4, 12]),
         frame(0.21, '桂枝的对生叶与花簇', offset(flower, 1.8, 0.7, 4.7), flower, true),
         frame(0.32, '细雨里的花与叶', offset(flower, 1.17, 0.32, 2.8), flower, true),
-        frame(0.43, '湿石上的落桂与石缝', offset(stone, 1.9, 2, 2.6), stone, true),
+        frame(
+          0.43,
+          '湿石上的落桂与石缝',
+          offset(stone, 1.05, 0.62, 1.2),
+          offset(stone, -0.6, 0, -0.7),
+          true,
+        ),
         frame(0.66, '湖亭的瓦檐与木柱', offset(shelter, -10, 1.8, 10), shelter, true),
         frame(0.87, '烟水与远岸', [36, 5, 19], [6, 4, -94]),
         overview(p, 1),
@@ -277,7 +283,8 @@ export function getCinematicView(painting: Painting, progress: number): Cinemati
   const eye = lerp(a.eye, b.eye),
     target = lerp(a.target, b.target);
   // Terrain clearance is applied after interpolation, including the space between keyframes.
-  eye[1] = Math.max(eye[1], groundHeight(painting, eye[0], eye[2]) + 1.75, 1.75);
+  // A camera may kneel for flowers and paving; walking still retains its own 1.8 m eye height.
+  eye[1] = Math.max(eye[1], groundHeight(painting, eye[0], eye[2]) + 0.55, 0.55);
   // Check the near sightline, so low bank details are not filmed through a foreground ridge.
   for (let i = 1; i <= 8; i++) {
     const s = i / 12;

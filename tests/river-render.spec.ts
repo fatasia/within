@@ -25,6 +25,7 @@ test('Guilin river remains visible with and without planar reflections', async (
     await page.screenshot({ path: `artifacts/screenshots/guilin-river-${quality}-new.png` });
     // Read the rendered canvas, not the page overlay. This near-bank patch must
     // retain water colour; the former vertex-distance bug made it pale sky.
+    // The walking start faces down the east-bank path: water is on its left.
     const pixels = await page.evaluate(() => {
       const source = document.querySelector<HTMLCanvasElement>('[data-testid="world"] canvas')!;
       const copy = document.createElement('canvas');
@@ -33,8 +34,8 @@ test('Guilin river remains visible with and without planar reflections', async (
       const context = copy.getContext('2d')!;
       context.drawImage(source, 0, 0, copy.width, copy.height);
       const result: number[] = [];
-      for (let y = 590; y <= 710; y += 20)
-        for (let x = 930; x <= 1110; x += 20) {
+      for (let y = 545; y <= 575; y += 5)
+        for (let x = 170; x <= 290; x += 10) {
           const pixel = context.getImageData(x, y, 1, 1).data;
           result.push(pixel[0]!, pixel[1]!, pixel[2]!);
         }

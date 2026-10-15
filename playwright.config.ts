@@ -7,7 +7,13 @@ export default defineConfig({
     baseURL: process.env.TEST_BASE_URL ?? 'http://127.0.0.1:5173',
     viewport: { width: 1440, height: 900 },
     headless: true,
-    launchOptions: { args: ['--enable-webgl', '--ignore-gpu-blocklist'] },
+    launchOptions: {
+      args: [
+        '--enable-webgl',
+        '--ignore-gpu-blocklist',
+        ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []),
+      ],
+    },
   },
   reporter: [['list'], ['html', { open: 'never' }]],
 });

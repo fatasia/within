@@ -2,11 +2,107 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { WUHAN_PAINTING } from '../data/wuhan';
 import { buildWuhan, updateWuhan } from './wuhan';
-import { getWuhanGround, wuhanPath, WUHAN_FLOWER_FOCUS } from './wuhanLayout';
+import { getWuhanGround, wuhanPath, WUHAN_FLOWER_FOCUS, WUHAN_HILLS } from './wuhanLayout';
 import { disposeObject } from './resources';
 import { getCinematicKeyframes } from './cinematography';
 
 describe('East Lake osmanthus garden', () => {
+  it('encloses the near shore with rooted hillside woodland while preserving roots across tiers', () => {
+    const low = buildWuhan(WUHAN_PAINTING, 'low'),
+      high = buildWuhan(WUHAN_PAINTING, 'high');
+    try {
+      const lowGarden = low.getObjectByName('Osmanthus foliage and seasonal garden plants')!;
+      const highGarden = high.getObjectByName('Osmanthus foliage and seasonal garden plants')!;
+      expect(lowGarden.userData.treeBases).toEqual(highGarden.userData.treeBases);
+      const lowBases = lowGarden.userData.hillsideTreeBases as [number, number, number][];
+      const highBases = highGarden.userData.hillsideTreeBases as [number, number, number][];
+      expect(highBases).toHaveLength(190);
+      expect(lowBases).toEqual(highBases.slice(0, lowBases.length));
+      for (const [x, y, z] of highBases) {
+        expect(Math.abs(x)).toBeLessThan(150);
+        expect(z).toBeGreaterThan(45);
+        expect(y).toBeCloseTo(getWuhanGround(x, z), 6);
+      }
+      expect(highGarden.userData.mixedGardenTurningFraction).toBeLessThan(0.2);
+    } finally {
+      disposeObject(low);
+      disposeObject(high);
+    }
+  });
+
+  it('uses compact three-dimensional shoots instead of broad horizontal crown plates', () => {
+    const group = buildWuhan(WUHAN_PAINTING, 'high');
+    try {
+      const woodland = group.getObjectByName(
+        'Far shore layered evergreen foliage',
+      ) as THREE.InstancedMesh;
+      woodland.geometry.computeBoundingBox();
+      const size = woodland.geometry.boundingBox!.getSize(new THREE.Vector3());
+      expect(size.y / Math.max(size.x, size.z)).toBeGreaterThan(0.7);
+      expect(woodland.geometry.attributes.position!.count / 3).toBe(32);
+      expect((woodland.material as THREE.Material).transparent).toBe(false);
+      const leaves = group.getObjectByName(
+        'Opposite glossy osmanthus leaves',
+      ) as THREE.InstancedMesh;
+      const matrix = new THREE.Matrix4(),
+        p = new THREE.Vector3();
+      let min = Infinity,
+        max = -Infinity;
+      for (let i = 0; i < leaves.count; i++) {
+        leaves.getMatrixAt(i, matrix);
+        p.setFromMatrixPosition(matrix);
+        if (Math.abs(p.x + 18.5) > 3.5) continue;
+        min = Math.min(min, p.y);
+        max = Math.max(max, p.y);
+      }
+      expect(max - min).toBeGreaterThan(3);
+    } finally {
+      disposeObject(group);
+    }
+  });
+  it('keeps wind-gathered fallen flowers on top of the wet path', () => {
+    const group = buildWuhan(WUHAN_PAINTING, 'high');
+    try {
+      const flowers = group.getObjectByName(
+        'Fallen golden flowers on wet stone',
+      ) as THREE.InstancedMesh;
+      expect(flowers.count).toBeGreaterThanOrEqual(720);
+      const matrix = new THREE.Matrix4(),
+        position = new THREE.Vector3();
+      let nearDetail = 0;
+      for (let i = 0; i < flowers.count; i++) {
+        flowers.getMatrixAt(i, matrix);
+        position.setFromMatrixPosition(matrix);
+        expect(position.y).toBeGreaterThan(getWuhanGround(position.x, position.z) + 0.035);
+        if (Math.abs(position.x + 18.5) < 2.2) nearDetail++;
+      }
+      expect(nearDetail).toBeGreaterThan(150);
+    } finally {
+      disposeObject(group);
+    }
+  });
+  it('grounds a continuous low wooded far bank without mountain towers or submerged stems', () => {
+    expect(Math.max(...WUHAN_HILLS.map((hill) => hill.height))).toBeLessThanOrEqual(9);
+    const group = buildWuhan(WUHAN_PAINTING, 'high');
+    try {
+      const garden = group.getObjectByName('Osmanthus foliage and seasonal garden plants')!;
+      const bases = garden.userData.farShoreTreeBases as [number, number, number][];
+      expect(bases.length).toBeGreaterThan(250);
+      for (const [x, y, z] of bases) {
+        expect(y).toBeGreaterThan(0.35);
+        expect(y).toBeCloseTo(getWuhanGround(x, z), 6);
+      }
+      for (let x = -150; x <= 150; x += 25)
+        expect(bases.some(([bx]) => Math.abs(bx - x) < 15)).toBe(true);
+      const foliage = group.getObjectByName(
+        'Far shore layered evergreen foliage',
+      ) as THREE.InstancedMesh;
+      expect(foliage.count).toBeGreaterThan(1750);
+      expect((foliage.material as THREE.Material).transparent).toBe(false);
+    } finally {
+      disposeObject(group);
+    }
+  });
   it('keeps the continuous walking route above water and the lake bed submerged', () => {
     for (let x = -120; x <= 120; x += 2) {
       for (const offset of [-1.8, 0, 1.8]) {

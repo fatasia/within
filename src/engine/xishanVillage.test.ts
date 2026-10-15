@@ -60,12 +60,13 @@ describe('Xishan woodland and caravan', () => {
     disposeObject(village);
   });
 
-  it('keeps the other two Chinese village templates unchanged in count and position', () => {
+  it('keeps the Chinese close-up anchors while thinning the Fuchun village', () => {
     for (const id of ['qianli', 'fuchun'] as const) {
       const village = buildVillage(getPainting(id));
-      expect(village.children).toHaveLength(16);
-      expect(village.children[8]!.position.x).toBe(22);
-      expect(village.children[8]!.position.z).toBe(-13);
+      expect(village.children).toHaveLength(id === 'fuchun' ? 12 : 16);
+      const fixedHouse = village.children[id === 'fuchun' ? 4 : 8]!;
+      expect(fixedHouse.position.x).toBe(22);
+      expect(fixedHouse.position.z).toBe(-13);
       expect(village.getObjectByName('Xishan pack caravan')).toBeUndefined();
       disposeObject(village);
     }

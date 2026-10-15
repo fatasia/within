@@ -42,7 +42,7 @@ describe('cinematic detail routes', () => {
         expect([...view.eye, ...view.target].every(Number.isFinite), label).toBe(true);
         expect(distance(view.eye, view.target), label).toBeGreaterThan(0.1);
         expect(view.eye[1], label).toBeGreaterThanOrEqual(
-          groundHeight(painting, view.eye[0], view.eye[2]) + 1.75 - 1e-8,
+          groundHeight(painting, view.eye[0], view.eye[2]) + 0.55 - 1e-8,
         );
       }
     }

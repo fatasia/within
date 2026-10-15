@@ -66,10 +66,12 @@ describe('experience state', () => {
       restorePreferences('{"painting":"unknown","period":900,"quality":"ultra"}'),
     ).toMatchObject({ painting: 'qianli', period: 4, quality: 'high' });
   });
-  it('restores preferences but never autoplays sound or movement', () => {
+  it('defaults sound on without starting movement', () => {
     expect(
       restorePreferences('{"painting":"starry","sound":true,"playing":true,"quality":"high"}'),
-    ).toMatchObject({ painting: 'starry', sound: false, playing: false, quality: 'high' });
+    ).toMatchObject({ painting: 'starry', sound: true, playing: false, quality: 'high' });
+    expect(restorePreferences(null).sound).toBe(true);
+    expect(restorePreferences('{"sound":false}').sound).toBe(true);
     expect(restorePreferences('{"painting":"winter"}').painting).toBe('winter');
   });
   it('opens at high quality even after a previous manually reduced session', () => {

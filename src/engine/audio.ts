@@ -339,7 +339,7 @@ function buildGraph(
   };
 }
 
-/** The context is created only from an explicit sound gesture. */
+/** The context is created only after a user gesture. */
 export class AmbientAudio {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;

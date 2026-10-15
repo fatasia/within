@@ -9,7 +9,7 @@ export const initialState: ExperienceState = {
   progress: 0,
   time: 'journey',
   quality: 'high',
-  sound: false,
+  sound: true,
   mist: true,
   period: 2,
 };

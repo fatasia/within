@@ -1939,3 +1939,623 @@ button {
     color: #596d5e;
   }
 }
+
+/* Display controls stay legible and touchable without covering the centre of the scene. */
+.home-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 108px;
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #eeece1e8;
+  color: #284a3b;
+}
+.original-link,
+.original-source,
+.settings-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 12px;
+  text-underline-offset: 4px;
+}
+.original-link {
+  display: flex;
+  margin-top: 10px;
+}
+.tool-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.tool-labelled {
+  gap: 2px;
+  flex-direction: column;
+  border-radius: 9px;
+}
+.tool-labelled span {
+  font-size: 9px;
+  line-height: 1;
+}
+.orientation-button {
+  display: none;
+}
+.scene-loading {
+  position: fixed;
+  right: 5%;
+  top: 112px;
+  z-index: 25;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 12px 15px;
+  background: #eeece1ef;
+  color: #284a3b;
+  border: 1px solid #8c9c8266;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+}
+.original-dialog {
+  max-width: 1100px;
+}
+.original-dialog h2 {
+  margin-bottom: 12px;
+}
+.original-controls,
+.original-zoom,
+.original-credit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.original-zoom button,
+.original-pages button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.original-zoom button:disabled {
+  opacity: 0.3;
+}
+.original-viewport {
+  overflow: auto;
+  max-height: 53dvh;
+  background: #ded9ca;
+  border: 1px solid #c3c4b4;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+.original-viewport img {
+  display: block;
+  max-width: none;
+  object-fit: contain;
+}
+.original-dialog .original-caption {
+  color: #3c5144;
+  margin: 8px 0;
+}
+.original-pages {
+  display: flex;
+  overflow-x: auto;
+  gap: 6px;
+  padding: 0 0 8px;
+}
+.original-pages button {
+  flex: 0 0 auto;
+  max-width: 220px;
+  font-size: 11px;
+  border: 1px solid #a6b09b;
+  border-radius: 3px;
+}
+.original-pages button.active {
+  background: #d2dccb;
+  border-color: #4e6c52;
+}
+.original-dialog .original-hint {
+  font-size: 10px;
+  margin: 4px 0 10px;
+}
+.original-credit {
+  border-top: 1px solid #c7cbbd;
+  padding-top: 10px;
+  align-items: flex-start;
+}
+.original-credit a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.original-credit > span {
+  line-height: 1.8;
+}
+.is-starry .home-button,
+.is-night .home-button {
+  background: #203b50ed;
+  color: #ece8d5;
+}
+@media (pointer: coarse) {
+  .orientation-button {
+    display: flex;
+  }
+}
+@media (max-width: 700px) {
+  .orientation-button {
+    display: flex;
+  }
+  .icon-button,
+  .is-exploring .header-actions .icon-button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .is-exploring {
+    min-height: 0;
+  }
+  .is-exploring .site-header {
+    margin: 0 12px;
+    gap: 6px;
+    height: 64px;
+  }
+  .home-button {
+    min-width: 88px;
+    padding: 0 8px;
+    gap: 5px;
+    font-size: 12px;
+  }
+  .is-exploring .header-actions .help-button {
+    display: none;
+  }
+  .view-switch {
+    padding: 0;
+    border-radius: 5px;
+  }
+  .view-switch button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 7px;
+  }
+  .experience-title {
+    top: 78px;
+    left: 16px;
+  }
+  .experience-title h1 {
+    font-size: 25px;
+    line-height: 1.2;
+  }
+  .experience-title > span {
+    margin-top: 6px;
+  }
+  .scene-tools {
+    top: 142px;
+    left: 16px;
+    right: auto;
+    flex-direction: row;
+    gap: 4px;
+  }
+  .tool-button {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 7px;
+  }
+  .settings-panel {
+    top: 194px;
+    right: 12px;
+    width: min(290px, calc(100vw - 24px));
+    max-height: calc(100dvh - 216px);
+  }
+  .settings-panel button,
+  .settings-panel select {
+    min-height: 44px;
+  }
+  .journey-panel {
+    padding: 8px 10px;
+  }
+  .journey-top {
+    gap: 2px;
+    margin: 0;
+  }
+  .chapter-nav button {
+    min-height: 44px;
+  }
+  .play-button,
+  .speed-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .journey-bottom {
+    margin-top: 3px;
+  }
+  .chapter-caption {
+    bottom: 214px;
+  }
+  .walk-pad {
+    bottom: 206px;
+  }
+  .is-exploring:has(.walk-pad) .chapter-caption {
+    bottom: 208px;
+  }
+  .period-control {
+    top: 196px;
+    left: 16px;
+    max-width: calc(100vw - 32px);
+  }
+  .period-control button {
+    min-height: 44px;
+    padding: 0 9px;
+  }
+  .collection-paging button {
+    min-height: 44px;
+    width: 44px;
+    flex: 0 0 44px;
+  }
+  .collection-paging {
+    gap: 6px;
+  }
+  .collection-paging > span {
+    display: none;
+  }
+  .original-dialog {
+    width: calc(100% - 16px);
+    padding: 16px;
+    max-height: 94dvh;
+  }
+  .original-dialog h2 {
+    font-size: 21px;
+    letter-spacing: 1px;
+  }
+  .original-credit {
+    flex-direction: column;
+  }
+  .original-dialog .dialog-heading {
+    margin-bottom: 4px;
+  }
+  .scene-loading {
+    top: 80px;
+    right: 16px;
+    max-width: calc(100vw - 32px);
+  }
+}
+@media (max-height: 540px) and (orientation: landscape) and (pointer: coarse) {
+  .is-exploring {
+    min-height: 0;
+    height: 100dvh;
+  }
+  .is-exploring .site-header {
+    height: 54px;
+    margin: 0 14px;
+  }
+  .is-exploring .brand {
+    min-width: 0;
+  }
+  .experience-title {
+    top: 66px;
+    left: 16px;
+    max-width: 42%;
+  }
+  .experience-title h1 {
+    font-size: 22px;
+  }
+  .experience-title > span {
+    display: none;
+  }
+  .scene-tools {
+    top: 62px;
+    right: 14px;
+    left: auto;
+    flex-direction: row;
+    gap: 4px;
+  }
+  .tool-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 7px;
+  }
+  .journey-panel {
+    left: 160px;
+    right: 14px;
+    bottom: 8px;
+    padding: 5px 9px;
+  }
+  .journey-bottom,
+  .chapter-caption,
+  .mini-map {
+    display: none;
+  }
+  .journey-top {
+    margin-bottom: 0;
+    gap: 5px;
+  }
+  .chapter-nav {
+    flex: 1;
+    flex-wrap: wrap;
+  }
+  .chapter-nav button {
+    min-height: 44px;
+  }
+  .walk-pad {
+    bottom: 16px;
+    left: 16px;
+  }
+  .settings-panel {
+    top: 112px;
+    right: 14px;
+    max-height: calc(100dvh - 126px);
+  }
+  .period-control {
+    top: 111px;
+    left: 16px;
+    transform: none;
+  }
+  .period-control > span {
+    display: none;
+  }
+  .period-control button {
+    min-height: 44px;
+    padding: 0 8px;
+  }
+}
+
+.dialog {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.dialog-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f0eee4;
+}
+.dialog-heading .icon-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+@media (pointer: coarse) {
+  .view-switch button,
+  .icon-button,
+  .chapter-arrows button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .site-header {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+@media (max-width: 700px) {
+  .is-exploring .site-header {
+    height: calc(64px + env(safe-area-inset-top));
+    margin-left: max(12px, env(safe-area-inset-left));
+    margin-right: max(12px, env(safe-area-inset-right));
+  }
+  .experience-title {
+    top: calc(78px + env(safe-area-inset-top));
+    left: max(16px, env(safe-area-inset-left));
+  }
+  .scene-tools {
+    top: calc(142px + env(safe-area-inset-top));
+    left: max(16px, env(safe-area-inset-left));
+  }
+  .settings-panel {
+    top: calc(194px + env(safe-area-inset-top));
+    max-height: calc(100dvh - 216px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  .period-control {
+    top: calc(196px + env(safe-area-inset-top));
+  }
+  .toast {
+    top: calc(74px + env(safe-area-inset-top));
+  }
+}
+@media (max-height: 540px) and (orientation: landscape) and (pointer: coarse) {
+  .is-exploring .site-header {
+    height: calc(54px + env(safe-area-inset-top));
+    margin-inline: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right));
+  }
+  .experience-title {
+    top: calc(66px + env(safe-area-inset-top));
+    left: max(16px, env(safe-area-inset-left));
+  }
+  .scene-tools {
+    top: calc(62px + env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+    left: auto;
+  }
+  .journey-panel {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    right: max(14px, env(safe-area-inset-right));
+  }
+  .walk-pad {
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: max(16px, env(safe-area-inset-left));
+  }
+  .settings-panel {
+    top: calc(112px + env(safe-area-inset-top));
+    max-height: calc(100dvh - 126px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  .period-control {
+    top: calc(111px + env(safe-area-inset-top));
+  }
+  .original-viewport {
+    max-height: 44dvh;
+  }
+  .original-dialog {
+    max-height: calc(100dvh - 16px);
+  }
+}
+.original-source-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 14px;
+}
+@media (pointer: coarse) {
+  .play-button,
+  .speed-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .walk-pad {
+    width: 142px;
+  }
+  .walk-joystick {
+    width: 138px;
+    height: 138px;
+  }
+  .walk-joystick button {
+    width: 44px;
+    height: 44px;
+  }
+  .walk-joystick button:first-child {
+    left: 46px;
+    top: 0;
+  }
+  .walk-joystick button:nth-child(2) {
+    left: 0;
+    top: 46px;
+  }
+  .walk-joystick button:nth-child(3) {
+    left: 46px;
+    bottom: 0;
+  }
+  .walk-joystick button:nth-child(4) {
+    right: 0;
+    top: 46px;
+  }
+  .joystick-knob {
+    top: 50px;
+    left: 50px;
+  }
+}
+
+/* In-scene collection navigation stays compact; the full collection is modal. */
+.scene-switcher {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(239, 236, 224, 0.91);
+  backdrop-filter: blur(12px);
+}
+.scene-switcher button {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.scene-switcher .scene-switcher-current {
+  gap: 7px;
+  padding: 0 8px;
+  font-family: var(--serif);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.scene-switcher button:hover {
+  background: rgba(83, 100, 75, 0.09);
+}
+.scene-switcher button:disabled {
+  opacity: 0.45;
+}
+.is-starry .scene-switcher,
+.is-night .scene-switcher {
+  background: rgba(24, 38, 49, 0.9);
+  color: #e4e7db;
+  border-color: rgba(218, 226, 218, 0.2);
+}
+.scene-picker-dialog {
+  width: min(540px, calc(100vw - 28px));
+}
+.scene-picker-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.scene-picker-list {
+  display: grid;
+  gap: 3px;
+}
+.scene-picker-list > button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  min-height: 62px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 5px;
+}
+.scene-picker-list > button:hover,
+.scene-picker-list > button[aria-current='true'] {
+  background: rgba(74, 97, 71, 0.1);
+}
+.scene-picker-number {
+  font: 12px var(--sans);
+  opacity: 0.55;
+}
+.scene-picker-label {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+.scene-picker-label strong {
+  font: 16px var(--serif);
+}
+.scene-picker-label small {
+  font-size: 10px;
+  opacity: 0.64;
+}
+@media (min-width: 701px) and (max-width: 1100px) {
+  .is-exploring .site-header {
+    gap: 8px;
+  }
+  .is-exploring .view-switch button {
+    padding-inline: 9px;
+  }
+  .is-exploring .header-actions {
+    gap: 0;
+  }
+}
+@media (max-width: 700px) {
+  .scene-switcher {
+    position: absolute;
+    top: calc(72px + env(safe-area-inset-top));
+    left: 4px;
+  }
+  .is-exploring .experience-title {
+    display: none;
+  }
+  .scene-picker-dialog {
+    padding-inline: 18px;
+  }
+}
+@media (max-height: 540px) and (orientation: landscape) and (pointer: coarse) {
+  .scene-switcher {
+    position: static;
+  }
+  .is-exploring .experience-title {
+    display: none;
+  }
+  .is-exploring .site-header {
+    gap: 7px;
+  }
+  .is-exploring .view-switch button {
+    padding-inline: 7px;
+  }
+}

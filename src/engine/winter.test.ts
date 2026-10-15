@@ -1,10 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { getPainting } from '../data/paintings';
-import { buildWinterDetails, createWinterSky } from './winter';
+import { buildWinterDetails, createWinterSky, refineWinterTerrain } from './winter';
 import { disposeObject } from './resources';
 
 describe('Rondane winter world', () => {
+  it('separates snow shoulders and shadow cuts without changing terrain positions', () => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute([-10, 42, -100, 10, 42, -100, 0, 3, -80], 3),
+    );
+    geometry.setAttribute(
+      'normal',
+      new THREE.Float32BufferAttribute([-0.5, 0.86, 0, 0.8, 0.3, 0, 0, 1, 0], 3),
+    );
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(new Array(9).fill(0.5), 3));
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial()));
+    const before = [...geometry.getAttribute('position').array];
+    refineWinterTerrain(group);
+    const colors = geometry.getAttribute('color');
+    expect(colors.getX(0)).toBeGreaterThan(colors.getX(1));
+    expect(colors.getX(0)).toBeGreaterThan(colors.getX(2));
+    expect([...colors.array].every(Number.isFinite)).toBe(true);
+    expect([...geometry.getAttribute('position').array]).toEqual(before);
+    disposeObject(group);
+  });
   it('has five ordered chapters and a dedicated painting profile', () => {
     const painting = getPainting('winter');
     expect(painting.id).toBe('winter');
