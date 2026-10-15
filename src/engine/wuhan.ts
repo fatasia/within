@@ -1,9 +1,11 @@
 import * as THREE from 'three';
-import type { Painting } from '../types';
+import type { Painting, Quality } from '../types';
 import { clamp, seededRandom } from './math';
 import { getWuhanGround, wuhanPath, wuhanShore } from './wuhanLayout';
 import { gableGeometry, rod } from './modelGeometry';
 import { batchStatic } from './resources';
+import { buildWuhanBotany, osmanthusFlowerGeometry } from './wuhanBotany';
+import { addWetStoneDetail } from './wuhanMaterials';
 
 type Point = readonly [number, number, number];
 const UP = new THREE.Vector3(0, 1, 0);
@@ -12,7 +14,9 @@ interface Weather {
   drops: Float32Array;
   rainOrigins: Float32Array;
   ripples: THREE.InstancedMesh;
-  rippleOrigins: Float32Array;
+  petals: THREE.InstancedMesh;
+  petalOrigins: Float32Array;
+  particle: THREE.Object3D;
   wetStone: THREE.MeshPhysicalMaterial;
   lantern: THREE.MeshStandardMaterial;
 }
@@ -53,39 +57,6 @@ function batch(
 function rough(color: string, roughness = 0.86): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, roughness });
 }
-function leafBlade(): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(
-      [
-        0, 0, 0, -0.15, 0.025, 0.18, 0, 0.06, 0.2, 0, 0, 0, 0, 0.06, 0.2, 0.15, 0.025, 0.18, -0.15,
-        0.025, 0.18, -0.12, 0.025, 0.32, 0, 0.06, 0.2, -0.12, 0.025, 0.32, 0, 0, 0.46, 0, 0.06, 0.2,
-        0, 0.06, 0.2, 0, 0, 0.46, 0.12, 0.025, 0.32, 0, 0.06, 0.2, 0.12, 0.025, 0.32, 0.15, 0.025,
-        0.18,
-      ],
-      3,
-    ),
-  );
-  geometry.computeVertexNormals();
-  return geometry;
-}
-function osmanthusFlower(): THREE.BufferGeometry {
-  const vertices: number[] = [];
-  for (let petal = 0; petal < 4; petal++) {
-    const a = petal * Math.PI * 0.5,
-      u = [Math.cos(a), Math.sin(a)],
-      v = [-Math.sin(a), Math.cos(a)];
-    const left = [u[0]! * 0.48 + v[0]! * 0.28, u[1]! * 0.48 + v[1]! * 0.28, 0.06];
-    const right = [u[0]! * 0.48 - v[0]! * 0.28, u[1]! * 0.48 - v[1]! * 0.28, 0.06];
-    vertices.push(0, 0, 0, ...left, u[0]!, u[1]!, 0, 0, 0, 0, u[0]!, u[1]!, 0, ...right);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
 function addShelter(
   group: THREE.Group,
   lantern: THREE.MeshStandardMaterial,
@@ -162,121 +133,23 @@ function addShelter(
 }
 
 /** A wet lakeside garden at human scale: no generic mountain or village substitution. */
-export function buildWuhan(painting: Painting): THREE.Group {
+export function buildWuhan(painting: Painting, quality: Quality = 'balanced'): THREE.Group {
   const group = new THREE.Group();
   group.name = 'East Lake · osmanthus garden in autumn rain';
   const random = seededRandom(painting.seed);
-  const trunks: THREE.Matrix4[] = [],
-    leaves: THREE.Matrix4[] = [],
-    flowers: THREE.Matrix4[] = [],
-    fallen: THREE.Matrix4[] = [],
+  const garden = buildWuhanBotany(painting, quality);
+  group.add(garden.group);
+  group.userData.flowerFocus = garden.group.userData.flowerFocus;
+  group.userData.quality = quality;
+  group.userData.ecologySources = garden.group.userData.ecologySources;
+  const fallen: THREE.Matrix4[] = [],
     stones: THREE.Matrix4[] = [],
     reeds: THREE.Matrix4[] = [];
-  const leafMaterial = new THREE.MeshStandardMaterial({
-    color: '#5b7d45',
-    roughness: 0.49,
-    side: THREE.DoubleSide,
-  });
   const flowerMaterial = new THREE.MeshStandardMaterial({
-    color: '#f0c051',
-    roughness: 0.66,
+    color: '#c8a34b',
+    roughness: 0.85,
     side: THREE.DoubleSide,
   });
-  const goldenFlower = osmanthusFlower();
-  let flowerFocus: Point | undefined;
-
-  const tree = (x: number, z: number, size: number): void => {
-    const y = getWuhanGround(x, z);
-    if (y < 0.65) return;
-    const height = 3.3 * size,
-      lean = (random() - 0.5) * 0.6;
-    trunks.push(segment([x, y, z], [x + lean, y + height, z], 0.15 * size));
-    for (let arm = 0; arm < 6; arm++) {
-      const angle = arm * 2.399 + random() * 0.3;
-      const radius = (0.85 + random() * 0.7) * size;
-      const end: Point = [
-        x + lean + Math.cos(angle) * radius,
-        y + height + (random() - 0.5) * size * 1.3,
-        z + Math.sin(angle) * radius,
-      ];
-      trunks.push(
-        segment([x + lean * 0.6, y + height * (0.47 + arm * 0.05), z], end, 0.055 * size),
-      );
-      // Glossy, opposite oval leaves sit along the outer twigs, with flowers at their axils.
-      // No opaque crown volumes: gaps between individual leaf sprays admit skylight.
-      for (let twig = 0; twig < 6; twig++) {
-        const a = angle + twig * 2.399 + random() * 0.24;
-        const reach = (0.72 + random() * 0.55) * size;
-        const tip: Point = [
-          end[0] + Math.cos(a) * reach,
-          end[1] + (random() - 0.3) * 0.95 * size,
-          end[2] + Math.sin(a) * reach,
-        ];
-        trunks.push(segment(end, tip, 0.017 * size));
-        for (let node = 0; node < 5; node++) {
-          const t = 0.24 + node * 0.17;
-          const bx = end[0] + (tip[0] - end[0]) * t,
-            by = end[1] + (tip[1] - end[1]) * t,
-            bz = end[2] + (tip[2] - end[2]) * t;
-          for (const sign of [-1, 1])
-            leaves.push(
-              pose(
-                [bx, by, bz],
-                [size * 0.95, size, size * (0.8 + random() * 0.3)],
-                a + sign * Math.PI * 0.45,
-                -0.68 + random() * 1.3,
-              ),
-            );
-          if (node !== 1 && node !== 3) continue;
-          for (let bloom = 0; bloom < 4; bloom++) {
-            const flower: Point = [
-              bx + (random() - 0.5) * 0.16,
-              by - 0.085,
-              bz + (random() - 0.5) * 0.16,
-            ];
-            flowers.push(
-              pose(
-                flower,
-                [0.055 * size, 0.055 * size, 0.055 * size],
-                a + random(),
-                (random() - 0.5) * 1.2,
-              ),
-            );
-            if (Math.abs(x + 18.5) < 0.01 && (!flowerFocus || flower[2] > flowerFocus[2]))
-              flowerFocus = flower;
-          }
-        }
-      }
-    }
-  };
-  // Two loose groves leave open lake views and keep the path clear of trunks.
-  for (let i = 0; i < 36; i++) {
-    const x = -111 + (i % 18) * 13 + (random() - 0.5) * 3;
-    const z = wuhanPath(x) + (i < 18 ? 6 : 16) + random() * 5;
-    if (Math.abs(x - 23) < 9 && z < wuhanPath(x) + 13) continue;
-    tree(x, z, 0.95 + random() * 0.65);
-  }
-  for (const [x, offset, size] of [
-    [-18.5, 3.1, 1.1],
-    [-9, 3.7, 1.35],
-    [43, 2.5, 1.05],
-    [-74, 3, 1.3],
-  ] as const)
-    tree(x, wuhanShore(x) + offset, size);
-  // Small silhouettes on the far bank remain subordinate to the foreground flowers.
-  for (let i = 0; i < 10; i++) tree(-100 + i * 23, -110 + Math.sin(i) * 7, 1.1 + random() * 0.4);
-
-  batch(
-    group,
-    'Osmanthus forked trunks and fine twigs',
-    new THREE.CylinderGeometry(0.65, 1, 1, 6),
-    rough('#605747'),
-    trunks,
-  );
-  batch(group, 'Opposite glossy osmanthus leaves', leafBlade(), leafMaterial, leaves);
-  batch(group, 'Golden four-petal flower clusters', goldenFlower, flowerMaterial, flowers);
-  group.userData.flowerFocus = flowerFocus;
-
   const pathGeometry = new THREE.BufferGeometry();
   const pathVertices: number[] = [],
     indices: number[] = [];
@@ -300,6 +173,7 @@ export function buildWuhan(painting: Painting): THREE.Group {
     clearcoat: 0.8,
     clearcoatRoughness: 0.16,
   });
+  addWetStoneDetail(wetStone);
   const path = new THREE.Mesh(pathGeometry, wetStone);
   path.name = 'Continuous wet stone lakeside path';
   path.receiveShadow = true;
@@ -315,13 +189,16 @@ export function buildWuhan(painting: Painting): THREE.Group {
           Math.sin(i) * 0.06,
         ),
       );
-    for (let petal = 0; petal < 3; petal++) {
-      const px = x + (random() - 0.5) * 1.4,
+    const nearTree = garden.trees.some(
+      (tree) => Math.abs(tree.x - x) < 2.2 && Math.abs(tree.z - z) < 6,
+    );
+    for (let petal = 0; petal < (nearTree ? 12 : 0); petal++) {
+      const px = x + (random() - 0.5) * 0.28,
         pz = z + (random() - 0.5) * 3.5;
       fallen.push(
         pose(
           [px, getWuhanGround(px, pz) + 0.045, pz],
-          [0.038, 0.038, 0.038],
+          [0.02, 0.02, 0.02],
           random() * 6.28,
           -Math.PI * 0.5,
         ),
@@ -332,7 +209,7 @@ export function buildWuhan(painting: Painting): THREE.Group {
   batch(
     group,
     'Fallen golden flowers on wet stone',
-    osmanthusFlower(),
+    osmanthusFlowerGeometry(),
     flowerMaterial.clone(),
     fallen,
   );
@@ -413,21 +290,103 @@ export function buildWuhan(painting: Painting): THREE.Group {
   }
   const rippleGeometry = new THREE.RingGeometry(0.94, 1, 20);
   rippleGeometry.rotateX(-Math.PI * 0.5);
+  const phases = new Float32Array(72),
+    speeds = new Float32Array(72),
+    radii = new Float32Array(72);
+  for (let i = 0; i < 72; i++) {
+    phases[i] = random();
+    speeds[i] = 0.26 + random() * 0.46;
+    radii[i] = 0.22 + random() * 0.5;
+  }
+  rippleGeometry.setAttribute('phaseOffset', new THREE.InstancedBufferAttribute(phases, 1));
+  rippleGeometry.setAttribute('cycleSpeed', new THREE.InstancedBufferAttribute(speeds, 1));
+  rippleGeometry.setAttribute('maxRadius', new THREE.InstancedBufferAttribute(radii, 1));
   const ripples = new THREE.InstancedMesh(
     rippleGeometry,
-    new THREE.MeshBasicMaterial({
-      color: '#c0d6c9',
+    new THREE.ShaderMaterial({
       transparent: true,
-      opacity: 0.2,
       depthWrite: false,
       side: THREE.DoubleSide,
+      uniforms: { uTime: { value: 0 }, uNight: { value: 0 } },
+      vertexShader: `attribute float phaseOffset;attribute float cycleSpeed;attribute float maxRadius;
+        uniform float uTime;varying float vFade;
+        #include <common>
+        #include <logdepthbuf_pars_vertex>
+        void main(){float cycle=phaseOffset+uTime*cycleSpeed;float phase=fract(cycle);vFade=sin(phase*3.14159265);
+          vec3 p=position;p.xz*=maxRadius*(.08+phase);vec4 world=instanceMatrix*vec4(p,1.);
+          world.xz+=vec2(sin(floor(cycle)*12.7+phaseOffset*83.),cos(floor(cycle)*7.3+phaseOffset*65.))*1.1;
+          gl_Position=projectionMatrix*modelViewMatrix*world;
+          #include <logdepthbuf_vertex>
+        }`,
+      fragmentShader: `uniform float uNight;varying float vFade;
+        #include <logdepthbuf_pars_fragment>
+        void main(){
+          #include <logdepthbuf_fragment>
+          gl_FragColor=vec4(mix(vec3(.51,.62,.54),vec3(.1,.17,.19),uNight),vFade*(.18-uNight*.1));
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }`,
     }),
     72,
   );
   ripples.name = 'Expanding lake raindrop rings';
   ripples.frustumCulled = false;
+  for (let i = 0; i < 72; i++)
+    ripples.setMatrixAt(
+      i,
+      pose([rippleOrigins[i * 3]!, 0.055, rippleOrigins[i * 3 + 2]!], [1, 1, 1]),
+    );
   group.add(ripples);
-  weather.set(group, { rain, drops, rainOrigins, ripples, rippleOrigins, wetStone, lantern });
+  const petalCount = quality === 'low' ? 48 : quality === 'high' ? 168 : 96;
+  const petalOrigins = new Float32Array(petalCount * 7);
+  const petalGeometry = new THREE.BufferGeometry();
+  petalGeometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(
+      [0, 0, 0, -0.45, 0.5, 0.07, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0.45, 0.5, 0.07],
+      3,
+    ),
+  );
+  petalGeometry.computeVertexNormals();
+  const petals = new THREE.InstancedMesh(
+    petalGeometry,
+    new THREE.MeshStandardMaterial({ color: '#d1ac55', roughness: 0.85, side: THREE.DoubleSide }),
+    petalCount,
+  );
+  petals.name = 'Sparse windborne osmanthus petals';
+  petals.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  petals.frustumCulled = false;
+  const nearTrees = garden.trees.filter((tree) => tree.z > -20);
+  const petalRandom = seededRandom(painting.seed + 2903);
+  for (let i = 0; i < petalCount; i++) {
+    const tree = nearTrees[i % nearTrees.length]!,
+      x = tree.x + (petalRandom() - 0.5) * 2,
+      z = tree.z + (petalRandom() - 0.5) * 2;
+    petalOrigins.set(
+      [
+        x,
+        tree.y + 3.4 * tree.size,
+        z,
+        Math.max(0.08, getWuhanGround(x, z) + 0.05),
+        petalRandom(),
+        0.07 + petalRandom() * 0.09,
+        petalRandom() * 6.28,
+      ],
+      i * 7,
+    );
+  }
+  group.add(petals);
+  weather.set(group, {
+    rain,
+    drops,
+    rainOrigins,
+    ripples,
+    petals,
+    petalOrigins,
+    particle: new THREE.Object3D(),
+    wetStone,
+    lantern,
+  });
   group.traverse((object) => {
     if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshStandardMaterial) {
       object.castShadow = true;
@@ -443,30 +402,44 @@ export function updateWuhan(group: THREE.Group, time: number, night: number): vo
   if (!state) return;
   const t = Number.isFinite(time) ? Math.max(0, time) : 0,
     dark = clamp(night);
+  const wind = Math.sin(t * 0.13) * 0.5;
   for (let i = 0; i < state.rainOrigins.length / 3; i++) {
     const x = state.rainOrigins[i * 3]!,
       z = state.rainOrigins[i * 3 + 2]!;
-    const y = ((state.rainOrigins[i * 3 + 1]! - ((t * 10.5) % 30) + 30) % 30) + 0.4;
-    state.drops.set(
-      [x + Math.sin(t * 0.13) * 0.5, y, z, x + 0.12 + Math.sin(t * 0.13) * 0.5, y + 0.65, z + 0.08],
-      i * 6,
-    );
+    const seed = state.rainOrigins[i * 3 + 1]!,
+      velocity = 8.6 + (seed % 3) * 1.4;
+    const y = ((seed - ((t * velocity) % 30) + 30) % 30) + 0.4;
+    const at = i * 6;
+    state.drops[at] = x + wind;
+    state.drops[at + 1] = y;
+    state.drops[at + 2] = z;
+    state.drops[at + 3] = x + 0.07 + (seed % 1) * 0.08 + wind;
+    state.drops[at + 4] = y + 0.3 + (seed % 1) * 0.45;
+    state.drops[at + 5] = z + 0.06;
   }
   state.rain.geometry.attributes.position!.needsUpdate = true;
   (state.rain.material as THREE.LineBasicMaterial).opacity = 0.27 - dark * 0.15;
-  for (let i = 0; i < state.ripples.count; i++) {
-    const phase = (state.rippleOrigins[i * 3 + 1]! + t * 0.48) % 1,
-      scale = 0.08 + phase * 0.5;
-    state.ripples.setMatrixAt(
-      i,
-      pose(
-        [state.rippleOrigins[i * 3]!, 0.055, state.rippleOrigins[i * 3 + 2]!],
-        [scale, 1, scale],
-      ),
+  const rippleMaterial = state.ripples.material as THREE.ShaderMaterial;
+  rippleMaterial.uniforms.uTime!.value = t;
+  rippleMaterial.uniforms.uNight!.value = dark;
+  const particle = state.particle;
+  for (let i = 0; i < state.petals.count; i++) {
+    const a = i * 7,
+      phase = (state.petalOrigins[a + 4]! + t * state.petalOrigins[a + 5]!) % 1,
+      angle = state.petalOrigins[a + 6]!;
+    const drift = Math.sin(t * 0.6 + angle) * 0.12;
+    particle.position.set(
+      state.petalOrigins[a]! + phase * 0.38 + drift,
+      state.petalOrigins[a + 1]! * (1 - phase) + state.petalOrigins[a + 3]! * phase,
+      state.petalOrigins[a + 2]! + Math.sin(angle + t * 0.25) * 0.15,
     );
+    particle.rotation.set(angle + t * 0.45, angle + t * 0.3, Math.sin(t * 0.7 + angle) * 0.6);
+    const size = (0.026 + (i % 3) * 0.006) * Math.min(1, phase * 10, (1 - phase) * 10);
+    particle.scale.setScalar(size);
+    particle.updateMatrix();
+    state.petals.setMatrixAt(i, particle.matrix);
   }
-  state.ripples.instanceMatrix.needsUpdate = true;
-  (state.ripples.material as THREE.MeshBasicMaterial).opacity = 0.18 - dark * 0.1;
+  state.petals.instanceMatrix.needsUpdate = true;
   state.wetStone.roughness = 0.23 + Math.sin(t * 0.16) * 0.015;
   state.lantern.emissiveIntensity = 0.12 + dark * 2.4;
 }

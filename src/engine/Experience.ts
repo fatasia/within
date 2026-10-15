@@ -130,7 +130,7 @@ export class Experience {
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.22;
     this.loadPainting();
-    this.setQuality();
+    this.setQuality(false);
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(host);
     this.resize();
@@ -173,7 +173,7 @@ export class Experience {
     if (this.painting.id === 'zhangjiajie' || this.painting.id === 'guilin')
       this.content.add(buildLandscapeDetails(this.painting));
     if (this.painting.id === 'wuhan') {
-      this.wuhan = buildWuhan(this.painting);
+      this.wuhan = buildWuhan(this.painting, this.state.quality);
       this.content.add(this.wuhan);
     }
     this.content.add(
@@ -204,7 +204,7 @@ export class Experience {
     // Xishan is a mountain stream composition, not a navigable river village.
     if (!custom && !['starry', 'winter', 'xishan'].includes(this.painting.id)) {
       for (let i = 0; i < 5; i++) {
-        const b = boat(this.painting.id === 'empire' ? 'classical' : 'river');
+        const b = batchStatic(boat(this.painting.id === 'empire' ? 'classical' : 'river'));
         b.scale.setScalar(0.6 + i * 0.04);
         const point = this.route.getPointAt((i + 0.4) / 6);
         b.position.copy(point);
@@ -281,7 +281,15 @@ export class Experience {
     this.state = { ...next };
     if (next.painting !== previous.painting) this.loadPainting();
     if (Math.abs(next.progress - this.progress) > 0.003) this.progress = clamp(next.progress);
-    if (next.quality !== previous.quality) this.setQuality();
+    if (next.quality !== previous.quality) {
+      this.setQuality(next.painting === previous.painting);
+      if (this.wuhan && next.painting === previous.painting) {
+        this.wuhan.removeFromParent();
+        disposeObject(this.wuhan);
+        this.wuhan = buildWuhan(this.painting, next.quality);
+        this.content.add(this.wuhan);
+      }
+    }
     if (next.period !== previous.period && next.painting === 'empire') this.setPeriod(next.period);
     if (next.mode !== previous.mode || next.entered !== previous.entered) {
       this.clearInput();
@@ -326,8 +334,8 @@ export class Experience {
     this.river = buildRiver(this.painting, this.state.quality);
     this.content.add(this.river.mesh);
   }
-  private setQuality(): void {
-    this.rebuildRiver();
+  private setQuality(rebuildWater = true): void {
+    if (rebuildWater) this.rebuildRiver();
     const cap =
       this.state.quality === 'high' ? 1.75 : this.state.quality === 'balanced' ? 1.25 : 0.8;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
@@ -1079,6 +1087,7 @@ export class Experience {
     this.controls.dispose();
     this.river?.dispose();
     disposeObject(this.content);
+    this.sun.shadow.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

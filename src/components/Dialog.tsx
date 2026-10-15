@@ -29,7 +29,7 @@ export function Dialog({
       }}
     >
       <div className="dialog-heading">
-        <span className="eyebrow">LIVING LANDSCAPES</span>
+        <span className="eyebrow">WITHIN</span>
         <button className="icon-button" aria-label="关闭弹窗" onClick={onClose}>
           <X size={22} />
         </button>

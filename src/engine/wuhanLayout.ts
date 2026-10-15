@@ -1,5 +1,10 @@
 import { clamp, noise } from './math';
 
+/** An authored outer twig, kept stable across quality tiers and botanical revisions. */
+export const WUHAN_FLOWER_FOCUS = [
+  -18.572144375617874, 5.378182582874633, 10.007394084830734,
+] as const;
+
 /** Garden composition inspired by East Lake, not geographic survey coordinates. */
 export const WUHAN_HILLS = [
   { x: -105, z: -126, radius: 57, height: 14, seed: 61, stretch: 0.72 },

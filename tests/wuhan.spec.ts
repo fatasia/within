@@ -5,6 +5,9 @@ test('East Lake has reachable detail chapters and mobile walking controls', asyn
   test.setTimeout(120000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
   await page.goto('/');
   await page.getByRole('button', { name: '选择武汉 · 桂雨东湖', exact: true }).click();
   await expect(page.getByRole('heading', { name: '桂雨东湖', exact: true })).toBeVisible();
@@ -13,6 +16,7 @@ test('East Lake has reachable detail chapters and mobile walking controls', asyn
   await mkdir('artifacts/screenshots', { recursive: true });
   for (const [title, progress, file] of [
     ['枝间金粟', '210', 'flowers'],
+    ['石径听雨', '430', 'fallen-flowers'],
     ['湖亭小歇', '660', 'shelter'],
   ]) {
     await page.getByRole('button', { name: new RegExp(title!) }).click();

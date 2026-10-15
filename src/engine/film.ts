@@ -22,7 +22,7 @@ export function paintFilmFrame(
   ctx.fillStyle = '#f4f0e3';
   ctx.font = `${portrait ? 17 : 15}px "Landscape Serif", serif`;
   ctx.textAlign = 'left';
-  ctx.fillText('入 画  /  LIVING LANDSCAPES', 45, 50);
+  ctx.fillText('入 画  /  WITHIN', 45, 50);
   const chapter = painting.chapters[chapterAt(painting, progress)]!;
   ctx.font = `${portrait ? 38 : 34}px "Landscape Serif", serif`;
   ctx.fillText(progress > 0.9 ? painting.title : chapter.title, 45, height - 102);
