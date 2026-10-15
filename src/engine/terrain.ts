@@ -3,6 +3,8 @@ import type { Painting, Peak } from '../types';
 import { clamp, fbm, noise, seededRandom } from './math';
 import { landscapeGround } from './geography';
 import { cityGround } from './cityLayout';
+import { getWuhanGround } from './wuhanLayout';
+import { blendXishanGround } from './xishanLayout';
 
 /** A continuous, deterministic height field shared by rendering and walking collision. */
 export function peakHeight(peak: Peak, x: number, z: number): number {
@@ -61,6 +63,7 @@ export function peakHeight(peak: Peak, x: number, z: number): number {
 }
 export function groundHeight(painting: Painting, x: number, z: number): number {
   if (painting.id === 'qingming') return cityGround(x, z, true);
+  if (painting.id === 'wuhan') return getWuhanGround(x, z);
   let height = -0.25;
   for (const peak of painting.peaks) {
     const h = peakHeight(peak, x, z);
@@ -75,6 +78,7 @@ export function groundHeight(painting: Painting, x: number, z: number): number {
   if (painting.id === 'empire' && z < 1 && x > -95 && x < 100) height = Math.max(height, 1.05);
   if (painting.id === 'zhangjiajie' || painting.id === 'guilin')
     return landscapeGround(painting, x, z, height);
+  if (painting.id === 'xishan') return blendXishanGround(x, z, height);
   return height;
 }
 export function makePaperTexture(seed: number): THREE.CanvasTexture {
@@ -182,7 +186,12 @@ export function buildTerrain(painting: Painting): { group: THREE.Group; texture:
   const mesh = new THREE.Mesh(geometry, material);
   mesh.receiveShadow = true;
   group.add(mesh);
-  if (!winter && painting.id !== 'starry' && painting.id !== 'qingming') {
+  if (
+    !winter &&
+    painting.id !== 'starry' &&
+    painting.id !== 'qingming' &&
+    painting.id !== 'wuhan'
+  ) {
     const strokePositions: number[] = [];
     const random = seededRandom(painting.seed);
     for (let i = 0; i < 4800; i++) {

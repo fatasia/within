@@ -22,6 +22,8 @@ export function Dialog({
       className="dialog"
       aria-label={title}
       onCancel={onClose}
+      onKeyDown={(event) => event.stopPropagation()}
+      onKeyUp={(event) => event.stopPropagation()}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

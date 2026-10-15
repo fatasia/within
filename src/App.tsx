@@ -23,8 +23,6 @@ import {
   Sun,
   SunHorizon,
   X,
-  ArrowUp,
-  ArrowDown,
   ArrowCounterClockwise,
   CloudFog,
   CircleNotch,
@@ -39,6 +37,8 @@ import { SOUND_PALETTES } from './engine/audioScore';
 import { ArtworkPreview } from './components/ArtworkPreview';
 import { Dialog } from './components/Dialog';
 import { MiniMap } from './components/MiniMap';
+import { WalkJoystick } from './components/WalkJoystick';
+import { ENCOUNTER_TEXT } from './engine/easterEgg';
 
 const modes: { id: ViewMode; label: string; icon: Icon }[] = [
   { id: 'scroll', label: '展卷', icon: BookOpen },
@@ -51,7 +51,7 @@ const times: { id: TimeMode; label: string; icon: Icon }[] = [
   { id: 'sunset', label: '薄暮', icon: SunHorizon },
   { id: 'night', label: '夜色', icon: Moon },
 ];
-type Modal = 'about' | 'help' | 'film' | null;
+type Modal = 'about' | 'help' | 'film' | 'encounter' | null;
 function download(url: string, name: string) {
   const a = document.createElement('a');
   a.href = url;
@@ -95,6 +95,18 @@ export function App() {
     (changes: Partial<ExperienceState>) => setState((s) => ({ ...s, ...changes })),
     [],
   );
+  const moveWalk = useCallback((x: number, forward: number) => {
+    engine.current?.setWalkInput(x, forward);
+  }, []);
+  const seek = useCallback((progress: number) => {
+    setState((s) => ({
+      ...s,
+      progress,
+      playing: false,
+      mode: 'scroll',
+      period: s.painting === 'empire' ? chapterAt(getPainting(s.painting), progress) : s.period,
+    }));
+  }, []);
   const notify = useCallback((text: string) => {
     setToast(text);
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -132,10 +144,18 @@ export function App() {
                   ...s,
                   progress: data.progress,
                   playing: data.progress >= 1 ? false : (data.playing ?? s.playing),
+                  period:
+                    s.painting === 'empire' && s.mode === 'scroll'
+                      ? chapterAt(getPainting(s.painting), data.progress)
+                      : s.period,
                 }));
               }
             },
             onError: (message) => setError(message),
+            onEncounter: () => {
+              setState((s) => ({ ...s, playing: false }));
+              setModal('encounter');
+            },
           });
           setReady(true);
         } catch (e) {
@@ -229,15 +249,12 @@ export function App() {
           quality: s.quality === 'high' ? 'balanced' : s.quality === 'balanced' ? 'low' : 'high',
         });
       else if (/^Digit[1-5]$/.test(e.code) && s.entered) {
-        patch({
-          progress: getPainting(s.painting).chapters[Number(e.code.slice(-1)) - 1]!.progress,
-          playing: false,
-        });
+        seek(getPainting(s.painting).chapters[Number(e.code.slice(-1)) - 1]!.progress);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [modal, recording, patch, toggleFull]);
+  }, [modal, recording, patch, seek, toggleFull]);
   const saveView = () => {
     if (!engine.current) return;
     download(engine.current.capture(), `入画-${painting.shortTitle}-${Date.now()}.png`);
@@ -290,7 +307,7 @@ export function App() {
                 aria-pressed={state.mode === id}
                 onClick={() => {
                   patch({ mode: id, playing: false });
-                  if (id === 'walk') notify('沿岸步行：WASD 移动，拖动观察；手机使用左下方向键');
+                  if (id === 'walk') notify('电脑点击画面转头，Esc 释放；手机左手摇杆、右手观察');
                 }}
               >
                 <Icon size={17} />
@@ -306,7 +323,7 @@ export function App() {
                 document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })
               }
             >
-              画境收藏<span>09</span>
+              画境收藏<span>{PAINTINGS.length.toString().padStart(2, '0')}</span>
             </button>
             <button onClick={() => setModal('about')}>关于入画</button>
           </nav>
@@ -336,9 +353,6 @@ export function App() {
       {!state.entered && (
         <>
           <section className="hero-copy" key={painting.id}>
-            <div className="hero-eyebrow">
-              <span className="tiny-line" /> 数字山水 · 沉浸式艺术馆
-            </div>
             <p className="art-meta">
               {painting.era}
               <span>/</span>
@@ -362,28 +376,23 @@ export function App() {
               <span>走进画中</span>
               <ArrowRight size={23} />
             </button>
-            <div className="entry-note">
-              <span className="live-dot" /> 实时三维画境
-              <span className="note-divider" /> 无需下载
-            </div>
           </section>
-          <aside className="vertical-note" aria-hidden="true">
-            可游 · 可居 · 可望<span>山水之间，天地入怀</span>
-          </aside>
+
           <div className="scene-caption">
             <span className="caption-number">
-              0{PAINTINGS.findIndex((p) => p.id === state.painting) + 1}
+              {(PAINTINGS.findIndex((p) => p.id === state.painting) + 1)
+                .toString()
+                .padStart(2, '0')}
             </span>
             <div>
               <span>{painting.english}</span>
-              <p>不止看画，也在画中。</p>
             </div>
           </div>
           <section id="collection" className="collection" aria-label="画境收藏">
             <div className="collection-label">
               <span>选择一方天地</span>
               <div className="collection-paging">
-                <span>THE COLLECTION / 01—09</span>
+                <span>THE COLLECTION / 01—{PAINTINGS.length.toString().padStart(2, '0')}</span>
                 <button
                   aria-label="向左浏览画境"
                   onClick={() =>
@@ -413,7 +422,7 @@ export function App() {
                 >
                   <div className="artwork-thumb">
                     <ArtworkPreview painting={p} />
-                    <span className="artwork-number">0{i + 1}</span>
+                    <span className="artwork-number">{(i + 1).toString().padStart(2, '0')}</span>
                   </div>
                   <div className="artwork-info">
                     <span>
@@ -432,12 +441,6 @@ export function App() {
               ))}
             </div>
           </section>
-          <footer className="gallery-footer">
-            <span>以画为引，以境相逢。</span>
-            <span>
-              THREE.JS · PROCEDURAL WORLDS<span className="footer-dot">·</span>2026
-            </span>
-          </footer>
         </>
       )}
       {state.entered && (
@@ -592,44 +595,52 @@ export function App() {
                   key={p}
                   aria-pressed={state.period === i}
                   className={state.period === i ? 'active' : ''}
-                  onClick={() => patch({ period: i })}
+                  onClick={() => {
+                    if (state.mode === 'scroll') seek(painting.chapters[i]!.progress);
+                    else
+                      patch({
+                        period: i,
+                        progress: painting.chapters[i]!.progress,
+                        playing: false,
+                      });
+                  }}
                 >
                   {p}
                 </button>
               ))}
             </div>
           )}
-          <div className="chapter-caption" key={`${state.painting}-${chapterIndex}`}>
+          <div
+            className="chapter-caption"
+            key={`${state.painting}-${chapterIndex}`}
+            aria-live="polite"
+            aria-atomic="true"
+          >
             <span className="eyebrow">
               0{chapterIndex + 1} / {chapter.subtitle}
             </span>
-            <h2>{chapter.title}</h2>
+            <div className="chapter-heading">
+              <h2>{chapter.title}</h2>
+              <div className="chapter-arrows" aria-label="章节翻页">
+                <button
+                  aria-label="上一章节"
+                  disabled={chapterIndex === 0}
+                  onClick={() => seek(painting.chapters[chapterIndex - 1]!.progress)}
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <button
+                  aria-label="下一章节"
+                  disabled={chapterIndex === painting.chapters.length - 1}
+                  onClick={() => seek(painting.chapters[chapterIndex + 1]!.progress)}
+                >
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
             <p>{chapter.description}</p>
           </div>
-          {state.mode === 'walk' && (
-            <div className="walk-pad" aria-label="步行方向控制">
-              {[
-                { key: 'KeyW', name: '向前走', icon: ArrowUp },
-                { key: 'KeyA', name: '向左走', icon: ArrowLeft },
-                { key: 'KeyS', name: '向后走', icon: ArrowDown },
-                { key: 'KeyD', name: '向右走', icon: ArrowRight },
-              ].map(({ key, name, icon: Icon }) => (
-                <button
-                  key={key}
-                  aria-label={name}
-                  onPointerDown={(e) => {
-                    e.currentTarget.setPointerCapture(e.pointerId);
-                    engine.current?.setMovement(key, true);
-                  }}
-                  onPointerUp={() => engine.current?.setMovement(key, false)}
-                  onPointerCancel={() => engine.current?.setMovement(key, false)}
-                  onLostPointerCapture={() => engine.current?.setMovement(key, false)}
-                >
-                  <Icon size={22} />
-                </button>
-              ))}
-            </div>
-          )}
+          {state.mode === 'walk' && <WalkJoystick onMove={moveWalk} />}
           <section className="journey-panel" aria-label="游览控制">
             <div className="journey-top">
               <div className="playback">
@@ -664,9 +675,9 @@ export function App() {
                     key={c.title}
                     className={chapterIndex === i ? 'active' : ''}
                     aria-current={chapterIndex === i ? 'step' : undefined}
-                    onClick={() => patch({ progress: c.progress, playing: false, mode: 'scroll' })}
+                    onClick={() => seek(c.progress)}
                   >
-                    <span>0{i + 1}</span>
+                    <span>{(i + 1).toString().padStart(2, '0')}</span>
                     {c.title}
                   </button>
                 ))}
@@ -682,16 +693,18 @@ export function App() {
                   : readableTime(state.time, state.progress)}
               </span>
             </div>
-            <MiniMap
-              painting={painting}
-              progress={state.progress}
-              onChange={(p) => patch({ progress: p, playing: false })}
-            />
+            <MiniMap painting={painting} progress={state.progress} onChange={seek} />
             <div className="journey-bottom">
-              <span>滚轮展卷 · 拖动探索 · 空格播放</span>
+              <span>
+                {state.mode === 'walk'
+                  ? 'WASD 行走 · 点击转头 · Esc 释放'
+                  : state.mode === 'orbit'
+                    ? '左拖平移 · 右拖旋转 · 滚轮缩放'
+                    : '滚轮展卷 · 双指缩放 · 空格播放'}
+              </span>
               <span>
                 {Math.round(state.progress * 100)}%<span className="progress-divider">/</span>
-                一卷山河
+                游览进度
               </span>
             </div>
           </section>
@@ -724,6 +737,14 @@ export function App() {
           正在录制实景影片 · {Math.round(recording * 100)}%<small>请保持此页面可见</small>
         </div>
       )}
+      {modal === 'encounter' && (
+        <Dialog title={ENCOUNTER_TEXT[state.painting].title} onClose={() => setModal(null)}>
+          <p className="encounter-copy">{ENCOUNTER_TEXT[state.painting].text}</p>
+          <button className="encounter-close" onClick={() => setModal(null)}>
+            再看一会儿风景 <ArrowRight size={16} />
+          </button>
+        </Dialog>
+      )}
       {modal === 'help' && (
         <Dialog title="游览指南" onClose={() => setModal(null)}>
           <div className="help-modes">
@@ -734,9 +755,9 @@ export function App() {
                 <p>
                   {
                     [
-                      '滚轮或左右拖动推进画卷，也可点击底部章节直接抵达。',
-                      '左键旋转、右键平移、滚轮缩放。手机单指旋转，双指缩放与平移。',
-                      'WASD 或方向键沿地形步行，拖动观察。Shift 加速；手机使用方向按钮。',
+                      '滚轮或拖动展卷；Ctrl+滚轮、+ / − 或双指捏合缩放。点章节直接抵达。',
+                      '左键平移、右键旋转、滚轮缩放。手机单指平移，双指缩放与旋转。',
+                      '点击画面锁定鼠标，WASD 行走，Shift 加速，Esc 释放；手机左手摇杆、右手转头。',
                     ][i]
                   }
                 </p>

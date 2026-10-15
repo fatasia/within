@@ -1,6 +1,7 @@
 import type { Painting, PaintingId } from '../types';
 import { QINGMING } from './qingming';
 import { REAL_LANDSCAPES } from './landscapes';
+import { WUHAN_PAINTING } from './wuhan';
 const chapter = (title: string, subtitle: string, description: string, progress: number) => ({
   title,
   subtitle,
@@ -53,13 +54,33 @@ const COLLECTION: Painting[] = [
       chapter(
         '江山初见',
         'THE OPENING',
-        '远山起伏，江流无尽。让视线沿着青绿的山脊，慢慢进入画中。',
+        '青绿山脊从江面后方层层升起，近岸低丘留出开阔水面，先辨认整卷山水的远近。',
         0,
       ),
-      chapter('烟波渡口', 'THE CROSSING', '轻舟从洲渚间穿过，水纹把山色揉碎。', 0.2),
-      chapter('长桥卧波', 'THE BRIDGE', '循桥而行，亭台与村舍在近岸展开。', 0.4),
-      chapter('层峦叠翠', 'THE PEAKS', '石青与石绿交叠，山脊向云间伸展。', 0.62),
-      chapter('江天无尽', 'THE DISTANCE', '回望走过的山水，让眼前天地重新成为长卷。', 0.85),
+      chapter(
+        '烟波渡口',
+        'THE CROSSING',
+        '洲渚将江面分成几道水路，帆舟停在山脚附近，沿岸的芦苇与碎石带出近景尺度。',
+        0.2,
+      ),
+      chapter(
+        '长桥卧波',
+        'THE BRIDGE',
+        '石桥伏在江面，浅色桥板与木栏在近处展开；越过桥身，可望见两侧低丘上的亭屋。',
+        0.4,
+      ),
+      chapter(
+        '层峦叠翠',
+        'THE PEAKS',
+        '抬头看主峰的青蓝岩面与山脚的石绿色，深浅交错的山脊，把近山与远岫分开。',
+        0.62,
+      ),
+      chapter(
+        '江天无尽',
+        'THE DISTANCE',
+        '视线重新拉远，近处的桥、舟与亭屋缩成细节，连绵青山和宽阔江面接回一幅长卷。',
+        0.85,
+      ),
     ],
     source: 'https://www.dpm.org.cn/collection/paint/228354.html',
   },
@@ -104,11 +125,36 @@ const COLLECTION: Painting[] = [
       [115, 2, 9],
     ],
     chapters: [
-      chapter('富春初晴', 'CLEARING SKIES', '疏与密、浓与淡，构成江岸的呼吸。', 0),
-      chapter('沙洲泊舟', 'THE SANDBANK', '在沙洲边停舟，听风吹过低低的芦苇。', 0.22),
-      chapter('疏林山居', 'THE DWELLING', '几间屋舍隐在树后，不争山水的主位。', 0.44),
-      chapter('远岫云归', 'RETURNING CLOUDS', '山形渐远，留白把天地连在一起。', 0.65),
-      chapter('一江闲意', 'A QUIET RIVER', '山居不是目的地，是慢下来的方式。', 0.87),
+      chapter(
+        '富春初晴',
+        'CLEARING SKIES',
+        '灰绿山丘沿江缓缓起伏，近岸低洲与远处山形疏密相间，大片水面让景物彼此留白。',
+        0,
+      ),
+      chapter(
+        '沙洲泊舟',
+        'THE SANDBANK',
+        '舟旁是低矮洲岸，芦苇、岸石与细草贴着水边生长；靠近岸线，再看远山的淡影。',
+        0.22,
+      ),
+      chapter(
+        '疏林山居',
+        'THE DWELLING',
+        '几间亭屋散在近岸缓坡，树干与屋檐相互遮掩；村舍很小，江岸与山丘仍占据视野。',
+        0.44,
+      ),
+      chapter(
+        '远岫云归',
+        'RETURNING CLOUDS',
+        '越过低丘向后望，山色渐淡，远处轮廓藏入薄雾；近岸较深的树影让层次更清楚。',
+        0.65,
+      ),
+      chapter(
+        '一江闲意',
+        'A QUIET RIVER',
+        '回看江面两侧的山丘与疏林，帆舟、屋舍各占一角，宽阔的水面留下安静的空隙。',
+        0.87,
+      ),
     ],
     source: 'https://theme.npm.edu.tw/selection/Article.aspx?sNo=04000975',
   },
@@ -152,11 +198,36 @@ const COLLECTION: Painting[] = [
       [0, 2, -17],
     ],
     chapters: [
-      chapter('行旅入山', 'INTO THE MOUNTAINS', '跟随山脚下的行旅，进入一片苍茫。', 0),
-      chapter('溪桥闻铃', 'BELLS BY THE STREAM', '树与石遮住远方，溪声先抵达耳畔。', 0.22),
-      chapter('林深见寺', 'A HIDDEN TEMPLE', '在深林间辨认屋檐，感受山中人的尺度。', 0.43),
-      chapter('飞瀑千尺', 'THE FALLING WATER', '细瀑从巨壁垂落，把山的高度显露出来。', 0.63),
-      chapter('仰止高山', 'THE GREAT MOUNTAIN', '不必征服山顶，站在山下也能抵达。', 0.87),
+      chapter(
+        '行旅入山',
+        'INTO THE MOUNTAINS',
+        '山脚的行人与驮兽缩在溪石之间，背后的高峰几乎占满视野，人的尺度由此显得微小。',
+        0,
+      ),
+      chapter(
+        '溪畔闻铃',
+        'BELLS BY THE STREAM',
+        '驮包贴在牲口两侧，缰绳随队伍曲折相连；走近溪边石坡，细小的行旅衬出山势高远。',
+        0.22,
+      ),
+      chapter(
+        '林深见檐',
+        'ROOFS IN THE WOODS',
+        '右侧林间只露一角低低的屋檐，木柱与瓦脊藏在树影后；越过近处溪石，山壁仍高出屋舍许多。',
+        0.43,
+      ),
+      chapter(
+        '飞瀑千尺',
+        'THE FALLING WATER',
+        '一线浅白水流贴着主峰岩面垂落，沿途的折转勾出山壁起伏，也让巨峰显得更高。',
+        0.63,
+      ),
+      chapter(
+        '仰止高山',
+        'THE GREAT MOUNTAIN',
+        '主峰的宽阔岩壁立在林木后方，两侧小峰退入薄雾；停下回望，近岸行旅几乎难辨。',
+        0.87,
+      ),
     ],
     source: 'https://theme.npm.edu.tw/selection/Article.aspx?sNo=04000959',
   },
@@ -198,11 +269,36 @@ const COLLECTION: Painting[] = [
       [91, 2, 9],
     ],
     chapters: [
-      chapter('蓝色时刻', 'THE BLUE HOUR', '沉睡的村庄与不眠的天空。', 0),
-      chapter('柏树低语', 'THE CYPRESS', '深色柏树从地面向星空伸展。', 0.22),
-      chapter('小镇夜行', 'THE SLEEPING VILLAGE', '穿过微亮的窗与安静的街。', 0.44),
-      chapter('旋涡星河', 'THE SWIRLING SKY', '让视线跟随笔触，而不是追逐真实天体。', 0.65),
-      chapter('月色未央', 'UNDER THE MOON', '在夜色尽头，重新看见整幅画。', 0.87),
+      chapter(
+        '蓝色时刻',
+        'THE BLUE HOUR',
+        '蓝色丘陵围住低矮村庄，教堂尖顶从屋群间升起，明亮星月与地面的暗色彼此相衬。',
+        0,
+      ),
+      chapter(
+        '柏树低语',
+        'THE CYPRESS',
+        '深色柏树聚成火焰般的轮廓，从近处直指夜空；树旁较低的屋群，让它显得格外高。',
+        0.22,
+      ),
+      chapter(
+        '小镇夜行',
+        'THE SLEEPING VILLAGE',
+        '顺着弯曲街巷看屋顶、窗格与教堂尖塔，几处暖窗在蓝色阴影中发亮，小镇保持安静。',
+        0.44,
+      ),
+      chapter(
+        '旋涡星河',
+        'THE SWIRLING SKY',
+        '抬头看蓝色笔触卷成弧带，星光在金黄光晕里聚拢；地面的山丘与屋群压低了天际。',
+        0.65,
+      ),
+      chapter(
+        '月色未央',
+        'UNDER THE MOON',
+        '金色弯月悬在群山上方，回望时柏树、村庄与旋转笔触同框，夜空重新成为画面中心。',
+        0.87,
+      ),
     ],
     source: 'https://www.moma.org/collection/works/79802',
   },
@@ -245,11 +341,36 @@ const COLLECTION: Painting[] = [
       [106, 2, 27],
     ],
     chapters: [
-      chapter('荒野初生', 'THE SAVAGE STATE', '森林、山峰与未经开拓的岸线。', 0),
-      chapter('田园牧歌', 'THE PASTORAL STATE', '土地被耕作，聚落与秩序开始形成。', 0.22),
-      chapter('帝国盛世', 'THE CONSUMMATION', '柱廊沿海湾展开，城市占据风景。', 0.44),
-      chapter('毁灭之潮', 'DESTRUCTION', '繁华的轮廓破裂，暗色笼罩海湾。', 0.65),
-      chapter('荒凉余晖', 'DESOLATION', '人已远去，残柱与植物留在水边。', 0.87),
+      chapter(
+        '荒野初生',
+        'THE SAVAGE STATE',
+        '这一时代尚无柱廊城邦，林木与连绵山峰围住海湾，空旷岸线显出后来城市的尺度。',
+        0,
+      ),
+      chapter(
+        '田园牧歌',
+        'THE PASTORAL STATE',
+        '几间低矮茅屋沿岸散开，门洞与斜屋顶已可辨认；聚落仍很疏，远山与水面占据主位。',
+        0.22,
+      ),
+      chapter(
+        '帝国盛世',
+        'THE CONSUMMATION',
+        '柱廊、三角山墙与圆形穹顶沿海湾展开，近岸台阶和石栏把开阔水面分出城市边界。',
+        0.44,
+      ),
+      chapter(
+        '毁灭之潮',
+        'DESTRUCTION',
+        '完整屋顶消失，断柱与倒落石块留在台基上；顺着海岸看，原本连续的建筑轮廓已破碎。',
+        0.65,
+      ),
+      chapter(
+        '荒凉余晖',
+        'DESOLATION',
+        '留下的建筑更为稀疏，残柱与断续石栏靠近水边，远山依旧完整，海湾重新显得空阔。',
+        0.87,
+      ),
     ],
     source:
       'https://emuseum.nyhistory.org/objects/56323/the-course-of-empire-the-arcadian-or-pastoral-state',
@@ -295,23 +416,54 @@ const COLLECTION: Painting[] = [
       [9, 2, -42],
     ],
     chapters: [
-      chapter('北方长夜', 'THE NORTHERN NIGHT', '蓝色笼住山谷，冬树让出远望的空隙。', 0),
-      chapter('冬枝如幕', 'THE WINTER TREES', '前景枝条向两侧展开，像一重安静的帷幕。', 0.22),
-      chapter('幽谷雪色', 'THE BLUE VALLEY', '白雪不是纯白，阴影里藏着冷蓝与灰紫。', 0.44),
-      chapter('群峰如殿', 'THE SNOW PALACE', '雪线顺着山脊铺开，远山明亮而不可接近。', 0.65),
-      chapter('微星不语', 'THE QUIET STARS', '没有极光与城镇，只有原画里的山、树与微光。', 0.87),
+      chapter(
+        '北方长夜',
+        'THE NORTHERN NIGHT',
+        '冷蓝山谷通向明亮雪峰，暗色针叶林守在两侧；中央留出的空地，让远山轮廓完整显露。',
+        0,
+      ),
+      chapter(
+        '冬枝如幕',
+        'THE WINTER TREES',
+        '近处冬树分出细长枝杈，在两侧形成深色边框；穿过枝条的空隙，仍能望见苍白雪脊。',
+        0.22,
+      ),
+      chapter(
+        '幽谷雪色',
+        'THE BLUE VALLEY',
+        '低处雪地沉在冷蓝阴影里，两侧散着覆雪小石；沿谷地向远处望，雪峰才渐渐明亮。',
+        0.44,
+      ),
+      chapter(
+        '群峰如殿',
+        'THE SNOW PALACE',
+        '雪色沿宽阔山脊连续铺开，几道冷色沟壑分出峰体；前方暗林压低了山脚的轮廓。',
+        0.65,
+      ),
+      chapter(
+        '微星不语',
+        'THE QUIET STARS',
+        '抬头可见稀疏微星，低头仍是没有灯火的暗林；远处雪脊保留一线冷光，山谷归于寂静。',
+        0.87,
+      ),
     ],
     source: 'https://www.nasjonalmuseet.no/en/collection/object/NG.M.01185',
   },
 ];
-export const PAINTINGS: Painting[] = [...COLLECTION, QINGMING, ...REAL_LANDSCAPES].map(
-  (painting) => ({
+const featuredOrder = new Map<PaintingId, number>([
+  ['starry', 0],
+  ['winter', 1],
+  ['qingming', 2],
+  ['wuhan', 3],
+]);
+export const PAINTINGS: Painting[] = [...COLLECTION, QINGMING, ...REAL_LANDSCAPES, WUHAN_PAINTING]
+  .sort((a, b) => (featuredOrder.get(a.id) ?? 4) - (featuredOrder.get(b.id) ?? 4))
+  .map((painting) => ({
     ...painting,
     peaks: painting.peaks.map((peak) => ({ ...peak, profile: painting.id })),
-  }),
-);
+  }));
 export const getPainting = (id: PaintingId): Painting =>
-  PAINTINGS.find((p) => p.id === id) ?? PAINTINGS[0]!;
+  PAINTINGS.find((p) => p.id === id) ?? PAINTINGS.find((p) => p.id === 'qianli')!;
 export function chapterAt(painting: Painting, progress: number): number {
   let index = 0;
   painting.chapters.forEach((c, i) => {

@@ -23,6 +23,7 @@ test('all scene soundtracks render stereo without silence or clipping', async ({
       'qingming',
       'zhangjiajie',
       'guilin',
+      'wuhan',
     ];
     const result = [];
     for (const id of ids) {
@@ -187,7 +188,10 @@ test('rapid mute and scene switches cannot reopen the master output', async ({ p
         const masterEvents: number[] = [];
         const masterParam = audio.master.gain as AudioParam;
         const setMasterValue = masterParam.setValueAtTime.bind(masterParam);
-        masterParam.setValueAtTime = (value, time) => { masterEvents.push(value); return setMasterValue(value, time); };
+        masterParam.setValueAtTime = (value, time) => {
+          masterEvents.push(value);
+          return setMasterValue(value, time);
+        };
         const first = audio.start();
         const second = audio.stop();
         const third = audio.start();

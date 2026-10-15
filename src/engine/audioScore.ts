@@ -13,6 +13,7 @@ export interface SoundPalette {
   voice: Voice;
   wind: number;
   water: number;
+  rain?: number;
   market?: number;
   field: readonly FieldSound[];
   seed: number;
@@ -20,6 +21,20 @@ export interface SoundPalette {
 
 /** Original motifs, not transcriptions of recordings or existing compositions. */
 export const SOUND_PALETTES: Record<PaintingId, SoundPalette> = {
+  wuhan: {
+    title: '桂雨入湖',
+    description: '细雨 · 叶响 · 湖水 · 滴水',
+    tempo: 44,
+    root: 52,
+    scale: [0, 2, 4, 7, 9],
+    motif: [0, 3, 1, 2, 0, -1, 2, 1],
+    voice: 'felt',
+    wind: 0.18,
+    water: 0.35,
+    rain: 0.55,
+    field: ['drip'],
+    seed: 103,
+  },
   qianli: {
     title: '青绿远汀',
     description: '山风 · 江水 · 远鸟 · 船桨',

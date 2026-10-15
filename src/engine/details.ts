@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Painting } from '../types';
 import { seededRandom, noise } from './math';
 import { groundHeight } from './terrain';
+import { isXishanClearing, XISHAN_PATH, xishanPathCenter } from './xishanLayout';
 
 interface GroundPoint {
   x: number;
@@ -117,10 +118,19 @@ function addFootpaths(group: THREE.Group, painting: Painting): void {
   const positions: number[] = [];
   const colors: number[] = [];
   const tint = new THREE.Color(painting.id === 'fuchun' ? '#b2ad92' : '#9b9678');
-  for (const peak of painting.peaks.filter((p) => p.z > -8)) {
+  const paths =
+    painting.id === 'xishan'
+      ? [{ x: 52, z: 46.8, radius: 11 }]
+      : painting.peaks.filter((p) => p.z > -8);
+  for (const peak of paths) {
     const count = 100;
     const width = painting.id === 'xishan' ? 0.52 : 0.38;
     const edge = (t: number, side: number): THREE.Vector3 => {
+      if (painting.id === 'xishan') {
+        const x = XISHAN_PATH.start + t * (XISHAN_PATH.end - XISHAN_PATH.start);
+        const z = xishanPathCenter(x) + side * width;
+        return new THREE.Vector3(x, groundHeight(painting, x, z) + 0.025, z);
+      }
       const x = peak.x + (t - 0.5) * peak.radius * 1.65;
       const z = peak.z + Math.sin(t * Math.PI * 1.25 + 0.3) * peak.radius * 0.4 + side * width;
       return new THREE.Vector3(x, groundHeight(painting, x, z) + 0.025, z);
@@ -241,11 +251,17 @@ export function buildNearDetails(painting: Painting): THREE.Group {
           // Slightly buried bases leave no hovering stones even on irregular ground.
           dummy.position.set(x, point.y + scale * 0.12, z);
           dummy.scale.set(scale * (1.1 + random() * 0.8), scale * (0.45 + random() * 0.6), scale);
+          if (
+            painting.id === 'xishan' &&
+            isXishanClearing(x, z, Math.max(dummy.scale.x, dummy.scale.z) * 1.15)
+          )
+            continue;
           dummy.updateMatrix();
           rocks.push(dummy.matrix.clone());
           rockColors.push(new THREE.Color().setScalar(0.85 + random() * 0.3));
         }
       } else {
+        if (painting.id === 'xishan' && isXishanClearing(x, z, 0.3)) continue;
         if (point.slope > 0.8 || noise(x * 0.27, z * 0.27, 31) < 0.35) continue;
         dummy.position.set(x, point.y + 0.025, z);
         dummy.scale.setScalar(0.6 + random() * 0.9);

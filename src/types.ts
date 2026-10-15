@@ -7,7 +7,8 @@ export type PaintingId =
   | 'winter'
   | 'qingming'
   | 'zhangjiajie'
-  | 'guilin';
+  | 'guilin'
+  | 'wuhan';
 export type ViewMode = 'scroll' | 'orbit' | 'walk';
 export type TimeMode = 'journey' | 'day' | 'sunset' | 'night';
 export type Quality = 'high' | 'balanced' | 'low';
