@@ -16,8 +16,11 @@ try {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(url, { waitUntil: 'domcontentloaded' });
-    const continueLink = page.getByText('确定访问', { exact: true });
-    if (await continueLink.isVisible()) await continueLink.click();
+    const continueLink = page.getByRole('button', { name: /^确定访问/ });
+    if (await continueLink.isVisible()) {
+      await expect(continueLink).toBeEnabled({ timeout: 15000 });
+      await continueLink.click();
+    }
     const enter = page.getByRole('button', { name: '走进画中', exact: true });
     await expect(enter).toBeEnabled({ timeout: 90000 });
     await page.getByRole('button', { name: '选择星月夜', exact: true }).click();
