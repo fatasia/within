@@ -154,6 +154,7 @@ const browser = await chromium.launch({
   args: [
     '--enable-webgl',
     '--ignore-gpu-blocklist',
+    ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []),
     '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding',
   ],

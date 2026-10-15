@@ -99,9 +99,9 @@ function paintedSkyTexture(): THREE.CanvasTexture {
   ribbon(curve([-1.6, 0.12], [-1.03, 0.35], [-0.56, 0.31], [-0.15, 0.19]), 14, cloud);
   const spiral: Point[] = Array.from({ length: 320 }, (_, i) => {
     const t = i / 319,
-      a = -0.7 + t * Math.PI * 2.4,
-      r = 0.24 * (1 - t) + 0.012;
-    return [-0.35 + Math.cos(a) * r * 1.65, 0.13 + Math.sin(a) * r * 0.54];
+      a = -0.55 + t * Math.PI * 2.15,
+      r = 0.21 * (1 - t) ** 1.3 + 0.006;
+    return [-0.35 + Math.cos(a) * r * 1.45, 0.14 + Math.sin(a) * r * 0.53];
   });
   ribbon(spiral, 15, cloud);
   ribbon(curve([-1.45, -0.02], [-1.04, 0.15], [-0.72, -0.035], [-0.36, 0.04]), 9, [
@@ -173,6 +173,24 @@ function paintedSkyTexture(): THREE.CanvasTexture {
     my + (mr * Math.sqrt(3)) / 2,
   );
   ctx.fill();
+  // Paint within the crescent silhouette: the moon is pigment, not a flat UI icon.
+  ctx.save();
+  ctx.clip();
+  for (let i = 0; i < 640; i++) {
+    const x = mx + (random() - 0.5) * mr * 2;
+    const y = my + (random() - 0.5) * mr * 2;
+    const angle = Math.atan2(y - my, x - mx) + Math.PI / 2;
+    dab(
+      x,
+      y,
+      angle,
+      2 + random() * 6,
+      0.7 + random(),
+      ['#f4e4ad', '#b5a465', '#dfc67d', '#eedda8'][i % 4]!,
+      0.25 + random() * 0.45,
+    );
+  }
+  ctx.restore();
   for (let i = 0; i < 65; i++) {
     const a = Math.PI / 3 + (random() * Math.PI * 4) / 3;
     dab(

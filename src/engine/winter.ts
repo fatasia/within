@@ -4,6 +4,44 @@ import type { Painting } from '../types';
 import { noise, seededRandom } from './math';
 import { groundHeight } from './terrain';
 
+/** Preserve the existing relief while separating luminous snow shoulders from blue cuts. */
+export function refineWinterTerrain(terrain: THREE.Group): void {
+  const shadow = new THREE.Color('#293b5c');
+  const snow = new THREE.Color('#aabacb');
+  const foothill = new THREE.Color('#182b48');
+  const tint = new THREE.Color();
+  terrain.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const positions = object.geometry.getAttribute('position');
+    const normals = object.geometry.getAttribute('normal');
+    const colors = object.geometry.getAttribute('color');
+    if (!positions || !normals || !colors) return;
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i),
+        y = positions.getY(i),
+        z = positions.getZ(i);
+      if (y < 1 || z > -35) continue;
+      const altitude = THREE.MathUtils.smoothstep(y, 5, 35);
+      // Directional facets are broad and coherent; tiny random noise cannot read as gullies.
+      const shoulder = THREE.MathUtils.clamp(
+        normals.getY(i) * 0.62 - normals.getX(i) * 0.42 + 0.2,
+        0,
+        1,
+      );
+      const fold = Math.sin(x * 0.19 + z * 0.035 + Math.sin(z * 0.044) * 1.6);
+      const cut = THREE.MathUtils.smoothstep(fold, 0.55, 0.97) * (1 - shoulder * 0.65);
+      // Moonlit snow is cool and matte, not near-white icing over every rounded shoulder.
+      const windScour = noise(x * 0.14, z * 0.22, 1914) * 0.06;
+      tint
+        .copy(shadow)
+        .lerp(snow, THREE.MathUtils.clamp(shoulder * 0.96 - cut * 0.53 - windScour, 0, 1));
+      tint.lerp(foothill, 1 - altitude);
+      colors.setXYZ(i, tint.r, tint.g, tint.b);
+    }
+    colors.needsUpdate = true;
+  });
+}
+
 /** Sohlberg's foreground is a curtain of bare branches, not a populated ski resort. */
 function winterTree(seed: number): THREE.BufferGeometry {
   const random = seededRandom(seed);
@@ -89,7 +127,20 @@ export function buildWinterDetails(painting: Painting): THREE.Group {
     positions.setY(i, 0.65);
     // The valley stays in shadow; broad quiet bands lead towards the white ridge.
     const bank = Math.exp(-Math.pow((x + Math.sin(z * 0.018) * 24) / 62, 2));
-    color.copy(dark).lerp(pale, bank * 0.3 + noise(x * 0.006, z * 0.024, 25) * 0.26);
+    const terrace = Math.exp(-Math.pow((z + 30 + Math.sin(x * 0.018) * 8) / 12, 2));
+    const branchShadow = Math.exp(-Math.pow((Math.abs(x) - 57 + z * 0.12) / 19, 2));
+    color
+      .copy(dark)
+      .lerp(
+        pale,
+        Math.max(
+          0,
+          bank * 0.3 +
+            terrace * 0.18 +
+            noise(x * 0.006, z * 0.024, 25) * 0.19 -
+            branchShadow * 0.16,
+        ),
+      );
     colors.push(color.r, color.g, color.b);
   }
   snowGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
@@ -102,6 +153,7 @@ export function buildWinterDetails(painting: Painting): THREE.Group {
   const treeMaterial = new THREE.MeshStandardMaterial({ color: '#08121f', roughness: 1 });
   const transform = new THREE.Object3D();
   const forest = new THREE.InstancedMesh(firGeometry(), treeMaterial, 136);
+  forest.name = 'Rondane fir silhouettes';
   for (let i = 0; i < 136; i++) {
     const side = i % 2 === 0 ? -1 : 1;
     const distant = i < 64;
@@ -121,6 +173,7 @@ export function buildWinterDetails(painting: Painting): THREE.Group {
   // Close branches carry taper, forks, bark-colored shadows, and irregular spacing.
   for (let variation = 0; variation < 3; variation++) {
     const trees = new THREE.InstancedMesh(winterTree(93 + variation * 27), treeMaterial, 8);
+    trees.name = 'Rondane bare tree branches';
     for (let i = 0; i < 8; i++) {
       const side = i % 2 === 0 ? -1 : 1;
       const x = side * (59 + random() * 37);

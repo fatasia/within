@@ -1,5 +1,5 @@
 import type { Painting } from '../types';
-import { WUHAN_HILLS, wuhanPath } from '../engine/wuhanLayout';
+import { WUHAN_HILLS, WUHAN_BACK_SLOPES, wuhanPath } from '../engine/wuhanLayout';
 
 export const WUHAN_PAINTING: Painting = {
   id: 'wuhan',
@@ -22,8 +22,8 @@ export const WUHAN_PAINTING: Painting = {
     ink: '#3d5146',
     leaf: '#3e6043',
   },
-  peaks: WUHAN_HILLS.map((peak) => ({ ...peak, profile: 'wuhan' })),
-  overview: { eye: [74, 39, 107], target: [8, 4, 0] },
+  peaks: [...WUHAN_HILLS, ...WUHAN_BACK_SLOPES].map((peak) => ({ ...peak, profile: 'wuhan' })),
+  overview: { eye: [-15, 5, -29], target: [15, 5, 17] },
   route: [-104, -65, -25, 15, 55, 101].map((x) => [x, 2, wuhanPath(x)] as const),
   chapters: [
     {

@@ -2,21 +2,21 @@
 
 ## 结构
 
-| 目录                          | 职责                                 |
-| ----------------------------- | ------------------------------------ |
-| `src/data`                    | 画作来源、颜色、山峰、路线、章节配置 |
-| `src/engine/terrain.ts`       | 确定性山体高度场，渲染与步行共用     |
-| `src/engine/props.ts`         | 树、舟、桥、亭、村落与时代建筑       |
-| `src/engine/details.ts`       | 近景岩石、草叶、芦苇及地面细节       |
-| `src/engine/modelGeometry.ts` | 枝干、弯曲构件、双坡屋顶和松冠几何   |
-| `src/engine/winter.ts`        | 北欧雪地、冬树、覆雪岩块与微星天空   |
-| `src/engine/materials.ts`     | 水纹、薄雾与星夜天空着色器           |
-| `src/engine/atmosphere.ts`    | 渐变天空、日月与夜间窗灯光晕         |
-| `src/engine/Experience.ts`    | 生命周期、相机、输入、渲染、影片     |
-| `src/engine/resources.ts`     | 几何合批及 GPU 资源释放              |
-| `src/components`              | 对话框、预览、小地图                 |
-| `src/state.ts`                | 状态默认值与本地偏好校验             |
-| `tests`                       | 桌面与手机端集成测试                 |
+| 目录                          | 职责                                           |
+| ----------------------------- | ---------------------------------------------- |
+| `src/data`                    | 画作来源、原作图像、颜色、山峰、路线、章节配置 |
+| `src/engine/terrain.ts`       | 确定性山体高度场，渲染与步行共用               |
+| `src/engine/props.ts`         | 树、舟、桥、亭、村落与时代建筑                 |
+| `src/engine/details.ts`       | 近景岩石、草叶、芦苇及地面细节                 |
+| `src/engine/modelGeometry.ts` | 枝干、弯曲构件、双坡屋顶和松冠几何             |
+| `src/engine/winter.ts`        | 北欧雪地、冬树、覆雪岩块与微星天空             |
+| `src/engine/materials.ts`     | 水纹、薄雾与星夜天空着色器                     |
+| `src/engine/atmosphere.ts`    | 渐变天空、日月与夜间窗灯光晕                   |
+| `src/engine/Experience.ts`    | 生命周期、相机、输入、渲染、影片               |
+| `src/engine/resources.ts`     | 几何合批及 GPU 资源释放                        |
+| `src/components`              | 对话框、预览、小地图                           |
+| `src/state.ts`                | 状态默认值与本地偏好校验                       |
+| `tests`                       | 桌面与手机端集成测试                           |
 
 连续渲染由 requestAnimationFrame 驱动，React 仅接收低频状态。切换世界时释放旧几何、材质和纹理。静态建筑与通用舟船按材质合批，合并几何保留索引，树林、岩石与草叶使用 InstancedMesh。关闭引擎时释放阴影资源。
 
@@ -46,6 +46,8 @@
 
 ## 操作
 
+进入画境后，顶部箭头切换上一景、下一景，点击当前标题打开全部十景列表，不必退回首页。切景保留播放状态、画质、声音开关与两层音量，从新景的展卷起点、首个时期开始；录制时暂不允许切景。
+
 展卷：滚轮、左右拖动、左右方向键；空格自动游览；1—5 跳转章节。Ctrl + 滚轮、加减号或双指捏合调整远近。
 
 漫游：左键平移，右键旋转，滚轮缩放；手机单指平移、双指缩放与旋转。
@@ -54,7 +56,13 @@
 
 V 切换视角，T 切换天色，Q 切换画质，F 全屏，H 操作说明。星月夜与山中冬夜保持夜景色调。
 
-声音在用户点击后启动，通过 Web Audio 本地合成。选画、薄雾、速度与时代可恢复；旧本地存储键保留兼容。画质每次重置为最高，不自动恢复声音或播放。
+配乐与场景音效每次访问默认开启，首次点击或 Enter / 空格操作后启动 Web Audio；浏览器未解锁音频前不会自动出声。声音按钮可关闭两层，设置中可分别调音。选画、薄雾、速度与时代可恢复；旧本地存储键保留兼容。画质每次重置为最高，不自动恢复游览播放。
+
+## 原作查看
+
+七个绘画场景可打开原作查看器，支持适屏、1—8 倍放大及滚动浏览。帝国包含五个时期的五幅作品；千里、富春、清明目前提供局部，不标作完整长卷。武汉、桂林、张家界只显示实景资料来源，没有虚构的对应原画。
+
+复制图只用于二维原作查看器，不是三维场景的贴图或建模扫描。图像延迟到查看时加载，静态站需发布 `public/originals/` 对应构建文件；图像来源、范围和许可见 [原作图像](ORIGINALS.md)。
 
 ## 配乐与场景音效
 
@@ -92,43 +100,21 @@ npx playwright test
 
 ### 录制与交付视频
 
-**当前暂停视频制作，待画面获确认后再录制。** 下列命令仅保留使用说明；现有批量脚本只覆盖原九景，尚未加入武汉，不代表十景影片已经生成或验收。
+本轮目标为 **10 个场景单片 + 1 条合集，共 11 片**，当前待交付。实际文件、探测结果和检查结论由最终交付记录补充，见 [本轮记录](RELEASE-2026-10-16.md)。
 
-先启动开发服务器，再运行以下命令。录制时不要同时运行浏览器截图测试，避免争用 GPU。
-
-最终交付使用离线逐帧渲染，不依赖机器实时帧率：
+离线逐帧渲染使用开发服务器，不依赖实时帧率。需要 FFmpeg / ffprobe 在 PATH 中，或通过 `FFMPEG`、`FFPROBE` 指定路径：
 
 ```powershell
+$env:OUTPUT_DIR = 'artifacts/delivery'
 node scripts/render-films.mjs
+node scripts/compose-films.mjs
 ```
 
-默认每幅 24 秒、24 fps，共渲染 576 个独立 JPEG，再与 48 kHz 双声道场景音轨合成为 H.264 / AAC MP4。时间与相机进度按帧推进，渲染慢只会延长生成时间，不会丢帧。脚本在独立空白页面运行一个引擎，包含字体加载、逐帧有效性检查、最终 ffprobe 核验与六帧联系表。源 JPEG 保留在 `artifacts/videos/frames`，可重新编码。
+`render-films.mjs` 当前默认最高画质、1920×1080、30 fps、每景 10 秒，共 300 个独立帧；可用 `PAINTINGS` 选择十景中的子集，`PORTRAIT=1` 改为 1080×1920。`DURATION`、`FPS`、`QUALITY`、`PREVIEW_URL` 可覆盖默认值，默认开发服务地址为 `http://127.0.0.1:5173`。原始帧、联系表、音轨和 `.probe.json` 写入输出目录，生成过程不与浏览器截图测试并行。
 
-`PAINTINGS`、`QUALITY`、`PORTRAIT`、`OUTPUT_DIR`、`PREVIEW_URL` 同样适用于离线脚本；另可设置 `DURATION` 和 `FPS`。例如 `$env:PAINTINGS='winter'; $env:FPS='30'; node scripts/render-films.mjs`。默认链接为本地开发服务，线上静态站不提供 `/src` 模块，不能代替开发服务。
+`compose-films.mjs` 只接受已验证的十个 10 秒、1080p / 30 fps 单片，每景取 3 秒，生成 30 秒合集。单片参数改变后，不能直接沿用该合集脚本的固定验收条件。
 
-页面上的实时导出保留给交互录屏：
-
-```powershell
-node scripts/record-films.mjs
-./scripts/convert-films.ps1
-```
-
-录制脚本通过页面按钮依次导出九段目标时长 24 秒的 WebM；转码脚本生成 H.264、yuv420p、30 fps、faststart MP4，同时用 ffprobe 检查实际时长、分辨率和编码。每段输出六帧联系表和 `.probe.json`，保存在 `artifacts/videos`。WebM 包含场景配乐和音效，转码保留为 AAC 音轨。
-
-只重录指定画作，或输出手机竖屏：
-
-```powershell
-$env:PAINTINGS = 'qianli,winter'
-$env:PORTRAIT = '1'
-$env:QUALITY = 'balanced'
-node scripts/record-films.mjs
-./scripts/convert-films.ps1 -Paintings qianli,winter -Portrait
-Remove-Item Env:PAINTINGS, Env:PORTRAIT, Env:QUALITY
-```
-
-`PAINTINGS` 支持 `qianli,fuchun,xishan,starry,empire,winter,qingming,zhangjiajie,guilin`；`PORTRAIT=1` 生成 `-portrait` 文件，不覆盖横屏。`QUALITY` 可选 `high`、`balanced`、`low`，默认均衡。`PREVIEW_URL` 可指定预览站，`OUTPUT_DIR` 可指定录制目录；转码另有 `-InputDirectory`、`-OutputDirectory` 参数。
-
-MediaRecorder 的真实采样率取决于设备。`.probe.json` 同时保留源帧数、源平均帧率及转码帧率；低于 20 fps 会给出重录提示。转为 30 fps 不会把低帧率素材变流畅。验收应检查联系表的构图，再实际播放 MP4 检查运动，不能只看容器帧率。
+网页上的实时 WebM 导出独立保留，目标时长 24 秒，帧率取决于设备。历史脚本 `record-films.mjs` 与 `convert-films.ps1` 仍仅列出原九景，不用于本轮十景交付。MP4 编码为 H.264 / yuv420p，声音为 AAC；容器帧率不等于原始运动质量，验收仍需播放成片、查看镜头和音轨。
 
 ## 字体
 
@@ -151,11 +137,11 @@ npm run build
 
 前端是静态应用，不需要服务端或 GPU 服务器。Vite 使用相对资源路径，可部署到子目录。
 
-发布状态（2026-10-16）：
+发布入口（本轮变更发布前需重新验证）：
 
 - [GitHub Pages](https://fatasia.github.io/within/) 是持续发布入口，`main` 提交通过检查后由 Actions 更新。具体在线版本以仓库最新成功的 Pages 工作流为准。
 - 仓库已由 `fatasia/shanshui-atlas` 重命名为 [`fatasia/within`](https://github.com/fatasia/within)，保留原提交历史。新 Pages 路径 `/within/` 返回 200；旧 `/shanshui-atlas/` 实测返回 404，不提供自动跳转。
-- CloudBase 已将 WITHIN 构建发布至 `/within/`，9 个文件一致性校验通过。旧 `/shanshui/` 预览保留，根目录未修改。默认测试域名会显示平台访问提示，普通 HTTP 请求带 `Content-Disposition: attachment`。
+- CloudBase 使用 `/within/`，旧 `/shanshui/` 预览保留，根目录不修改。默认测试域名会显示平台访问提示，普通 HTTP 请求带 `Content-Disposition: attachment`。本轮包含新增原作图，发布时必须随构建上传。
 - 当前发布为预览更新，不代表原画细节或视觉效果已获验收。
 
 GitHub Pages：工作流 `.github/workflows/pages.yml` 在 `main` 提交后运行检查并发布 `dist`。仓库 Pages 来源选择 GitHub Actions。
@@ -183,4 +169,4 @@ CLI 3.8.7 的 `--verify` 对带前导斜杠的路径存在 manifest 键不一致
 - [帝国的进程 · The New York Historical](https://emuseum.nyhistory.org/objects/56323/the-course-of-empire-the-arcadian-or-pastoral-state)
 - [山中冬夜 · 挪威国家博物馆](https://www.nasjonalmuseet.no/en/collection/object/NG.M.01185)
 
-游览路线与地理空间为创作性重建。水路、亭桥和村落用于构建体验，不主张每件物体均一一对应原画。星月夜天空为程序化笔触演绎；帝国各时代用建筑、残柱与碎石表达变化，不含完整战争人物动画。山中冬夜保留雪岭、冬树与微星，不加入极光或城镇。水面使用平面场景反射，不是路径追踪。当前不包含复杂人物行为或在线生成模型服务。
+游览路线与地理空间为创作性重建。水路、亭桥和村落用于构建体验，不主张每件物体均一一对应原画。星月夜天空为程序化笔触演绎；帝国各时代用建筑、残柱与碎石表达变化，不含完整战争人物动画。山中冬夜保留雪岭、冬树与微星，不加入极光或城镇。水面使用平面场景反射，不是路径追踪。人物与动物动态为预设循环，不含完整城市人群仿真；当前没有在线生成模型服务。

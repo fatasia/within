@@ -36,6 +36,7 @@ const fragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uNight;
   uniform float uHasReflection;
+  uniform float uLakeClarity;
   varying vec4 vReflection;
   varying vec3 vWorld;
   varying vec3 vView;
@@ -94,7 +95,7 @@ const fragmentShader = /* glsl */ `
       vec3 reflected = softReflection(clamp(uv, uTexel, 1.0 - uTexel), 0.85 + n * 0.8);
       // The target is linear HDR; absorption and tone mapping are applied once here.
       reflected *= mix(vec3(0.78, 0.9, 0.86), vec3(0.55, 0.69, 0.83), uNight);
-      float reflectance = mix(0.48, 0.79, fresnel) * valid;
+      float reflectance = mix(0.48 + uLakeClarity * 0.14, 0.79 + uLakeClarity * 0.08, fresnel) * valid;
       body = mix(body, reflected, reflectance);
     }
 
@@ -126,6 +127,7 @@ export function buildRiver(painting: Painting, quality: Quality): River {
       uTime: { value: 0 },
       uNight: { value: 0 },
       uHasReflection: { value: reflectionEnabled ? 1 : 0 },
+      uLakeClarity: { value: painting.id === 'wuhan' ? 1 : 0 },
     },
     vertexShader,
     fragmentShader,

@@ -11,9 +11,9 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto('/');
     await expect(page.getByRole('button', { name: '走进画中' })).toBeEnabled();
-    await expect(page.getByRole('button', { name: '开启配乐与音效' })).toHaveAttribute(
+    await expect(page.getByRole('button', { name: '关闭配乐与音效' })).toHaveAttribute(
       'aria-pressed',
-      'false',
+      'true',
     );
     await page.getByRole('button', { name: '走进画中' }).click();
     await page.getByRole('button', { name: '暂停游览', exact: true }).click();
@@ -26,7 +26,6 @@ for (const viewport of [
     await expect(ambience).toHaveValue('0.62');
     await ambience.fill('0.8');
     await expect(ambience).toHaveValue('0.8');
-    await page.getByRole('button', { name: '开启声音', exact: true }).click();
     await expect(page.getByRole('button', { name: '关闭配乐与音效' })).toHaveAttribute(
       'aria-pressed',
       'true',

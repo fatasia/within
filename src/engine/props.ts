@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import type { Painting } from '../types';
 import { groundHeight, peakHeight } from './terrain';
-import { seededRandom } from './math';
+import { seededRandom, noise } from './math';
+import { chineseForestDensity, isChineseLandscape } from './chineseLandscape';
 import { curveRod, gableGeometry, pineCrownGeometry, rod } from './modelGeometry';
+import { EMPIRE_SITES, getEmpireGround } from './empireLandform';
 import {
   isXishanClearing,
   XISHAN_HOUSE,
@@ -141,18 +143,20 @@ export function pavilion(
     box(group, [0.7, 1.8, 0.07], [0, 1.45, 1.5], wood);
     box(group, [0.035, 1.7, 0.03], [0, 1.45, 1.55], tile);
   }
-  const lantern = new THREE.Mesh(
-    new THREE.SphereGeometry(0.2, 10, 8),
-    new THREE.MeshStandardMaterial({
-      color: '#ddbf79',
-      emissive: '#ffb754',
-      emissiveIntensity: 1.8,
-    }),
-  );
-  lantern.scale.y = 1.35;
-  lantern.position.set(1.8, 2.65, 1.4);
-  group.add(lantern);
-  rod(group, new THREE.Vector3(1.8, 2.9, 1.4), new THREE.Vector3(1.8, 3.2, 1.4), 0.025, wood);
+  if (painting.id !== 'fuchun') {
+    const lantern = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 10, 8),
+      new THREE.MeshStandardMaterial({
+        color: '#ddbf79',
+        emissive: '#ffb754',
+        emissiveIntensity: 1.8,
+      }),
+    );
+    lantern.scale.y = 1.35;
+    lantern.position.set(1.8, 2.65, 1.4);
+    group.add(lantern);
+    rod(group, new THREE.Vector3(1.8, 2.9, 1.4), new THREE.Vector3(1.8, 3.2, 1.4), 0.025, wood);
+  }
   group.scale.setScalar(scale);
   group.position.set(x, Math.max(0.45, groundHeight(painting, x, z)), z);
   return group;
@@ -345,11 +349,23 @@ export function buildForest(painting: Painting): THREE.Group {
   const random = seededRandom(painting.seed + 40);
   const transforms: { x: number; y: number; z: number; s: number; r: number }[] = [];
   for (const peak of painting.peaks) {
-    const count = painting.id === 'fuchun' ? 48 : 70;
+    const count =
+      painting.id === 'empire'
+        ? 110
+        : painting.id === 'fuchun'
+          ? 48
+          : painting.id === 'xishan' && peak.height > 90
+            ? 150
+            : 70;
     for (let i = 0; i < count; i++) {
       const x = peak.x + (random() - 0.5) * peak.radius * 1.75,
         z = peak.z + (random() - 0.5) * peak.radius * 1.4;
-      const y = painting.id === 'xishan' ? groundHeight(painting, x, z) : peakHeight(peak, x, z);
+      const y =
+        painting.id === 'empire'
+          ? getEmpireGround(x, z)
+          : isChineseLandscape(painting.id)
+            ? groundHeight(painting, x, z)
+            : peakHeight(peak, x, z);
       const slope = Math.hypot(
         peakHeight(peak, x + 0.6, z) - peakHeight(peak, x - 0.6, z),
         peakHeight(peak, x, z + 0.6) - peakHeight(peak, x, z - 0.6),
@@ -361,9 +377,22 @@ export function buildForest(painting: Painting): THREE.Group {
         groundHeight(painting, x, z) > y + 0.5
       )
         continue;
+      if (
+        painting.id === 'empire' &&
+        (y > 21 ||
+          slope > 1.05 ||
+          EMPIRE_SITES.some((site) => Math.abs(x - site.x) < 13 && Math.abs(z - site.z) < 11))
+      )
+        continue;
       const s = 0.7 + random() * 1.2,
         r = random() * Math.PI * 2;
       if (painting.id === 'xishan' && isXishanClearing(x, z, s * 3)) continue;
+      if (
+        isChineseLandscape(painting.id) &&
+        noise(x * 1.7, z * 1.7, painting.seed + 53) >
+          chineseForestDensity(painting.id, x, z, y, peak.height, painting.seed)
+      )
+        continue;
       transforms.push({ x, y, z, s, r });
     }
   }
@@ -403,10 +432,14 @@ export function buildForest(painting: Painting): THREE.Group {
   const trunk = new THREE.InstancedMesh(trunkGeometry, bark, trees.length);
   const branches = new THREE.InstancedMesh(branchGeometry, bark, crownCount);
   // Instance colors are the leaf pigment; a white base avoids multiplying that pigment twice.
-  const canopy = new THREE.InstancedMesh(pineCrownGeometry(), material('#ffffff'), crownCount);
+  const canopy = new THREE.InstancedMesh(
+    painting.id === 'empire' ? new THREE.IcosahedronGeometry(0.83, 1) : pineCrownGeometry(),
+    material('#ffffff'),
+    crownCount,
+  );
   trunk.name = 'Bent pine trunks';
   branches.name = 'Irregular pine branches';
-  canopy.name = 'Broken needle sprays';
+  canopy.name = painting.id === 'empire' ? 'Harbour broadleaf crowns' : 'Broken needle sprays';
   const dummy = new THREE.Object3D(),
     up = new THREE.Vector3(0, 1, 0);
   const start = new THREE.Vector3(),
@@ -475,21 +508,80 @@ function westernHouse(x: number, z: number, random: () => number): THREE.Group {
   const roofMat = material(random() > 0.5 ? '#35445d' : '#46516b');
   const trim = material('#28394b');
   box(group, [width + 0.15, 0.18, 3.25], [0, 0.1, 0], material('#7c7e73'));
-  box(group, [width, height, 3.1], [0, height / 2, 0], plaster);
+  const wallGeometry = new THREE.BoxGeometry(width, height, 3.1, 12, 12, 12);
+  const wallPosition = wallGeometry.getAttribute('position');
+  const wallColors: number[] = [];
+  for (let i = 0; i < wallPosition.count; i++) {
+    const px = wallPosition.getX(i),
+      py = wallPosition.getY(i),
+      pz = wallPosition.getZ(i);
+    const brush = noise(px * 7, py * 2 + pz * 3, 1889);
+    const shade = 0.91 + brush * 0.14 + (py / height) * 0.035;
+    const color = plaster.color.clone().multiplyScalar(shade);
+    wallColors.push(color.r, color.g, color.b);
+  }
+  wallGeometry.setAttribute('color', new THREE.Float32BufferAttribute(wallColors, 3));
+  const paintedMaterial = new THREE.MeshStandardMaterial({
+    color: '#ffffff',
+    vertexColors: true,
+    roughness: 1,
+  });
+  const walls = new THREE.Mesh(wallGeometry, paintedMaterial);
+  walls.name = 'Broken blue plaster brushwork';
+  walls.position.y = height / 2;
+  group.add(walls);
   const roof = new THREE.Mesh(gableGeometry(width + 0.5, 3.7, 1.5), roofMat);
   roof.position.y = height;
   group.add(roof);
-  // Horizontal rows of painted roof tiles catch moonlight without noisy textures.
+  // Thin slate edges replace thick dark ladder-like roof bars.
   for (const sign of [-1, 1])
-    for (let row = 1; row <= 5; row++) {
-      const t = row / 5;
+    for (let row = 1; row <= 8; row++) {
+      const t = row / 8;
       box(
         group,
-        [0.045, 0.045, 3.72],
+        [0.018, 0.018, 3.72],
         [sign * (width + 0.5) * 0.5 * t, height + 1.5 * (1 - t) + 0.03, 0],
-        trim,
+        roofMat,
       );
     }
+  const tileVertices: number[] = [],
+    tileColors: number[] = [];
+  for (const side of [-1, 1])
+    for (let row = 0; row < 8; row++)
+      for (let column = 0; column < 10; column++) {
+        const shade = 0.88 + noise(column * 2.1, row * 1.7, side + 1889) * 0.32;
+        const color = roofMat.color.clone().multiplyScalar(shade);
+        const a = row / 8 + 0.004,
+          b = (row + 1) / 8 - 0.004;
+        const z1 = -1.845 + column * 0.369 + 0.012;
+        const z2 = z1 + 0.345;
+        for (const [t, zz] of [
+          [a, z1],
+          [b, z1],
+          [a, z2],
+          [b, z1],
+          [b, z2],
+          [a, z2],
+        ]) {
+          tileVertices.push(side * (width + 0.5) * 0.5 * t!, height + 1.5 * (1 - t!) + 0.012, zz!);
+          tileColors.push(color.r, color.g, color.b);
+        }
+      }
+  const tiles = new THREE.BufferGeometry();
+  tiles.setAttribute('position', new THREE.Float32BufferAttribute(tileVertices, 3));
+  tiles.setAttribute('color', new THREE.Float32BufferAttribute(tileColors, 3));
+  // Both slopes wind outward; the right slope's triangle winding is reversed.
+  const tilePoints = tiles.getAttribute('position');
+  for (let i = tilePoints.count / 2; i < tilePoints.count; i += 3) {
+    const a = new THREE.Vector3().fromBufferAttribute(tilePoints, i);
+    const b = new THREE.Vector3().fromBufferAttribute(tilePoints, i + 1);
+    tilePoints.setXYZ(i, b.x, b.y, b.z);
+    tilePoints.setXYZ(i + 1, a.x, a.y, a.z);
+  }
+  tiles.computeVertexNormals();
+  const tileSkin = new THREE.Mesh(tiles, paintedMaterial);
+  tileSkin.name = 'Individual blue slate courses';
+  group.add(tileSkin);
   box(group, [0.12, 0.1, 3.85], [0, height + 1.54, 0], roofMat);
   box(group, [0.34, 0.95, 0.4], [-width * 0.25, height + 0.95, -0.65], plaster);
   box(group, [0.45, 0.12, 0.5], [-width * 0.25, height + 1.47, -0.65], trim);
@@ -516,19 +608,28 @@ function westernHouse(x: number, z: number, random: () => number): THREE.Group {
 
 /** Twisting vertical lobes reproduce the cypress' flame silhouette. */
 function cypressLobe(height: number, radius: number, phase: number): THREE.BufferGeometry {
-  const geometry = new THREE.CylinderGeometry(0.025, radius, height, 9, 18);
+  const geometry = new THREE.CylinderGeometry(0.025, radius, height, 16, 44);
   const positions = geometry.attributes.position!;
+  const colors: number[] = [];
+  const deep = new THREE.Color('#172c2b'),
+    green = new THREE.Color('#3c5141');
   for (let i = 0; i < positions.count; i++) {
     const y = positions.getY(i),
       t = (y + height / 2) / height;
-    const flame = Math.sin(t * Math.PI) * 0.25;
+    const angle = Math.atan2(positions.getZ(i), positions.getX(i));
+    const brush = Math.sin(angle * 9 + t * 7 + phase) * 0.5 + 0.5;
+    const fullness = 0.75 + Math.sin(t * Math.PI) * 0.48;
+    const edge = 1 + Math.sin(t * 79 + angle * 5 + phase) * 0.045;
     positions.setXYZ(
       i,
-      positions.getX(i) * (0.65 + flame) + Math.sin(t * 5 + phase) * radius * t,
+      positions.getX(i) * fullness * edge + Math.sin(t * 5 + phase) * radius * t * 0.75,
       y + height / 2,
-      positions.getZ(i) * (0.8 + flame) + Math.cos(t * 6 + phase) * radius * t * 0.4,
+      positions.getZ(i) * fullness * edge + Math.cos(t * 6 + phase) * radius * t * 0.35,
     );
+    const color = deep.clone().lerp(green, brush * 0.55 + Math.sin(t * 31 + angle) ** 6 * 0.2);
+    colors.push(color.r, color.g, color.b);
   }
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -593,8 +694,15 @@ export function buildVillage(painting: Painting): THREE.Group {
     for (const [x, z, height, radius] of cypressForms) {
       const cypress = new THREE.Mesh(
         cypressLobe(height!, radius!, random() * 6),
-        material(random() > 0.65 ? '#203735' : '#11272d'),
+        new THREE.MeshStandardMaterial({
+          color: '#ffffff',
+          vertexColors: true,
+          emissive: random() > 0.65 ? '#203735' : '#11272d',
+          emissiveIntensity: 0.16,
+          roughness: 1,
+        }),
       );
+      cypress.name = 'Broken-brush cypress flame';
       cypress.position.set(x!, groundHeight(painting, x!, z!), z!);
       cypress.rotation.y = random() * Math.PI;
       group.add(cypress);
@@ -854,7 +962,9 @@ export function buildVillage(painting: Painting): THREE.Group {
         for (let i = 0; i < 4; i++) {
           const x = peak.x + (random() - 0.5) * peak.radius,
             z = peak.z + (random() - 0.5) * peak.radius * 0.7;
-          group.add(pavilion(painting, x, z, 0.65 + random() * 0.25, i === 0));
+          const scale = 0.65 + random() * 0.25;
+          if (painting.id !== 'fuchun' || i < 2)
+            group.add(pavilion(painting, x, z, scale, i === 0));
         }
       });
     group.add(pavilion(painting, 22, -13, 0.85, true));
@@ -903,144 +1013,147 @@ function classicalColumn(
 export function buildEmpire(period: number): THREE.Group {
   const group = new THREE.Group(),
     random = seededRandom(136);
-  const stone = material(period > 2 ? '#a6a18e' : '#d9d5be');
-  const roof = material('#b29268'),
-    shade = material('#6b7268');
   if (period === 0) return group;
+  const stone = material(period > 2 ? '#a6a18e' : '#d9d5be');
+  const roof = material('#a7a08c'),
+    shade = material('#6b7268');
   if (period === 1) {
-    for (let i = 0; i < 9; i++) {
+    for (const site of EMPIRE_SITES.filter(
+      (_, index) => index !== 2 && index !== 4 && index !== 6,
+    )) {
       const hut = new THREE.Group();
-      const x = -55 + i * 13,
-        z = -18 - random() * 13;
       box(hut, [3.3, 2, 2.8], [0, 1, 0], material('#b4a98c'));
       const thatch = new THREE.Mesh(gableGeometry(4.1, 3.7, 1.6), material('#8d815b'));
       thatch.position.y = 1.9;
       hut.add(thatch);
       box(hut, [0.7, 1.35, 0.05], [0, 0.68, 1.43], shade);
-      hut.position.set(x, 1.1, z);
+      hut.position.set(site.x, site.y, site.z);
+      hut.rotation.y = site.yaw;
+      hut.userData.site = site.id;
       group.add(hut);
     }
+    stone.dispose();
+    roof.dispose();
     return group;
   }
   const ruin = period >= 3;
-  // Three distinct civic silhouettes arranged along the harbour, not a repeated grid.
-  for (let row = 0; row < 2; row++)
-    for (let col = 0; col < 7; col++) {
-      const kind = (col + row * 2) % 3;
-      const x = -65 + col * 22,
-        z = -12 - row * 24 + Math.sin(col * 1.9) * 3;
-      if (period === 4 && random() > 0.5) continue;
-      const building = new THREE.Group();
-      const h = row === 1 ? 7.7 : 5.6;
-      const width = kind === 1 ? 14 : 11;
-      for (let step = 0; step < 3; step++)
-        box(
+  // An asymmetric terraced harbour: one upper rotunda, lower porticos, a smaller opposite shore.
+  for (const [index, site] of EMPIRE_SITES.entries()) {
+    const { kind, x, z } = site;
+    if (period === 4 && [1, 4, 6].includes(index)) continue;
+    const building = new THREE.Group();
+    const h = site.height;
+    const width = kind === 1 ? 14 : 11;
+    for (let step = 0; step < 3; step++)
+      box(
+        building,
+        [width + 1.8 - step * 0.7, 0.22, 10.5 - step * 0.65],
+        [0, 1.2 + step * 0.22, 0],
+        stone,
+      );
+    if (kind === 2) {
+      // Circular peristyle and a shallow dome echo the painting's harbour rotunda.
+      for (let c = 0; c < 12; c++) {
+        const angle = (c / 12) * Math.PI * 2;
+        if (ruin && random() > 0.62) continue;
+        classicalColumn(
           building,
-          [width + 1.8 - step * 0.7, 0.22, 10.5 - step * 0.65],
-          [0, 1.2 + step * 0.22, 0],
+          Math.cos(angle) * 4,
+          Math.sin(angle) * 4,
+          1.8,
+          ruin ? h * (0.3 + random() * 0.65) : h,
           stone,
+          ruin,
         );
-      if (kind === 2) {
-        // Circular peristyle and a shallow dome echo the painting's harbour rotunda.
-        for (let c = 0; c < 12; c++) {
-          const angle = (c / 12) * Math.PI * 2;
-          if (ruin && random() > 0.62) continue;
+      }
+      if (!ruin) {
+        const drum = new THREE.Mesh(new THREE.CylinderGeometry(4.65, 4.65, 0.65, 32), stone);
+        drum.position.y = h + 2.3;
+        building.add(drum);
+        const dome = new THREE.Mesh(
+          new THREE.SphereGeometry(4.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
+          roof,
+        );
+        dome.scale.y = 0.48;
+        dome.position.y = h + 2.62;
+        building.add(dome);
+        box(building, [0.8, 1, 0.8], [0, h + 5.1, 0], stone);
+      }
+    } else {
+      const columns = kind === 1 ? 8 : 6;
+      for (let c = 0; c < columns; c++)
+        for (const back of [-1, 1]) {
+          if (ruin && random() > 0.6) continue;
           classicalColumn(
             building,
-            Math.cos(angle) * 4,
-            Math.sin(angle) * 4,
+            -width / 2 + 0.6 + (c * (width - 1.2)) / (columns - 1),
+            back * 3.6,
             1.8,
-            ruin ? h * (0.3 + random() * 0.65) : h,
+            ruin ? 1.5 + random() * h : h,
             stone,
             ruin,
           );
         }
-        if (!ruin) {
-          const drum = new THREE.Mesh(new THREE.CylinderGeometry(4.65, 4.65, 0.65, 32), stone);
-          drum.position.y = h + 2.3;
-          building.add(drum);
-          const dome = new THREE.Mesh(
-            new THREE.SphereGeometry(4.5, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2),
-            roof,
-          );
-          dome.scale.y = 0.48;
-          dome.position.y = h + 2.62;
-          building.add(dome);
-          box(building, [0.8, 1, 0.8], [0, h + 5.1, 0], stone);
-        }
-      } else {
-        const columns = kind === 1 ? 8 : 6;
-        for (let c = 0; c < columns; c++)
-          for (const back of [-1, 1]) {
-            if (ruin && random() > 0.6) continue;
-            classicalColumn(
-              building,
-              -width / 2 + 0.6 + (c * (width - 1.2)) / (columns - 1),
-              back * 3.6,
-              1.8,
-              ruin ? 1.5 + random() * h : h,
-              stone,
-              ruin,
-            );
-          }
-        if (!ruin) {
-          // Recessed sanctuary with dark entrance behind the portico.
-          box(building, [width - 3, h - 0.6, 4], [0, 1.8 + (h - 0.6) / 2, -0.7], stone);
-          box(building, [1.5, 3.2, 0.06], [0, 3.4, 1.33], shade);
-          box(building, [width + 0.4, 0.45, 8.6], [0, h + 2.4, 0], stone);
-          box(building, [width + 0.8, 0.18, 9], [0, h + 2.75, 0], stone);
-          const pediment = new THREE.Mesh(
-            gableGeometry(width + 0.9, 9.1, kind === 1 ? 2.2 : 1.7),
-            roof,
-          );
-          pediment.position.y = h + 2.85;
-          building.add(pediment);
-          // Measured frieze rhythm instead of ornament at every surface.
-          for (let c = 0; c < columns * 2 - 1; c++)
-            box(
-              building,
-              [0.14, 0.35, 0.08],
-              [-width / 2 + (c * width) / (columns * 2 - 2), h + 2.4, 4.35],
-              shade,
-            );
-          if (kind === 1) {
-            box(building, [4.8, 3.4, 5], [0, h + 4.8, -1], stone);
-            const upperRoof = new THREE.Mesh(gableGeometry(5.4, 5.8, 1.6), roof);
-            upperRoof.position.set(0, h + 6.5, -1);
-            building.add(upperRoof);
-          }
-        }
-      }
-      if (ruin) {
-        for (let i = 0; i < 8; i++) {
-          const rubble = box(
+      if (!ruin) {
+        // Recessed sanctuary with dark entrance behind the portico.
+        box(building, [width - 3, h - 0.6, 4], [0, 1.8 + (h - 0.6) / 2, -0.7], stone);
+        box(building, [1.5, 3.2, 0.06], [0, 3.4, 1.33], shade);
+        box(building, [width + 0.4, 0.45, 8.6], [0, h + 2.4, 0], stone);
+        box(building, [width + 0.8, 0.18, 9], [0, h + 2.75, 0], stone);
+        const pediment = new THREE.Mesh(
+          gableGeometry(width + 0.9, 9.1, kind === 1 ? 2.2 : 1.7),
+          roof,
+        );
+        pediment.position.y = h + 2.85;
+        building.add(pediment);
+        // Measured frieze rhythm instead of ornament at every surface.
+        for (let c = 0; c < columns * 2 - 1; c++)
+          box(
             building,
-            [0.8 + random(), 0.7, 1.1 + random()],
-            [(random() - 0.5) * width, 1.9, (random() - 0.5) * 8],
-            stone,
+            [0.14, 0.35, 0.08],
+            [-width / 2 + (c * width) / (columns * 2 - 2), h + 2.4, 4.35],
+            shade,
           );
-          rubble.rotation.set(random(), random() * 3, random());
+        if (kind === 1) {
+          box(building, [4.8, 3.4, 5], [0, h + 4.8, -1], stone);
+          const upperRoof = new THREE.Mesh(gableGeometry(5.4, 5.8, 1.6), roof);
+          upperRoof.position.set(0, h + 6.5, -1);
+          building.add(upperRoof);
         }
-        const fallen = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, 4.4, 12), stone);
-        fallen.rotation.set(Math.PI / 2, 0.4, random() * 3);
-        fallen.position.set(2, 2.1, 4.2);
-        building.add(fallen);
       }
-      building.position.set(x, 0, z);
-      building.rotation.y = (col - 3) * 0.035;
-      group.add(building);
     }
+    if (ruin) {
+      for (let i = 0; i < 8; i++) {
+        const rubble = box(
+          building,
+          [0.8 + random(), 0.7, 1.1 + random()],
+          [(random() - 0.5) * width, 1.9, (random() - 0.5) * 8],
+          stone,
+        );
+        rubble.rotation.set(random(), random() * 3, random());
+      }
+      const fallen = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.42, 4.4, 12), stone);
+      fallen.rotation.set(Math.PI / 2, 0.4, random() * 3);
+      fallen.position.set(2, 2.1, 4.2);
+      building.add(fallen);
+    }
+    building.position.set(x, site.y - 1.09, z);
+    building.rotation.y = site.yaw;
+    building.name = site.id;
+    building.userData.site = site.id;
+    group.add(building);
+  }
   // Quay paving and a classical balustrade put articulated details in the foreground.
   for (let i = 0; i < 28; i++) {
     const xx = -72 + i * 5.3;
-    box(group, [5.18, 0.25, 8], [xx, 0.8, 1], stone);
+    box(group, [5.18, 0.18, 8], [xx, 1.05, 1], stone);
     if (period === 4 && i % 3 !== 0) continue;
     for (let j = 0; j < 4; j++) {
       const x = xx - 2 + j * 1.25;
-      box(group, [0.22, 1, 0.22], [x, 1.4, 4.5], stone);
-      box(group, [0.4, 0.14, 0.4], [x, 1.96, 4.5], stone);
+      box(group, [0.22, 1, 0.22], [x, 1.64, 4.5], stone);
+      box(group, [0.4, 0.14, 0.4], [x, 2.2, 4.5], stone);
     }
-    if (!ruin || i % 3 === 0) box(group, [5.3, 0.14, 0.4], [xx, 2.1, 4.5], stone);
+    if (!ruin || i % 3 === 0) box(group, [5.3, 0.14, 0.4], [xx, 2.34, 4.5], stone);
   }
   return group;
 }

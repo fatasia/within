@@ -3,6 +3,7 @@ import type { Painting } from '../types';
 import { seededRandom } from './math';
 import { groundHeight } from './terrain';
 import { landscapeRiverCenter } from './geography';
+import { foliageSpray, sedgeBlade } from './foliageSpray';
 
 const UP = new THREE.Vector3(0, 1, 0);
 type Point = readonly [number, number, number];
@@ -18,11 +19,11 @@ class Instances {
     this.material = material;
     this.name = name;
   }
-  add(at: Point, scale: Point = [1, 1, 1], rotation = 0): void {
+  add(at: Point, scale: Point = [1, 1, 1], rotation = 0, pitch = 0): void {
     this.matrices.push(
       new THREE.Matrix4().compose(
         new THREE.Vector3(...at),
-        new THREE.Quaternion().setFromAxisAngle(UP, rotation),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, rotation, 0)),
         new THREE.Vector3(...scale),
       ),
     );
@@ -62,17 +63,25 @@ function surface(color: string): THREE.MeshStandardMaterial {
 
 function leafGeometry(): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
-  // A folded lanceolate blade catches light on its ridge rather than reading as a flat triangle.
-  geometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(
-      [
-        0, 0, 0, -0.13, 0.06, 0.38, 0, 0.11, 0.42, 0, 0, 0, 0, 0.11, 0.42, 0.13, 0.06, 0.38, -0.13,
-        0.06, 0.38, 0, 0, 1, 0, 0.11, 0.42, 0, 0.11, 0.42, 0, 0, 1, 0.13, 0.06, 0.38,
-      ],
-      3,
-    ),
-  );
+  const vertices: number[] = [],
+    indices: number[] = [];
+  // Narrow curved lanceolate lamina with a central fold, rather than a triangular spear.
+  for (let i = 0; i <= 5; i++) {
+    const t = i / 5,
+      width = Math.pow(Math.sin(t * Math.PI), 1.1) * 0.078;
+    for (const side of [-1, 0, 1])
+      vertices.push(
+        side * width,
+        Math.sin(t * Math.PI) * 0.045 - t * t * 0.13 + (side === 0 ? 0.012 : 0),
+        t * 0.72,
+      );
+    if (i === 5) continue;
+    const a = i * 3;
+    if (i > 0) indices.push(a, a + 3, a + 1, a + 1, a + 4, a + 2);
+    if (i < 4) indices.push(a + 1, a + 3, a + 4, a + 2, a + 4, a + 5);
+  }
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -95,21 +104,6 @@ function wetRockGeometry(): THREE.BufferGeometry {
   return geometry;
 }
 
-function cliffPineCrown(flat = true): THREE.BufferGeometry {
-  const geometry = new THREE.SphereGeometry(1, 9, 4);
-  const p = geometry.attributes.position!;
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i),
-      y = p.getY(i),
-      z = p.getZ(i);
-    const angle = Math.atan2(z, x);
-    const edge = 0.88 + Math.sin(angle * 5 + y * 3) * 0.12;
-    p.setXYZ(i, x * edge, y * (flat ? 0.27 : 0.7) + Math.sin(angle * 3) * 0.07, z * edge);
-  }
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
 /** Close-range botany and river life, separate from the mountain heightfield. */
 export function buildLandscapeDetails(painting: Painting): THREE.Group {
   const group = new THREE.Group();
@@ -126,9 +120,9 @@ export function buildLandscapeDetails(painting: Painting): THREE.Group {
     'Bent pine trunks and branches',
   );
   const crowns = new Instances(
-    cliffPineCrown(zhangjiajie),
-    surface('#344d38'),
-    zhangjiajie ? 'Scalloped cliff pine crowns' : 'Broadleaf riverbank crowns',
+    foliageSpray(24, zhangjiajie),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, side: THREE.DoubleSide }),
+    zhangjiajie ? 'Open cliff pine foliage sprays' : 'Open broadleaf riverbank foliage',
   );
   const stones = new Instances(
     wetRockGeometry(),
@@ -146,9 +140,11 @@ export function buildLandscapeDetails(painting: Painting): THREE.Group {
     surface('#9eaa77'),
     'Bamboo node rings',
   );
-  const bladeMaterial = surface('#496641');
+  const bladeMaterial = surface('#698354');
+  bladeMaterial.roughness = 0.71;
   bladeMaterial.side = THREE.DoubleSide;
   const leaves = new Instances(leafGeometry(), bladeMaterial, 'Folded lanceolate bamboo leaves');
+  const bankSedges = new Instances(sedgeBlade(), bladeMaterial.clone(), 'Curved streamside sedges');
   const wood = new Instances(
     new THREE.BoxGeometry(1, 1, 1),
     surface('#8b785b'),
@@ -238,6 +234,17 @@ export function buildLandscapeDetails(painting: Painting): THREE.Group {
     if (i % 4 === 0)
       moss.add([x, y + s * 0.32, z], [s * 0.83, s * 0.28, s * 0.78], random() * 6.28);
   }
+  // A broken herb layer ties the bare stone edge to the bank without obstructing the path.
+  for (let i = 0; i < 120; i++) {
+    const x = -126 + random() * 252;
+    const z = landscapeRiverCenter(painting, x) + (zhangjiajie ? 5.8 : 23.4) + random() * 1.8;
+    const y = groundHeight(painting, x, z);
+    if (y < 0.2 || y > 3) continue;
+    for (let j = 0; j < 8; j++) {
+      const size = 0.32 + random() * 0.55;
+      bankSedges.add([x + (random() - 0.5) * 0.2, y, z], [size, size, size], j * 2.399);
+    }
+  }
 
   const bambooClump = (x: number, z: number): void => {
     const y = groundHeight(painting, x, z);
@@ -270,12 +277,13 @@ export function buildLandscapeDetails(painting: Painting): THREE.Group {
           const ex = bx + Math.cos(a) * 0.65,
             ez = bz + Math.sin(a) * 0.65;
           bamboo.segment([bx, y + h * t, bz], [ex, y + h * t + 0.3, ez], 0.016);
-          for (let leaf = 0; leaf < 3; leaf++) {
-            const u = (leaf + 1) / 4;
+          for (let leaf = 0; leaf < 5; leaf++) {
+            const u = (leaf + 1) / 6;
             leaves.add(
               [bx + (ex - bx) * u, y + h * t + 0.3 * u, bz + (ez - bz) * u],
-              [0.8, 0.8, 0.65],
+              [0.9, 0.8, 0.75 + random() * 0.25],
               a + (leaf % 2 === 0 ? 0.8 : -0.8),
+              -0.25 + random() * 0.7,
             );
           }
         }
@@ -352,6 +360,7 @@ export function buildLandscapeDetails(painting: Painting): THREE.Group {
     bamboo,
     joints,
     leaves,
+    bankSedges,
     wood,
     rope,
     rafts,

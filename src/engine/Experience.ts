@@ -9,17 +9,23 @@ import { mistMaterial } from './materials';
 import { batchStatic, disposeObject } from './resources';
 import { createLandscapeSky, createWindowHalos } from './atmosphere';
 import { buildNearDetails } from './details';
-import { buildWinterDetails, createWinterSky } from './winter';
+import { buildWinterDetails, createWinterSky, refineWinterTerrain } from './winter';
+import { buildEmpireDetails } from './empireDetails';
+import { attachVegetationMotion, type VegetationMotion } from './vegetationMotion';
+import { buildLivingActors, type LivingActors } from './livingActors';
+import { buildLakeBirds } from './lakeBirds';
+import { createLightingState, resolveSceneNight, sampleSceneLighting } from './sceneLighting';
+import { createWaterfall, updateWaterfall, type Waterfall } from './waterfall';
 import { getWalkStart, walkFieldOfView } from './viewpoints';
 import { createPainterlyStarrySky, buildStarryDetails } from './starry';
 import { buildRiver, type River } from './river';
 import { paintFilmFrame } from './film';
-import { getCinematicView } from './cinematography';
+import { getCinematicView, type CinematicView } from './cinematography';
 import { buildEasterEgg } from './easterEgg';
 import { buildQingming } from './qingming';
 import { buildLandscapeDetails } from './landscapes';
 import { buildWuhan, updateWuhan } from './wuhan';
-import { getWuhanGround, wuhanPath } from './wuhanLayout';
+import { getWuhanGround, wuhanPath, wuhanWalkHeight } from './wuhanLayout';
 import { pointerDistance, scrollZoom, walkInput, wheelPixels } from './interaction';
 
 interface Callbacks {
@@ -42,6 +48,10 @@ export class Experience {
   private mist = new THREE.Group();
   private empire: THREE.Group | null = null;
   private wuhan: THREE.Group | null = null;
+  private vegetation: VegetationMotion | null = null;
+  private livingActors: LivingActors | null = null;
+  private lakeBirds: ReturnType<typeof buildLakeBirds> | null = null;
+  private waterfall: Waterfall | null = null;
   private boats: THREE.Group[] = [];
   private birds: THREE.LineSegments | null = null;
   private route: THREE.CatmullRomCurve3;
@@ -77,6 +87,7 @@ export class Experience {
   private offline: { state: ExperienceState; progress: number; canvas: HTMLCanvasElement } | null =
     null;
   private night = 0;
+  private lighting = createLightingState();
   private idleTime = 0;
   private host: HTMLElement;
   private callbacks: Callbacks;
@@ -95,6 +106,7 @@ export class Experience {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
+    this.renderer.info.autoReset = false;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.shadowMap.autoUpdate = false;
     this.renderer.domElement.setAttribute('aria-label', '可交互三维画境');
@@ -138,6 +150,10 @@ export class Experience {
     this.frame = requestAnimationFrame(this.tick);
   }
   private loadPainting(): void {
+    this.livingActors?.dispose();
+    this.livingActors = null;
+    this.vegetation?.dispose();
+    this.vegetation = null;
     this.clearInput();
     this.releasePointerLock();
     this.walkInitialized = false;
@@ -153,10 +169,13 @@ export class Experience {
     this.halos = null;
     this.empire = null;
     this.wuhan = null;
+    this.lakeBirds = null;
+    this.waterfall = null;
     this.painting = getPainting(this.state.painting);
     this.route = new THREE.CatmullRomCurve3(this.painting.route.map(vector));
     this.progress = 0;
     const terrain = buildTerrain(this.painting);
+    if (this.painting.id === 'winter') refineWinterTerrain(terrain.group);
     const custom = ['qingming', 'zhangjiajie', 'guilin', 'wuhan'].includes(this.painting.id);
     const village = custom ? new THREE.Group() : buildVillage(this.painting);
     this.halos = createWindowHalos(village);
@@ -175,6 +194,8 @@ export class Experience {
     if (this.painting.id === 'wuhan') {
       this.wuhan = buildWuhan(this.painting, this.state.quality);
       this.content.add(this.wuhan);
+      this.lakeBirds = buildLakeBirds();
+      this.content.add(this.lakeBirds.mesh);
     }
     this.content.add(
       buildEasterEgg(
@@ -198,7 +219,7 @@ export class Experience {
       this.content.add(this.sky);
     }
     if (this.painting.id === 'empire') {
-      this.empire = batchStatic(buildEmpire(this.state.period));
+      this.empire = this.createEmpire(this.state.period);
       this.content.add(this.empire);
     }
     // Xishan is a mountain stream composition, not a navigable river village.
@@ -208,9 +229,21 @@ export class Experience {
         b.scale.setScalar(0.6 + i * 0.04);
         const point = this.route.getPointAt((i + 0.4) / 6);
         b.position.copy(point);
+        if (this.painting.id === 'empire') {
+          const berths = [
+            [27, -20],
+            [29, -40],
+            [34, -69],
+            [-30, 20],
+            [0, 14],
+          ] as const;
+          b.position.set(berths[i]![0], 0.4, berths[i]![1]);
+        }
         b.position.y = 0.4;
         b.rotation.y = -0.3 + i * 0.6;
+        if (this.painting.id === 'empire' && i < 3) b.rotation.y = Math.PI * 0.5;
         this.boats.push(b);
+        if (this.painting.id === 'empire') b.visible = this.state.period === 2;
         this.content.add(b);
       }
       if (this.painting.id !== 'empire') this.content.add(batchStatic(bridge(this.painting, 1, 7)));
@@ -243,7 +276,7 @@ export class Experience {
       }),
     );
     this.content.add(this.birds);
-    this.birds.visible = this.painting.id !== 'winter' && this.painting.id !== 'starry';
+    this.birds.visible = !['winter', 'starry', 'wuhan'].includes(this.painting.id);
     if (this.painting.id === 'xishan') this.addWaterfall();
     this.content.traverse((object) => {
       if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshStandardMaterial) {
@@ -259,22 +292,13 @@ export class Experience {
     this.controls.target.copy(this.currentTarget);
     this.scene.background = new THREE.Color(this.painting.palette.sky);
     this.scene.fog = new THREE.Fog(this.painting.palette.sky, 100, 340);
+    this.vegetation = attachVegetationMotion(this.content);
+    this.livingActors = buildLivingActors(this.painting, this.content);
     this.idleTime = 0;
   }
   private addWaterfall(): void {
-    const points = [];
-    // Trace the front face of the actual heightfield so the cascade cannot be buried.
-    for (let i = 0; i <= 70; i++) {
-      const t = i / 70;
-      const x = 14 + Math.sin(t * 4) * 0.6,
-        z = -41 + t * 21;
-      points.push(new THREE.Vector3(x, groundHeight(this.painting, x, z) + 0.28, z));
-    }
-    const fall = new THREE.Mesh(
-      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 100, 0.25, 6, false),
-      new THREE.MeshBasicMaterial({ color: '#e4e5d6', transparent: true, opacity: 0.77 }),
-    );
-    this.content.add(fall);
+    this.waterfall = createWaterfall(this.painting);
+    this.content.add(this.waterfall);
   }
   configure(next: ExperienceState): void {
     const previous = this.state;
@@ -284,10 +308,12 @@ export class Experience {
     if (next.quality !== previous.quality) {
       this.setQuality(next.painting === previous.painting);
       if (this.wuhan && next.painting === previous.painting) {
+        this.vegetation?.dispose();
         this.wuhan.removeFromParent();
         disposeObject(this.wuhan);
         this.wuhan = buildWuhan(this.painting, next.quality);
         this.content.add(this.wuhan);
+        this.vegetation = attachVegetationMotion(this.content);
       }
     }
     if (next.period !== previous.period && next.painting === 'empire') this.setPeriod(next.period);
@@ -316,14 +342,28 @@ export class Experience {
       this.content.remove(this.empire);
       disposeObject(this.empire);
     }
-    this.empire = batchStatic(buildEmpire(period));
+    this.empire = this.createEmpire(period);
     this.content.add(this.empire);
+    for (const boat of this.boats) boat.visible = period === 2;
+    this.renderer.shadowMap.needsUpdate = true;
+  }
+  private createEmpire(period: number): THREE.Group {
+    const group = new THREE.Group();
+    group.add(batchStatic(buildEmpire(period)), buildEmpireDetails(this.painting, period));
+    group.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.castShadow = true;
+        object.receiveShadow = true;
+      }
+    });
+    return group;
   }
   private resetWalk(): void {
     this.walkInitialized = true;
     const p = this.painting;
     const { x, z, yaw, pitch } = getWalkStart(p.id);
     this.walkingPosition.set(x, Math.max(0.3, groundHeight(p, x, z)) + 1.8, z);
+    this.currentEye.copy(this.walkingPosition);
     this.yaw = yaw;
     this.pitch = pitch;
   }
@@ -684,8 +724,12 @@ export class Experience {
     const z =
       this.walkingPosition.z +
       (-Math.cos(this.yaw) * forward - Math.sin(this.yaw) * side) * dt * speed;
-    const ground = groundHeight(this.painting, x, z),
-      old = groundHeight(this.painting, this.walkingPosition.x, this.walkingPosition.z);
+    const ground =
+        this.painting.id === 'wuhan' ? wuhanWalkHeight(x, z) : groundHeight(this.painting, x, z),
+      old =
+        this.painting.id === 'wuhan'
+          ? wuhanWalkHeight(this.walkingPosition.x, this.walkingPosition.z)
+          : groundHeight(this.painting, this.walkingPosition.x, this.walkingPosition.z);
     if (ground > 0.15 && Math.abs(ground - old) < 1.4 && Math.abs(x) < 135 && z > -110 && z < 75) {
       this.walkingPosition.set(x, ground + 1.8, z);
     }
@@ -727,48 +771,28 @@ export class Experience {
     this.camera.lookAt(this.currentTarget);
   }
   private updateAtmosphere(dt: number): void {
-    const starry = this.painting.id === 'starry';
-    const winter = this.painting.id === 'winter';
-    const desired =
-      starry || winter
-        ? 1
-        : this.state.time === 'night'
-          ? 1
-          : this.state.time === 'day'
-            ? 0
-            : this.state.time === 'sunset'
-              ? 0.4
-              : clamp((this.progress - 0.48) * 2);
+    const desired = resolveSceneNight(this.painting.id, this.state.time, this.progress);
     this.night += (desired - this.night) * (1 - Math.exp(-dt * 5));
-    const color = new THREE.Color(this.painting.palette.sky)
-      .lerp(new THREE.Color('#d3aa83'), Math.sin(this.night * Math.PI) * 0.3)
-      .lerp(new THREE.Color('#253c51'), this.night);
-    if (this.state.painting === 'empire' && this.state.period === 3)
-      color.lerp(new THREE.Color('#4e5352'), 0.7);
-    (this.scene.background as THREE.Color).copy(color);
+    const light = sampleSceneLighting(
+      this.painting,
+      this.night,
+      this.state.mist,
+      this.state.period,
+      this.lighting,
+    );
+    (this.scene.background as THREE.Color).copy(light.background);
     if (this.scene.fog instanceof THREE.Fog) {
-      this.scene.fog.color.copy(color);
-      this.scene.fog.near = this.state.mist ? 100 : 260;
-      this.scene.fog.far = this.state.mist ? 430 : 700;
+      this.scene.fog.color.copy(light.fogColor);
+      this.scene.fog.near = light.fogNear;
+      this.scene.fog.far = light.fogFar;
     }
-    this.sun.intensity = starry ? 1.2 : 2.15 - this.night * 1.25;
-    this.ambient.intensity = starry ? 1.4 : 1.35 - this.night * 0.45;
-    this.sun.color
-      .set('#fff0d2')
-      .lerp(new THREE.Color('#e3ad74'), Math.sin(this.night * Math.PI) * 0.7)
-      .lerp(new THREE.Color('#9ebfe7'), this.night);
-    this.ambient.color.set('#e4e6d7').lerp(new THREE.Color('#7d9fc9'), this.night);
-    this.ambient.groundColor.set('#6d795b').lerp(new THREE.Color('#23394c'), this.night);
-    if (winter) {
-      this.sun.intensity = 2.4;
-      this.sun.color.set('#c1d4ef');
-      this.ambient.intensity = 1.15;
-      this.ambient.color.set('#7a9ecf');
-      this.ambient.groundColor.set('#344e72');
-      color.set('#223650');
-      if (this.scene.fog instanceof THREE.Fog) this.scene.fog.color.copy(color);
-    }
+    this.sun.intensity = light.sunIntensity;
+    this.sun.color.copy(light.sunColor);
+    this.ambient.intensity = light.ambientIntensity;
+    this.ambient.color.copy(light.ambientColor);
+    this.ambient.groundColor.copy(light.groundColor);
     this.river?.update(this.elapsed, this.night);
+    if (this.waterfall) updateWaterfall(this.waterfall, this.elapsed, this.night);
     if (this.wuhan) updateWuhan(this.wuhan, this.elapsed, this.night);
     if (this.sky) {
       const uniforms = (this.sky.material as THREE.ShaderMaterial).uniforms;
@@ -780,8 +804,8 @@ export class Experience {
     this.mist.children.forEach((child) => {
       const m = (child as THREE.Mesh).material as THREE.ShaderMaterial;
       m.uniforms.uTime!.value = this.elapsed;
-      m.uniforms.uColor!.value.copy(color).lerp(new THREE.Color('#d7e1d5'), (1 - this.night) * 0.3);
-      m.uniforms.uOpacity!.value = winter ? 0.1 : this.painting.id === 'fuchun' ? 0.33 : 0.22;
+      m.uniforms.uColor!.value.copy(light.mistColor);
+      m.uniforms.uOpacity!.value = light.mistOpacity;
     });
   }
   private tick = (time: number): void => {
@@ -791,9 +815,13 @@ export class Experience {
       this.lastTime = 0;
       return;
     }
-    const dt = this.lastTime ? Math.min((time - this.lastTime) / 1000, 0.1) : 0.016;
+    const wallDelta = this.lastTime ? Math.max(0, (time - this.lastTime) / 1000) : 0.016;
+    const dt = Math.min(wallDelta, 0.1);
     this.lastTime = time;
     this.elapsed += dt;
+    this.vegetation?.update(this.elapsed);
+    this.livingActors?.update(this.elapsed);
+    this.lakeBirds?.update(this.elapsed);
     this.idleTime += dt;
     if (
       this.state.playing &&
@@ -817,9 +845,10 @@ export class Experience {
       this.birds.position.x = Math.sin(this.elapsed * 0.035) * 12;
       this.birds.position.y = Math.sin(this.elapsed * 0.23) * 0.4;
     }
+    this.renderer.info.reset();
     this.renderer.render(this.scene, this.camera);
     this.frameCount++;
-    this.statsTime += dt;
+    this.statsTime += wallDelta;
     if (this.statsTime > 0.35) {
       this.emitStats();
       this.statsTime = 0;
@@ -850,6 +879,7 @@ export class Experience {
     this.emitStats();
   }
   capture(): string {
+    this.renderer.info.reset();
     this.renderer.render(this.scene, this.camera);
     return this.renderer.domElement.toDataURL('image/png');
   }
@@ -886,10 +916,13 @@ export class Experience {
     this.camera.zoom = 1;
     this.camera.updateProjectionMatrix();
   }
-  renderOfflineFrame(progress: number, time: number): string {
+  renderOfflineFrame(progress: number, time: number, view?: CinematicView): string {
     if (!this.offline || this.disposed) throw new Error('请先初始化逐帧渲染');
     this.progress = clamp(progress);
     this.elapsed = Math.max(0, Number.isFinite(time) ? time : 0);
+    this.vegetation?.update(this.elapsed);
+    this.livingActors?.update(this.elapsed);
+    this.lakeBirds?.update(this.elapsed);
     if (this.painting.id === 'empire') {
       const period = Math.min(4, Math.floor(this.progress * 5));
       if (period !== this.state.period) {
@@ -898,6 +931,12 @@ export class Experience {
       }
     }
     this.updateCamera(10);
+    if (view) {
+      this.currentEye.set(...view.eye);
+      this.currentTarget.set(...view.target);
+      this.camera.position.copy(this.currentEye);
+      this.camera.lookAt(this.currentTarget);
+    }
     this.updateAtmosphere(10);
     this.boats.forEach((b, i) => {
       b.position.y = 0.4 + Math.sin(this.elapsed * 0.8 + i) * 0.065;
@@ -907,6 +946,7 @@ export class Experience {
       this.birds.position.x = Math.sin(this.elapsed * 0.035) * 12;
       this.birds.position.y = Math.sin(this.elapsed * 0.23) * 0.4;
     }
+    this.renderer.info.reset();
     this.renderer.render(this.scene, this.camera);
     paintFilmFrame(
       this.offline.canvas.getContext('2d')!,
@@ -1077,7 +1117,9 @@ export class Experience {
     }
   }
   dispose(): void {
+    this.livingActors?.dispose();
     this.disposed = true;
+    this.vegetation?.dispose();
     this.clearInput();
     this.releasePointerLock();
     this.filmCancel?.();

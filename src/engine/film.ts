@@ -20,20 +20,17 @@ export function paintFilmFrame(
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
   ctx.fillStyle = '#f4f0e3';
-  ctx.font = `${portrait ? 17 : 15}px "Landscape Serif", serif`;
+  const unit = Math.min(width, height) / 720;
+  ctx.font = `${(portrait ? 17 : 15) * unit}px "Landscape Serif", serif`;
   ctx.textAlign = 'left';
-  ctx.fillText('入 画  /  WITHIN', 45, 50);
+  ctx.fillText('入 画  /  WITHIN', 45 * unit, 50 * unit);
   const chapter = painting.chapters[chapterAt(painting, progress)]!;
-  ctx.font = `${portrait ? 38 : 34}px "Landscape Serif", serif`;
-  ctx.fillText(progress > 0.9 ? painting.title : chapter.title, 45, height - 102);
-  ctx.font = '15px "Landscape Serif", serif';
-  ctx.fillText(
-    progress > 0.9 ? `${painting.artist} · ${painting.era}  |  三维意境演绎` : chapter.subtitle,
-    47,
-    height - 69,
-  );
+  ctx.font = `${(portrait ? 38 : 34) * unit}px "Landscape Serif", serif`;
+  ctx.fillText(painting.shortTitle, 45 * unit, height - 102 * unit);
+  ctx.font = `${15 * unit}px "Landscape Serif", serif`;
+  ctx.fillText(`${painting.artist} · ${chapter.title}`, 47 * unit, height - 69 * unit);
   ctx.fillStyle = 'rgba(244,240,227,.3)';
-  ctx.fillRect(45, height - 40, width - 90, 1);
+  ctx.fillRect(45 * unit, height - 40 * unit, width - 90 * unit, unit);
   ctx.fillStyle = '#e7d4a0';
-  ctx.fillRect(45, height - 40, (width - 90) * progress, 2);
+  ctx.fillRect(45 * unit, height - 40 * unit, (width - 90 * unit) * progress, 2 * unit);
 }

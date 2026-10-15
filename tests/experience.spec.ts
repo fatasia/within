@@ -73,7 +73,7 @@ test('ten worlds, navigation, settings, dialogs and screenshots', async ({ page 
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button', { name: '返回画馆', exact: true }).click();
+  await page.getByRole('button', { name: '返回画境首页', exact: true }).click();
   await page.getByRole('button', { name: '选择千里江山图', exact: true }).click();
   await page.getByRole('button', { name: '走进画中' }).click();
   await page.getByRole('button', { name: '暂停游览', exact: true }).click();

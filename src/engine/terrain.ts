@@ -5,22 +5,23 @@ import { landscapeGround } from './geography';
 import { cityGround } from './cityLayout';
 import { getWuhanGround } from './wuhanLayout';
 import { blendXishanGround } from './xishanLayout';
+import { chinesePeakHeight, colorChineseRock, isChineseLandscape } from './chineseLandscape';
+import { rockLandformHeight, colorRockLandform, addRockSurface } from './rockLandforms';
+import { empirePeakHeight, getEmpireGround } from './empireLandform';
 
 /** A continuous, deterministic height field shared by rendering and walking collision. */
 export function peakHeight(peak: Peak, x: number, z: number): number {
+  if (peak.profile === 'empire') return empirePeakHeight(peak, x, z);
+  const rock = rockLandformHeight(peak, x, z);
+  if (rock !== undefined) return rock;
+  const authored = chinesePeakHeight(peak, x, z);
+  if (authored !== undefined && z <= -24) return authored;
   const dx = (x - peak.x) / peak.radius,
     dz = (z - peak.z) / (peak.radius * (peak.stretch ?? 0.8));
   // Domain warping breaks circular coastlines without discontinuities at the summit.
   const warp = 1 + (noise(dx * 3 + 5, dz * 3 + 7, peak.seed) - 0.5) * 0.24;
   const distance = Math.sqrt(dx * dx + dz * dz) * warp;
   if (distance >= 1) return -0.25;
-  if (peak.profile === 'zhangjiajie') {
-    const cap = Math.pow(1 - Math.pow(distance, 8), 0.43);
-    const lowFrequency = noise(dx * 1.6 + 5, dz * 1.6 + 7, peak.seed);
-    const edgeDetail =
-      noise(dx * 8 + 3, dz * 8 + 2, peak.seed) * 0.025 * Math.min(1, distance * distance * 2);
-    return Math.max(-0.25, peak.height * cap * (0.91 + lowFrequency * 0.075 + edgeDetail) - 0.25);
-  }
   const angle = Math.atan2(dz, dx);
   const ridges =
     (Math.sin(angle * 7 + distance * 4 + peak.seed) * 0.06 +
@@ -56,12 +57,16 @@ export function peakHeight(peak: Peak, x: number, z: number): number {
         ? 0.23
         : 0.28;
   const ridgeStrength = peak.profile === 'fuchun' ? 0.16 : peak.profile === 'winter' ? 0.28 : 0.35;
-  return Math.max(
+  const natural = Math.max(
     -0.25,
     peak.height * silhouette * (0.76 + surface * detail + ridges * ridgeStrength) - 0.25,
   );
+  return authored === undefined
+    ? natural
+    : THREE.MathUtils.lerp(natural, authored, 1 - THREE.MathUtils.smoothstep(z, -24, -14));
 }
 export function groundHeight(painting: Painting, x: number, z: number): number {
+  if (painting.id === 'empire') return getEmpireGround(x, z);
   if (painting.id === 'qingming') return cityGround(x, z, true);
   if (painting.id === 'wuhan') return getWuhanGround(x, z);
   let height = -0.25;
@@ -75,17 +80,16 @@ export function groundHeight(painting: Painting, x: number, z: number): number {
   if (painting.id === 'starry')
     height = Math.max(height, 0.6 + noise(x * 0.025, z * 0.025, 12) * 0.6);
   if (painting.id === 'winter') height = Math.max(height, 0.65);
-  if (painting.id === 'empire' && z < 1 && x > -95 && x < 100) height = Math.max(height, 1.05);
   if (painting.id === 'zhangjiajie' || painting.id === 'guilin')
     return landscapeGround(painting, x, z, height);
   if (painting.id === 'xishan') return blendXishanGround(x, z, height);
   return height;
 }
-export function makePaperTexture(seed: number): THREE.CanvasTexture {
+export function makePaperTexture(seed: number, style?: Painting['id']): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = 512;
   const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#bdb9aa';
+  ctx.fillStyle = isChineseLandscape(style) ? '#e1dfd4' : '#bdb9aa';
   ctx.fillRect(0, 0, 512, 512);
   const random = seededRandom(seed);
   for (let i = 0; i < 18000; i++) {
@@ -98,6 +102,31 @@ export function makePaperTexture(seed: number): THREE.CanvasTexture {
     ctx.lineTo(x + random() * 2, y + random() * 15);
     ctx.stroke();
   }
+  if (isChineseLandscape(style)) {
+    // Dry brush is separate from the pigment field. These strokes model surface character,
+    // not a claim that each painted mark was traced from the reference.
+    for (let i = 0; i < (style === 'xishan' ? 11500 : 2700); i++) {
+      const x = random() * 512,
+        y = random() * 512;
+      ctx.strokeStyle = `rgba(72,69,52,${0.04 + random() * (style === 'fuchun' ? 0.14 : 0.1)})`;
+      ctx.lineWidth = 0.45 + random() * 0.7;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      if (style === 'xishan') ctx.lineTo(x + (random() - 0.5) * 1.2, y + 1 + random() * 3);
+      else {
+        const length = style === 'fuchun' ? 8 + random() * 28 : 5 + random() * 13;
+        ctx.bezierCurveTo(
+          x + length * 0.08,
+          y + length * 0.3,
+          x + length * 0.3,
+          y + length * 0.7,
+          x + length * 0.34,
+          y + length,
+        );
+      }
+      ctx.stroke();
+    }
+  }
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   texture.repeat.set(7, 7);
@@ -108,16 +137,18 @@ export function buildTerrain(painting: Painting): { group: THREE.Group; texture:
   const group = new THREE.Group();
   group.name = 'Continuous painted landscape';
   const winter = painting.id === 'winter';
-  const texture = makePaperTexture(painting.seed);
+  const rockLandscape = painting.id === 'zhangjiajie' || painting.id === 'guilin';
+  const texture = makePaperTexture(painting.seed, painting.id);
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 1,
-    bumpMap: winter ? null : texture,
-    map: winter ? null : texture,
+    bumpMap: winter || rockLandscape ? null : texture,
+    map: winter || rockLandscape ? null : texture,
     bumpScale: painting.id === 'starry' ? 0.4 : 0.18,
     side: THREE.DoubleSide,
   });
   const low = new THREE.Color(painting.id === 'qianli' ? '#54977e' : painting.palette.low);
+  if (rockLandscape) addRockSurface(material, painting.id === 'zhangjiajie');
   const high = new THREE.Color(painting.id === 'qianli' ? '#216d8c' : painting.palette.high);
   const light = new THREE.Color(
     winter ? '#e9f1f6' : painting.id === 'fuchun' ? '#b0b19b' : '#a5b17b',
@@ -159,7 +190,9 @@ export function buildTerrain(painting: Painting): { group: THREE.Group; texture:
     const elevation = clamp(height / summit);
     const n = fbm(x * 0.1, z * 0.1, painting.seed);
     color.copy(low).lerp(high, clamp(elevation * 1.4));
-    if (winter) {
+    if (isChineseLandscape(painting.id)) {
+      colorChineseRock(color, painting.id, x, z, elevation, painting.seed);
+    } else if (winter) {
       const slopeX = groundHeight(painting, x + 0.6, z) - height;
       const slopeZ = groundHeight(painting, x, z + 0.6) - height;
       // White snow sits on broad shoulders; steep cuts retain cold blue rock.
@@ -169,12 +202,16 @@ export function buildTerrain(painting: Painting): { group: THREE.Group; texture:
       const gx = groundHeight(painting, x + 0.35, z) - height;
       const gz = groundHeight(painting, x, z + 0.35) - height;
       const steepness = clamp(Math.hypot(gx, gz));
-      color
-        .copy(new THREE.Color(painting.id === 'zhangjiajie' ? '#777164' : '#9a9b88'))
-        .lerp(low, 1 - steepness);
-      color.multiplyScalar(0.83 + n * 0.3);
-      if (painting.id === 'zhangjiajie')
-        color.multiplyScalar(0.94 + Math.sin(height * 1.7 + x * 0.16) * 0.045);
+      colorRockLandform(
+        color,
+        low,
+        painting.id === 'zhangjiajie',
+        x,
+        z,
+        height,
+        steepness,
+        painting.seed,
+      );
     } else {
       color.lerp(light, (1 - elevation) * n * 0.23);
       color.multiplyScalar(0.88 + n * 0.22);
@@ -190,7 +227,8 @@ export function buildTerrain(painting: Painting): { group: THREE.Group; texture:
     !winter &&
     painting.id !== 'starry' &&
     painting.id !== 'qingming' &&
-    painting.id !== 'wuhan'
+    painting.id !== 'wuhan' &&
+    !rockLandscape
   ) {
     const strokePositions: number[] = [];
     const random = seededRandom(painting.seed);
@@ -199,19 +237,55 @@ export function buildTerrain(painting: Painting): { group: THREE.Group; texture:
       const z = bounds.minZ + random() * (bounds.maxZ - bounds.minZ);
       const h = groundHeight(painting, x, z);
       if (h < 2) continue;
-      const steps = painting.id === 'fuchun' ? 5 : 3;
+      const chinese = isChineseLandscape(painting.id);
+      const steps = painting.id === 'fuchun' ? 9 : painting.id === 'xishan' ? 2 : chinese ? 4 : 3;
+      const gx = groundHeight(painting, x + 0.45, z) - groundHeight(painting, x - 0.45, z);
+      const gz = groundHeight(painting, x, z + 0.45) - groundHeight(painting, x, z - 0.45);
+      const slopeLength = Math.max(0.3, Math.hypot(gx, gz));
+      const flowX = isChineseLandscape(painting.id) ? -gx / slopeLength : 0;
+      const flowZ = isChineseLandscape(painting.id) ? -gz / slopeLength : 1;
       let px = x,
         pz = z,
         py = h;
       for (let j = 0; j < steps; j++) {
-        const nx = px + 0.16 * Math.sin(z + j),
-          nz = pz + 0.25 + random() * 0.4;
+        const length = !chinese
+          ? 0
+          : painting.id === 'xishan'
+            ? 0.12 + random() * 0.16
+            : 0.3 + random() * 0.4;
+        const nx = isChineseLandscape(painting.id)
+            ? px +
+              flowX * length +
+              Math.sin(z * 0.4 + j * 0.6) * (painting.id === 'fuchun' ? 0.14 : 0.06)
+            : px + 0.16 * Math.sin(z + j),
+          nz = isChineseLandscape(painting.id) ? pz + flowZ * length : pz + 0.25 + random() * 0.4;
         const ny = groundHeight(painting, nx, nz);
         if (ny > 1) strokePositions.push(px, py + 0.08, pz, nx, ny + 0.08, nz);
         px = nx;
         pz = nz;
         py = ny;
       }
+    }
+    if (painting.id === 'xishan') {
+      const main = painting.peaks.find((peak) => peak.height > 90);
+      if (main)
+        for (let seam = 0; seam < 13; seam++) {
+          let previous: THREE.Vector3 | null = null;
+          for (let step = 0; step <= 56; step++) {
+            const t = step / 56;
+            const x =
+              main.x +
+              (seam - 6) * main.radius * 0.105 +
+              Math.sin(t * 8 + seam) * 0.5 +
+              t * ((seam % 3) - 1) * 1.2;
+            const z = main.z - 5 + t * main.radius * 0.72;
+            const h = groundHeight(painting, x, z);
+            const point = new THREE.Vector3(x, h + 0.1, z);
+            if (previous && h > 3 && previous.y > 3 && step % 17 !== 0)
+              strokePositions.push(previous.x, previous.y, previous.z, point.x, point.y, point.z);
+            previous = point;
+          }
+        }
     }
     const strokes = new THREE.BufferGeometry();
     strokes.setAttribute('position', new THREE.Float32BufferAttribute(strokePositions, 3));
@@ -221,7 +295,14 @@ export function buildTerrain(painting: Painting): { group: THREE.Group; texture:
         new THREE.LineBasicMaterial({
           color: painting.palette.ink,
           transparent: true,
-          opacity: painting.id === 'fuchun' ? 0.21 : 0.12,
+          opacity:
+            painting.id === 'fuchun'
+              ? 0.28
+              : painting.id === 'xishan'
+                ? 0.2
+                : painting.id === 'qianli'
+                  ? 0.14
+                  : 0.12,
           depthWrite: false,
         }),
       ),

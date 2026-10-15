@@ -13,15 +13,16 @@ import { join, resolve } from 'node:path';
 const execute = promisify(execFile);
 const repository = fileURLToPath(new URL('../', import.meta.url));
 const collection = [
+  'starry',
+  'winter',
+  'qingming',
+  'wuhan',
   'qianli',
   'fuchun',
   'xishan',
-  'starry',
   'empire',
-  'winter',
-  'qingming',
-  'guilin',
   'zhangjiajie',
+  'guilin',
 ];
 const paintings = process.env.PAINTINGS
   ? [
@@ -35,10 +36,10 @@ const paintings = process.env.PAINTINGS
 if (!paintings.length || paintings.some((id) => !collection.includes(id))) {
   throw new Error(`PAINTINGS must contain comma-separated IDs: ${collection.join(', ')}`);
 }
-const quality = process.env.QUALITY ?? 'balanced';
+const quality = process.env.QUALITY ?? 'high';
 if (!['low', 'balanced', 'high'].includes(quality)) throw new Error('Invalid QUALITY');
-const fps = Number(process.env.FPS ?? 24);
-const duration = Number(process.env.DURATION ?? 24);
+const fps = Number(process.env.FPS ?? 30);
+const duration = Number(process.env.DURATION ?? 10);
 if (!Number.isInteger(fps) || fps < 12 || fps > 60)
   throw new Error('FPS must be an integer from 12 to 60');
 if (!Number.isFinite(duration) || duration < 1 || duration > 120)
@@ -50,8 +51,8 @@ if (Math.abs(frameCount / fps - duration) > 0.000001) {
 const portraitValue = (process.env.PORTRAIT ?? '0').toLowerCase();
 if (!['0', '1', 'false', 'true'].includes(portraitValue)) throw new Error('Invalid PORTRAIT');
 const portrait = ['1', 'true'].includes(portraitValue);
-const width = portrait ? 720 : 1280,
-  height = portrait ? 1280 : 720;
+const width = portrait ? 1080 : 1920,
+  height = portrait ? 1920 : 1080;
 const output = process.env.OUTPUT_DIR
   ? resolve(process.env.OUTPUT_DIR)
   : join(repository, 'artifacts/videos');
@@ -79,11 +80,14 @@ canvas{display:block}
 import { Experience } from '/src/engine/Experience.ts';
 import { initialState } from '/src/state.ts';
 import { renderSoundtrack } from '/src/engine/audio.ts';
+import { getFilmShot } from '/src/engine/filmTimeline.ts';
+import { getPainting } from '/src/data/paintings.ts';
 let experience = null;
+let currentPainting = null;
 window.offlineFilm = {
   async start(options) {
     if (experience) { experience.dispose(); experience = null; }
-    const fonts = await document.fonts.load('400 40px "Landscape Serif"', '千里江山富春溪山行旅星月夜帝国山中冬夜清明上河桂林漓江张家界');
+    const fonts = await document.fonts.load('400 40px "Landscape Serif"', '千里江山富春溪山行旅星月夜帝国山中冬夜清明上河桂林漓江张家界武汉桂雨东湖');
     if (!fonts.length) throw new Error('Landscape Serif did not load');
     await document.fonts.ready;
     experience = new Experience(document.getElementById('stage'), {
@@ -94,8 +98,12 @@ window.offlineFilm = {
       if (typeof experience[method] !== 'function') throw new Error('Missing offline renderer API: ' + method);
     }
     experience.beginOfflineFilm(options.width, options.height);
+    currentPainting = getPainting(options.painting);
   },
-  frame(progress, time) { return experience.renderOfflineFrame(progress, time); },
+  frame(time, duration) {
+    const shot = getFilmShot(currentPainting, time, duration);
+    return experience.renderOfflineFrame(shot.progress, time, shot.view);
+  },
   async soundtrack(painting, duration) {
     const blob = await renderSoundtrack(painting, duration);
     return await new Promise((resolve, reject) => {
@@ -117,6 +125,7 @@ const browser = await chromium.launch({
   args: [
     '--enable-webgl',
     '--ignore-gpu-blocklist',
+    ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []),
     '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding',
   ],
@@ -163,10 +172,10 @@ try {
     console.log(`Rendering ${stem}: ${frameCount} scheduled frames, ${fps} fps, ${duration} s`);
     for (let frame = 0; frame < frameCount; frame++) {
       const data = await page.evaluate(
-        ({ progress, time }) => window.offlineFilm.frame(progress, time),
+        ({ time, duration }) => window.offlineFilm.frame(time, duration),
         {
-          progress: frame / (frameCount - 1),
           time: frame / fps,
+          duration,
         },
       );
       if (errors.length) throw new Error(`${stem}: browser errors:\n${errors.join('\n')}`);

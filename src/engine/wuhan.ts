@@ -1,14 +1,14 @@
 import * as THREE from 'three';
 import type { Painting, Quality } from '../types';
 import { clamp, seededRandom } from './math';
-import { getWuhanGround, wuhanPath, wuhanShore } from './wuhanLayout';
+import { getWuhanGround, wuhanPath, wuhanShore, WUHAN_PIER } from './wuhanLayout';
 import { gableGeometry, rod } from './modelGeometry';
 import { batchStatic } from './resources';
 import { buildWuhanBotany, osmanthusFlowerGeometry } from './wuhanBotany';
 import { addWetStoneDetail } from './wuhanMaterials';
+import { sedgeBlade } from './foliageSpray';
 
 type Point = readonly [number, number, number];
-const UP = new THREE.Vector3(0, 1, 0);
 interface Weather {
   rain: THREE.LineSegments;
   drops: Float32Array;
@@ -27,15 +27,6 @@ function pose(at: Point, scale: Point = [1, 1, 1], yaw = 0, pitch = 0): THREE.Ma
     new THREE.Vector3(...at),
     new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0)),
     new THREE.Vector3(...scale),
-  );
-}
-function segment(start: Point, end: Point, radius: number): THREE.Matrix4 {
-  const a = new THREE.Vector3(...start),
-    direction = new THREE.Vector3(...end).sub(a);
-  return new THREE.Matrix4().compose(
-    a.clone().addScaledVector(direction, 0.5),
-    new THREE.Quaternion().setFromUnitVectors(UP, direction.clone().normalize()),
-    new THREE.Vector3(radius, direction.length(), radius),
   );
 }
 function batch(
@@ -118,6 +109,24 @@ function addShelter(
       wood,
     );
   }
+  const pier = WUHAN_PIER;
+  const pierEdge = wuhanShore(pier.x) + 2.1;
+  for (let i = 0; i < 36; i++) {
+    box(
+      [pier.width, 0.15, 0.24],
+      [pier.x - x, pier.height - 0.075 - y, pierEdge - (i + 0.5) * 0.25 - z],
+      wood,
+    );
+  }
+  for (let i = 0; i <= 4; i++) {
+    for (const side of [-1, 1]) {
+      const px = pier.x - x + side * 1.32,
+        pz = pierEdge - i * 2.1 - z;
+      box([0.16, 1.65, 0.16], [px, 0.42 - y, pz], wood);
+    }
+  }
+  // A single low rail leaves the end open toward the water, as on small floating landings.
+  box([0.1, 0.1, 8.6], [pier.x - x - 1.32, 1.24 - y, pierEdge - 4.3 - z], wood);
   const baked = batchStatic(shelter);
   group.add(baked);
   let lightMaterial = lantern;
@@ -205,6 +214,40 @@ export function buildWuhan(painting: Painting, quality: Quality = 'balanced'): T
       );
     }
   }
+  // Rain and breeze gather small flowers along the sheltered edge below the lakeside trees.
+  // Keep this in the existing instance batch: the close view gains detail without new draws.
+  const litterRandom = seededRandom(painting.seed + 1821);
+  for (const tree of garden.trees.filter((tree) => tree.hero)) {
+    for (let i = 0; i < (quality === 'low' ? 24 : 180); i++) {
+      const px = tree.x + (litterRandom() + litterRandom() - 1) * 2.1;
+      const edge = wuhanPath(px) - 1.7;
+      const pz = edge + litterRandom() ** 2 * 1.8;
+      const size = 0.013 + litterRandom() * 0.012;
+      fallen.push(
+        pose(
+          [px, getWuhanGround(px, pz) + 0.055, pz],
+          [size, size, size],
+          litterRandom() * Math.PI * 2,
+          -Math.PI * 0.5,
+        ),
+      );
+    }
+  }
+  // Low masonry revetment and occasional water steps, informed by the ATLAS aerial views.
+  // Reuse the path-stone instance batch; no additional draw call.
+  for (let i = 0; i < 116; i++) {
+    const x = -121 + i * 2.1;
+    const z = wuhanShore(x) + 1.35;
+    const yaw = -Math.atan2(wuhanShore(x + 0.5) - wuhanShore(x - 0.5), 1);
+    stones.push(pose([x, 0.43, z], [2.08, 0.95, 0.55], yaw));
+    stones.push(pose([x, 0.94, z], [2.1, 0.12, 0.68], yaw));
+  }
+  for (let step = 0; step < 6; step++) {
+    const x = 56,
+      z = wuhanPath(x) - 2.4 - step * 0.72;
+    const top = Math.max(0.15, getWuhanGround(x, z) + 0.06);
+    stones.push(pose([x, top - 0.11, z], [7.5, 0.22, 0.74]));
+  }
   batch(group, 'Worn path edging', new THREE.BoxGeometry(1, 1, 1), rough('#8d9288', 0.43), stones);
   batch(
     group,
@@ -217,20 +260,23 @@ export function buildWuhan(painting: Painting, quality: Quality = 'balanced'): T
     const x = -120 + random() * 240,
       z = wuhanShore(x) + 1 + random() * 1.2,
       y = getWuhanGround(x, z);
-    for (let j = 0; j < 3; j++)
+    for (let j = 0; j < (quality === 'low' ? 6 : 12); j++) {
+      const size = 0.45 + random() * 0.65;
       reeds.push(
-        segment(
-          [x, y, z],
-          [x + (random() - 0.5) * 0.6, y + 0.6 + random() * 0.8, z + (random() - 0.5) * 0.5],
-          0.02,
+        pose(
+          [x + (random() - 0.5) * 0.18, y, z + (random() - 0.5) * 0.18],
+          [size, size, size],
+          j * 2.399,
+          random() * 0.2,
         ),
       );
+    }
   }
   batch(
     group,
     'Fine lakeshore sedges',
-    new THREE.CylinderGeometry(0.2, 1, 1, 4),
-    rough('#738259'),
+    sedgeBlade(),
+    new THREE.MeshStandardMaterial({ color: '#697d50', roughness: 0.8, side: THREE.DoubleSide }),
     reeds,
   );
   const benchMaterial = rough('#9a9c8f', 0.48);
@@ -261,9 +307,10 @@ export function buildWuhan(painting: Painting, quality: Quality = 'balanced'): T
     rainOrigins = new Float32Array(rainCount * 3),
     drops = new Float32Array(rainCount * 6);
   for (let i = 0; i < rainCount; i++) {
-    rainOrigins[i * 3] = -132 + random() * 264;
+    // A local curtain makes the same fine drizzle readable around the authored flower/path view.
+    rainOrigins[i * 3] = i < 260 ? -38 + random() * 40 : -132 + random() * 264;
     rainOrigins[i * 3 + 1] = random() * 30;
-    rainOrigins[i * 3 + 2] = -80 + random() * 142;
+    rainOrigins[i * 3 + 2] = i < 260 ? -8 + random() * 40 : -80 + random() * 142;
   }
   const rainGeometry = new THREE.BufferGeometry();
   rainGeometry.setAttribute(
