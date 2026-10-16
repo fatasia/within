@@ -17,12 +17,75 @@ import {
   wovenBasket,
 } from './qingmingDetails';
 
-import { qingmingRiver, qingmingBridgeHeight } from './cityLayout';
+import { cityGround, qingmingRiver, qingmingBridgeHeight } from './cityLayout';
 export { qingmingRiver, qingmingBridgeHeight } from './cityLayout';
 
 type Point = [number, number, number];
 const v = (p: Point) => new THREE.Vector3(...p);
-const mat = (color: string) => new THREE.MeshStandardMaterial({ color, roughness: 0.94 });
+
+/** Small repeatable hand-painted surfaces keep the Song city from reading as flat solids. */
+function surfaceTexture(base: string, kind: 'wood' | 'tile' | 'stone' | 'earth' | 'plaster') {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, 128, 128);
+  const random = seededRandom(base.length * 97 + kind.length * 31);
+  if (kind === 'tile') {
+    ctx.strokeStyle = '#1c2220a0';
+    ctx.lineWidth = 1;
+    for (let y = 0; y <= 128; y += 9) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(128, y + 2);
+      ctx.stroke();
+    }
+    for (let x = -128; x < 256; x += 18) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 32, 128);
+      ctx.stroke();
+    }
+  } else if (kind === 'wood') {
+    ctx.strokeStyle = '#2c241c80';
+    ctx.lineWidth = 1;
+    for (let y = 5; y < 128; y += 7 + random() * 5) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.bezierCurveTo(32, y - 2, 80, y + 3, 128, y - 1);
+      ctx.stroke();
+    }
+  } else if (kind === 'stone') {
+    ctx.strokeStyle = '#6f675580';
+    ctx.lineWidth = 1;
+    for (let y = 0; y < 128; y += 14) {
+      const offset = (y / 14) % 2 ? 8 : 0;
+      for (let x = -offset; x < 128; x += 22) ctx.strokeRect(x, y, 21, 13);
+    }
+  } else if (kind === 'earth') {
+    for (let i = 0; i < 420; i++) {
+      ctx.fillStyle = random() > 0.5 ? '#77694b35' : '#e0c98d30';
+      ctx.fillRect(random() * 128, random() * 128, 1 + random() * 2, 1 + random() * 2);
+    }
+  } else {
+    for (let i = 0; i < 260; i++) {
+      ctx.fillStyle = i % 2 ? '#ffffff18' : '#5d514030';
+      ctx.fillRect(random() * 128, random() * 128, 1, 1);
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(kind === 'tile' ? 2.4 : 3.5, kind === 'tile' ? 2.4 : 3.5);
+  return texture;
+}
+
+const mat = (color: string, kind: Parameters<typeof surfaceTexture>[1] = 'plaster') =>
+  new THREE.MeshStandardMaterial({
+    color: typeof document === 'undefined' ? color : '#ffffff',
+    ...(typeof document === 'undefined' ? {} : { map: surfaceTexture(color, kind) }),
+    roughness: kind === 'wood' ? 0.78 : 0.9,
+  });
 
 /** Hand-built Song street sections, batched by material after placement. */
 export function buildQingming(painting: Painting): THREE.Group {
@@ -35,20 +98,20 @@ export function buildQingming(painting: Painting): THREE.Group {
 export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.Group> {
   const city = new THREE.Group();
   const random = seededRandom(painting.seed);
-  const wood = mat('#614b37'),
-    dark = mat('#413d32'),
-    plaster = mat('#c3af87');
-  const tile = mat('#65675b'),
-    tileLight = mat('#77786a'),
-    stone = mat('#9d937a');
-  const earth = mat('#aa9e7d'),
-    linen = mat('#c7b78e'),
-    red = mat('#7c6250');
-  const leaf = mat('#697555'),
-    leafDark = mat('#4b624a'),
-    skin = mat('#ba926b');
-  const blue = mat('#526d6a'),
-    ochre = mat('#a58b59');
+  const wood = mat('#614b37', 'wood'),
+    dark = mat('#413d32', 'wood'),
+    plaster = mat('#c3af87', 'plaster');
+  const tile = mat('#65675b', 'tile'),
+    tileLight = mat('#77786a', 'tile'),
+    stone = mat('#9d937a', 'stone');
+  const earth = mat('#aa9e7d', 'earth'),
+    linen = mat('#c7b78e', 'plaster'),
+    red = mat('#7c6250', 'plaster');
+  const leaf = mat('#697555', 'plaster'),
+    leafDark = mat('#4b624a', 'plaster'),
+    skin = mat('#ba926b', 'plaster');
+  const blue = mat('#526d6a', 'plaster'),
+    ochre = mat('#a58b59', 'plaster');
   const glow = new THREE.MeshStandardMaterial({
     color: '#d9b36e',
     emissive: '#ffb158',
@@ -59,7 +122,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     wood,
     dark,
     linen,
-    earth: mat('#a18e68'),
+    earth: mat('#a18e68', 'earth'),
     stone,
     blue,
     clay: red,
@@ -135,7 +198,10 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
 
   function house(x: number, z: number, w: number, d: number, tall: boolean, facing = 0, index = 0) {
     const g = new THREE.Group();
-    g.position.set(x, 2.8, z);
+    // Anchor the complete house (including its roof) to the local bank height.
+    // The riverbanks are not perfectly level, so a fixed 2.8m lift makes roofs
+    // visibly float when a house crosses the shore transition.
+    g.position.set(x, cityGround(x, z), z);
     g.rotation.y = facing;
     city.add(g);
     const h = tall ? 6.4 : 3.9;
@@ -179,6 +245,13 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     for (const s of [-1, 1])
       beam(g, [s * (w / 2 - 0.5), 0, d / 2 + 1.9], [s * (w / 2 - 0.5), 2.9, d / 2 + 1.9]);
     sign(g, 0, tall ? 5.9 : 3.2, d / 2 + 0.15, index);
+    // Warm lantern pools separate the timber frontage from the cool Song-night street.
+    if (tall || index % 4 === 0) {
+      const lamp = new THREE.PointLight('#ff9a43', tall ? 1.45 : 0.72, tall ? 12 : 7, 2);
+      lamp.position.set(0, tall ? 4.55 : 2.55, d / 2 + 0.28);
+      lamp.castShadow = false;
+      g.add(lamp);
+    }
     if (hero) {
       // Street-level construction: stone footings, beam shoulders and diagonal brackets.
       for (const side of [-1, 1]) {

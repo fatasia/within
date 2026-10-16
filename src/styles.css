@@ -1978,6 +1978,14 @@ button {
 .original-link {
   display: flex;
   margin-top: 10px;
+  width: max-content;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.original-link svg {
+  flex: 0 0 auto;
 }
 .tool-button {
   min-width: 44px;

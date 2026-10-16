@@ -79,8 +79,8 @@ export const SCENE_LIGHTING: Readonly<Record<PaintingId, LightingPalette>> = {
     mist: 0.07,
   },
   qingming: {
-    direct: [1.65, 0.62],
-    fill: [1.45, 1.0],
+    direct: [1.65, 0.38],
+    fill: [1.45, 0.62],
     sun: ['#f4e7d0', '#a8bdcf'],
     ambient: ['#e5e4d6', '#8e9faa'],
     ground: ['#8b856b', '#3b4748'],

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { rod, curveRod } from './modelGeometry';
 import { qingmingCitizen, wovenBasket, potteryJar } from './qingmingDetails';
 import type { StreetMaterials } from './qingmingEpisodes';
-import { qingmingRiver } from './cityLayout';
+import { cityGround, qingmingRiver } from './cityLayout';
 import { disposeObject } from './resources';
 
 type Point = [number, number, number];
@@ -165,7 +165,7 @@ export function* buildQingmingScrollSteps(m: StreetMaterials): Generator<void, T
       [-97, -57, 5.5, 4.5, 0.2],
     ]) {
       const house = thatchedHouse(m, w!, d!);
-      house.position.set(x!, 2.8, z!);
+      house.position.set(x!, cityGround(x!, z!), z!);
       house.rotation.y = yaw!;
       village.add(house);
       yield;
@@ -178,7 +178,7 @@ export function* buildQingmingScrollSteps(m: StreetMaterials): Generator<void, T
       [-123, -58, 5.6],
     ]) {
       const tree = sparseVillageTree(m, h!);
-      tree.position.set(x!, 2.8, z!);
+      tree.position.set(x!, cityGround(x!, z!), z!);
       village.add(tree);
       yield;
     }

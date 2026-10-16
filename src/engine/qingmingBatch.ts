@@ -19,14 +19,15 @@ export function* batchQingmingSteps(source: THREE.Group): Generator<void, THREE.
       stack.push(...object.children);
       if (object instanceof THREE.Mesh && !Array.isArray(object.material)) {
         const mat = object.material as THREE.MeshStandardMaterial;
-        const key = `${mat.type}-${mat.color?.getHexString()}-${mat.emissive?.getHexString()}-${mat.side}-${mat.emissiveIntensity}`;
+        // Keep textured surfaces in separate batches.  Using only the base color
+        // silently dropped the first material's map onto every roof/wall.
+        const key = `${mat.type}-${mat.color?.getHexString()}-${mat.emissive?.getHexString()}-${mat.side}-${mat.emissiveIntensity}-${mat.map?.uuid ?? 'none'}`;
         let bucket = buckets.get(key);
         if (!bucket) {
           bucket = { material: mat.clone(), parts: [] };
           buckets.set(key, bucket);
         }
         const geometry = object.geometry.clone().applyMatrix4(object.matrixWorld);
-        geometry.deleteAttribute('uv');
         bucket.parts.push(geometry);
       }
       if (++work % 48 === 0) yield;
@@ -39,9 +40,9 @@ export function* batchQingmingSteps(source: THREE.Group): Generator<void, THREE.
         indices += part.index?.count ?? part.getAttribute('position').count;
       }
       pending = new THREE.BufferGeometry();
-      const names = Object.keys(parts[0]!.attributes);
+      const names = Array.from(new Set(parts.flatMap((part) => Object.keys(part.attributes))));
       for (const name of names) {
-        const attribute = parts[0]!.getAttribute(name);
+        const attribute = parts.find((part) => part.getAttribute(name))!.getAttribute(name);
         pending.setAttribute(
           name,
           new THREE.BufferAttribute(
@@ -57,10 +58,11 @@ export function* batchQingmingSteps(source: THREE.Group): Generator<void, THREE.
         const part = parts[i]!;
         for (const name of names) {
           const attribute = part.getAttribute(name);
-          (pending.getAttribute(name).array as Float32Array).set(
-            attribute.array,
-            vertexOffset * attribute.itemSize,
-          );
+          const target = pending.getAttribute(name);
+          if (attribute)
+            (target.array as Float32Array).set(attribute.array, vertexOffset * target.itemSize);
+          // Custom roof/leaf meshes do not carry UVs. Leave those vertices at
+          // zero rather than dropping UVs for the entire textured batch.
         }
         const count = part.index?.count ?? part.getAttribute('position').count;
         for (let j = 0; j < count; j++)
