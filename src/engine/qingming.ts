@@ -142,6 +142,10 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     rod(g, v(a), v(b), r, m, 1, 5);
 
   function roof(g: THREE.Group, w: number, d: number, y: number, h: number, detail = true) {
+    // The source profile is intentionally generous at the eaves. Sink the
+    // complete roof into the wall cap so the dark underside cannot read as a
+    // detached/floating slab from the gallery camera.
+    y -= 0.45;
     const vertices: number[] = [],
       indices: number[] = [];
     const columns = detail ? 8 : 4,

@@ -27,6 +27,7 @@ function beam(g: THREE.Group, a: Point, b: Point, r: number, material: THREE.Mat
 function thatchedHouse(m: StreetMaterials, width: number, depth: number): THREE.Group {
   const g = new THREE.Group();
   g.name = 'qingming-rural-thatched-house';
+  const roofDrop = 0.35;
   box(g, [width, 2.6, depth], [0, 1.3, 0], m.earth);
   box(g, [1.05, 1.9, 0.05], [0.4, 0.95, depth / 2 + 0.04], m.dark);
   const openDoor = box(g, [0.8, 1.9, 0.09], [1.16, 0.95, depth / 2 + 0.32], m.wood);
@@ -38,13 +39,13 @@ function thatchedHouse(m: StreetMaterials, width: number, depth: number): THREE.
       new THREE.Float32BufferAttribute(
         [
           (side * width) / 2,
-          2.6,
+          2.6 - roofDrop,
           -depth / 2,
           (side * width) / 2,
-          2.6,
+          2.6 - roofDrop,
           depth / 2,
           (side * width) / 2,
-          4,
+          4 - roofDrop,
           0,
         ],
         3,
@@ -58,22 +59,22 @@ function thatchedHouse(m: StreetMaterials, width: number, depth: number): THREE.
     box(g, [0.16, 2.7, 0.16], [side * (width / 2 - 0.16), 1.35, depth / 2], m.wood);
     const verts = [
       -width / 2 - 0.35,
-      4,
+      4 - roofDrop,
       0,
       width / 2 + 0.35,
-      4,
+      4 - roofDrop,
       0,
       -width / 2 - 0.45,
-      2.65,
+      2.65 - roofDrop,
       side * (depth / 2 + 0.55),
       width / 2 + 0.35,
-      4,
+      4 - roofDrop,
       0,
       width / 2 + 0.45,
-      2.65,
+      2.65 - roofDrop,
       side * (depth / 2 + 0.55),
       -width / 2 - 0.45,
-      2.65,
+      2.65 - roofDrop,
       side * (depth / 2 + 0.55),
     ];
     const geo = new THREE.BufferGeometry();
@@ -91,14 +92,24 @@ function thatchedHouse(m: StreetMaterials, width: number, depth: number): THREE.
         const end = Math.min(1.04, t + 0.43 + Math.sin(straw * 3.7 + course) * 0.035);
         beam(
           g,
-          [x, 4.04 - t * 1.35, side * t * (depth / 2 + 0.55)],
-          [x + Math.sin(straw) * 0.07, 4.04 - end * 1.35, side * end * (depth / 2 + 0.55)],
+          [x, 4.04 - roofDrop - t * 1.35, side * t * (depth / 2 + 0.55)],
+          [
+            x + Math.sin(straw) * 0.07,
+            4.04 - roofDrop - end * 1.35,
+            side * end * (depth / 2 + 0.55),
+          ],
           0.026,
           (straw + course) % 3 ? m.linen : m.wood,
         );
       }
   }
-  beam(g, [-width / 2 - 0.4, 4.06, 0], [width / 2 + 0.4, 4.06, 0], 0.085, m.wood);
+  beam(
+    g,
+    [-width / 2 - 0.4, 4.06 - roofDrop, 0],
+    [width / 2 + 0.4, 4.06 - roofDrop, 0],
+    0.085,
+    m.wood,
+  );
   box(g, [0.85, 0.72, 0.04], [-width * 0.28, 1.6, depth / 2 + 0.04], m.dark);
   for (let i = 0; i < 5; i++)
     box(g, [0.04, 0.7, 0.05], [-width * 0.28 - 0.32 + i * 0.16, 1.6, depth / 2 + 0.08], m.wood);

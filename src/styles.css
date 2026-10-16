@@ -1976,8 +1976,7 @@ button {
   text-underline-offset: 4px;
 }
 .original-link {
-  display: grid;
-  grid-template-columns: 18px max-content;
+  display: inline-flex;
   margin-top: 10px;
   width: max-content;
   max-width: 100%;
