@@ -535,7 +535,6 @@ export function App() {
               <ArrowRight size={23} />
             </button>
             <button className="original-link" onClick={() => setModal('original')}>
-              <ImageSquare size={18} />
               <span>查看原作与出处</span>
             </button>
           </section>
