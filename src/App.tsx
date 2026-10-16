@@ -536,7 +536,7 @@ export function App() {
             </button>
             <button className="original-link" onClick={() => setModal('original')}>
               <ImageSquare size={18} />
-              查看原作与出处
+              <span>查看原作与出处</span>
             </button>
           </section>
 

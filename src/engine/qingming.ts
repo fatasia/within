@@ -81,11 +81,14 @@ function surfaceTexture(base: string, kind: 'wood' | 'tile' | 'stone' | 'earth' 
 }
 
 const mat = (color: string, kind: Parameters<typeof surfaceTexture>[1] = 'plaster') =>
-  new THREE.MeshStandardMaterial({
-    color: typeof document === 'undefined' ? color : '#ffffff',
-    ...(typeof document === 'undefined' ? {} : { map: surfaceTexture(color, kind) }),
-    roughness: kind === 'wood' ? 0.78 : 0.9,
-  });
+  Object.assign(
+    new THREE.MeshStandardMaterial({
+      color: typeof document === 'undefined' ? color : '#ffffff',
+      ...(typeof document === 'undefined' ? {} : { map: surfaceTexture(color, kind) }),
+      roughness: kind === 'wood' ? 0.78 : 0.9,
+    }),
+    { userData: { surfaceColor: color } },
+  );
 
 /** Hand-built Song street sections, batched by material after placement. */
 export function buildQingming(painting: Painting): THREE.Group {
@@ -663,7 +666,9 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         for (let j = -1; j <= 1; j++)
           box(gate, [0.065, 2.7, 0.08], [i * 2.1 + j * 0.3, 12.3, face * 3.12], wood);
       }
-    roof(gate, 15, 10, 14.5, 3.6);
+    // The tower parapet ends at 14.55m.  `roof`'s eave is y + 0.23*h,
+    // so 13.72m seats the eave on the masonry instead of leaving a visible gap.
+    roof(gate, 15, 10, 13.72, 3.6);
     for (const s of [-1, 1])
       for (let j = 0; j < 3; j++) {
         const z = -45 + s * (22 + j * 12);

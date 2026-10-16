@@ -24,7 +24,15 @@ export function* prepareQingmingTransportSteps(source: THREE.Group): Generator<v
       geometry.deleteAttribute('uv');
       const position = geometry.getAttribute('position');
       if (!geometry.index) geometry.setIndex(Array.from({ length: position.count }, (_, i) => i));
-      const pigment = (object.material as THREE.MeshStandardMaterial).color;
+      const sourceMaterial = object.material as THREE.MeshStandardMaterial;
+      // Qingming surface materials use a white multiplier so their CanvasTexture
+      // remains faithful. The animated cart has one vertex-colour material, so
+      // carry the original pigment explicitly instead of turning the donkey white.
+      const pigment = new THREE.Color(
+        typeof sourceMaterial.userData.surfaceColor === 'string'
+          ? sourceMaterial.userData.surfaceColor
+          : sourceMaterial.color,
+      );
       const colors = new Float32Array(position.count * 3);
       for (let i = 0; i < position.count; i++) pigment.toArray(colors, i * 3);
       geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
