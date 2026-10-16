@@ -14,6 +14,9 @@ import {
   BookOpen,
   Compass,
   Footprints,
+  RocketLaunch,
+  SteeringWheel,
+  ArrowRight,
 } from '@phosphor-icons/react';
 import type { Painting, ExperienceState, ViewMode } from '../types';
 
@@ -28,6 +31,9 @@ export function MobileControls({
   onTools,
   onChapters,
   onCar,
+  onBoost,
+  carSpeed,
+  reverse,
   onMode,
   onPlay,
   onSeek,
@@ -42,6 +48,9 @@ export function MobileControls({
   onTools: () => void;
   onChapters: () => void;
   onCar: () => void;
+  onBoost: () => void;
+  carSpeed: number;
+  reverse: boolean;
   onMode: (mode: ViewMode) => void;
   onPlay: () => void;
   onSeek: (progress: number) => void;
@@ -66,6 +75,12 @@ export function MobileControls({
         >
           <span>{painting.shortTitle}</span>
           <CaretDown size={14} />
+          {car && (
+            <span className="mobile-car-speed">
+              <b>{Math.round(carSpeed)}</b>
+              <small>KM/H</small>
+            </span>
+          )}
         </button>
         <button
           aria-label={sound ? '关闭配乐与音效' : '开启配乐与音效'}
@@ -91,18 +106,26 @@ export function MobileControls({
           <div className="mobile-drive" aria-label="驾驶控制">
             <div>
               <button aria-label="向左转向" {...driveHold('steer', -1)}>
-                ←
+                <ArrowLeft size={20} />
               </button>
               <button aria-label="向右转向" {...driveHold('steer', 1)}>
-                →
+                <ArrowRight size={20} />
               </button>
             </div>
+            <button className="mobile-boost" aria-label="冷气跃升" onClick={onBoost}>
+              <RocketLaunch size={19} />
+              <span>跃升</span>
+            </button>
             <div>
               <button aria-label="刹车" {...driveHold('brake', 1)}>
                 刹车
               </button>
-              <button aria-label="油门" {...driveHold('throttle', 1)}>
-                油门
+              <button
+                className="mobile-throttle"
+                aria-label={reverse ? '倒车' : '油门'}
+                {...driveHold('throttle', reverse ? -1 : 1)}
+              >
+                {reverse ? '倒车' : '油门'}
               </button>
             </div>
           </div>
@@ -111,7 +134,9 @@ export function MobileControls({
           <div className="mobile-dock-row">
             <div className="mobile-modes" aria-label="选择视角">
               {(['scroll', 'orbit', 'walk'] as const).map((id, i) => {
-                const Icon = [BookOpen, Compass, Footprints][i]!;
+                const Icon = (
+                  car ? [ArrowRight, Compass, SteeringWheel] : [BookOpen, Compass, Footprints]
+                )[i]!;
                 const label = car
                   ? ['跟车', '环视', '驾驶席'][i]
                   : painting.id === 'sakura'
@@ -137,7 +162,7 @@ export function MobileControls({
               onClick={car ? onCar : onChapters}
               aria-haspopup="dialog"
             >
-              {car ? '玩车' : '章节'}
+              {car ? '车辆' : '章节'}
               <CaretDown size={12} />
             </button>
           </div>

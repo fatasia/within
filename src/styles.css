@@ -2816,3 +2816,26 @@ html[data-view-rotation='90'] .dialog {
   .app .mobile-dock .mini-map { height:24px; }
   .app .mobile-dock .map-cursor { top:9px; }
 }
+
+/* Roadster: two thumb zones, one boost shortcut, no floating button wall. */
+.mobile-car-summary { display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid #40584b26;padding:0 0 14px;margin-bottom:16px; }
+.mobile-car-summary strong { font-size:32px;font-weight:400;font-variant-numeric:tabular-nums; }
+.mobile-car-summary span,.mobile-car-summary small { font-size:11px; }
+.mobile-car-sheet .mobile-tool-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.mobile-car-sheet .mobile-tool-grid button { min-height:48px;border-bottom:1px solid #40584b18;border-radius:0; }
+@media (max-width:760px), (max-height:520px) and (pointer:coarse) {
+  .mobile-top .mobile-car-speed { margin-left:auto;display:flex;align-items:baseline;gap:4px;font-family:var(--sans);letter-spacing:0; }
+  .mobile-car-speed b { font-size:16px;font-weight:500;font-variant-numeric:tabular-nums; }
+  .mobile-car-speed small { font-size:8px;opacity:.65; }
+  .mobile-drive { gap:8px;align-items:center; }
+  .mobile-drive>div { gap:0;border:1px solid var(--hud-line);border-radius:8px;background:var(--hud-paper);overflow:hidden; }
+  .mobile-drive>div button { display:grid;place-items:center;min-width:52px;border:0;border-radius:0;background:transparent; }
+  .mobile-drive>div button+button { border-left:1px solid var(--hud-line); }
+  .mobile-drive .mobile-boost { display:flex;align-items:center;justify-content:center;gap:5px;min-width:64px;padding:0 9px;font-size:11px;border-color:#9ebdc466; }
+  .mobile-drive .mobile-throttle { background:#9ebdc42b; }
+  .mobile-drive button:active { background:var(--hud-selected);color:var(--hud-selected-ink); }
+}
+@media (max-height:520px) and (pointer:coarse) {
+  .mobile-drive .mobile-boost { position:absolute;right:0;bottom:102px;min-width:52px;width:52px;height:48px;flex-direction:column;gap:2px; }
+  .mobile-drive>div button+button { border-left:0;border-top:1px solid var(--hud-line); }
+}
