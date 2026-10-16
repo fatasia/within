@@ -235,7 +235,11 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         box(g, [w * 0.25, 0.08, 0.06], [xx, 4.6, d / 2 + 0.08], dark);
       }
     }
-    roof(g, w + 1.3, d + 1.5, h + 0.05, w * 0.24, hero);
+    // Keep the curved eave 0.3m into the wall cap.  The roof profile's
+    // lowest point is y + 0.23 * roofHeight; leaving it at h + 0.05
+    // produces a visible floating seam on every shopfront.
+    const roofHeight = w * 0.24;
+    roof(g, w + 1.3, d + 1.5, h + 0.3 - 0.23 * roofHeight, roofHeight, hero);
     if (tall) {
       roof(g, w + 1.3, 2.4, 3.05, 0.55, hero);
       box(g, [w + 0.6, 0.15, 1], [0, 3.5, d / 2 + 0.25], wood);
@@ -668,7 +672,9 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
     // The tower parapet ends at 14.55m.  `roof`'s eave is y + 0.23*h,
     // so 13.72m seats the eave on the masonry instead of leaving a visible gap.
-    roof(gate, 15, 10, 13.72, 3.6);
+    // Sink the eave 0.7m into the tower cap.  The deep overhang otherwise
+    // reads as a separate floating roof from the elevated home camera.
+    roof(gate, 15, 10, 13.02, 3.6);
     for (const s of [-1, 1])
       for (let j = 0; j < 3; j++) {
         const z = -45 + s * (22 + j * 12);
