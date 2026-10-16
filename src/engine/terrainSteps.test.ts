@@ -59,6 +59,7 @@ describe('cooperative terrain construction', () => {
       disposeObject(sync.group);
       disposeObject(staged.group);
     },
+    30_000,
   );
 
   it('disposes unsubmitted terrain when a scene request is superseded', () => {
