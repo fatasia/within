@@ -8,7 +8,13 @@ export type PaintingId =
   | 'qingming'
   | 'zhangjiajie'
   | 'guilin'
-  | 'wuhan';
+  | 'wuhan'
+  | 'arctic'
+  | 'dunhuang'
+  | 'huangshan'
+  | 'xihu'
+  | 'kanas'
+  | 'deepsea';
 export type ViewMode = 'scroll' | 'orbit' | 'walk';
 export type TimeMode = 'journey' | 'day' | 'sunset' | 'night';
 export type Quality = 'high' | 'balanced' | 'low';

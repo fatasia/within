@@ -3,6 +3,7 @@ import { QINGMING } from './qingming';
 import { REAL_LANDSCAPES } from './landscapes';
 import { WUHAN_PAINTING } from './wuhan';
 import { EMPIRE_PEAKS } from '../engine/empireLandform';
+import { FEATURED_SCENES } from './featuredScenes';
 const chapter = (title: string, subtitle: string, description: string, progress: number) => ({
   title,
   subtitle,
@@ -449,8 +450,14 @@ const featuredOrder = new Map<PaintingId, number>([
   ['winter', 1],
   ['qingming', 2],
   ['wuhan', 3],
+  ['arctic', 4],
+  ['dunhuang', 5],
+  ['huangshan', 6],
+  ['xihu', 7],
+  ['kanas', 8],
+  ['deepsea', 9],
 ]);
-export const PAINTINGS: Painting[] = [...COLLECTION, QINGMING, ...REAL_LANDSCAPES, WUHAN_PAINTING]
+export const PAINTINGS: Painting[] = [...COLLECTION, QINGMING, ...REAL_LANDSCAPES, WUHAN_PAINTING, ...FEATURED_SCENES]
   .sort((a, b) => (featuredOrder.get(a.id) ?? 4) - (featuredOrder.get(b.id) ?? 4))
   .map((painting) => ({
     ...painting,
