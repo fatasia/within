@@ -65,17 +65,38 @@ export const ORIGINALS: Partial<Record<PaintingId, OriginalArtwork>> = {
   },
   qingming: {
     title: '清明上河图',
-    creditUrl:
-      'https://commons.wikimedia.org/wiki/File:Along_the_River_During_the_Qingming_Festival_(detail_of_original).jpg',
+    creditUrl: 'https://commons.wikimedia.org/wiki/File:Alongtheriver_QingMing.jpg',
     licenseUrl: 'https://creativecommons.org/publicdomain/mark/1.0/',
     artist: '张择端',
     sourceUrl: 'https://www.dpm.org.cn/collection/paint/228226.html',
-    credit: '故宫博物院藏；Wikimedia Commons 所收北宋本虹桥局部，公版作品复制图。',
+    credit:
+      '故宫博物院藏；Commons 所收张择端北宋本公版复制图。全卷等比缩小；六个阅读分段由同一全卷连续裁出，未补绘。',
     images: [
+      image(
+        'qingming-full',
+        '张择端《清明上河图》北宋本完整画卷，右端郊野至左端城内市井',
+        '全卷总览 · 右起左止',
+        'complete',
+      ),
+      ...[
+        '01 郊野 · 卷首',
+        '02 河岸舟运',
+        '03 汴河虹桥',
+        '04 桥后街市',
+        '05 城门内外',
+        '06 城内 · 卷尾',
+      ].map((caption, index) =>
+        image(
+          `qingming-section-${index + 1}`,
+          `张择端《清明上河图》北宋本连续阅读分段：${caption}`,
+          caption,
+          'detail',
+        ),
+      ),
       image(
         'qingming-detail',
         '张择端《清明上河图》虹桥局部，木桥与桥下舟船',
-        '北宋本虹桥局部，不是全卷，也不是清院本。',
+        '虹桥局部 · 不是全卷',
         'detail',
       ),
     ],

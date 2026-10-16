@@ -1,6 +1,51 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
+/** Conservative CPU/GPU buffer estimate used to bound retained, inactive scenes. */
+export function estimateSceneBytes(object: THREE.Object3D): number {
+  const arrays = new Set<ArrayBufferLike>();
+  const textures = new Set<THREE.Texture>();
+  let bytes = 0;
+  object.traverse((child) => {
+    if (!(
+      child instanceof THREE.Mesh ||
+      child instanceof THREE.Line ||
+      child instanceof THREE.Points
+    ))
+      return;
+    const attributes = [
+      ...Object.values(child.geometry.attributes),
+      ...Object.values(child.geometry.morphAttributes).flat(),
+      child.geometry.index,
+    ];
+    if (child instanceof THREE.InstancedMesh)
+      attributes.push(child.instanceMatrix, child.instanceColor);
+    for (const attribute of attributes) {
+      if (!attribute) continue;
+      const array =
+        attribute instanceof THREE.InterleavedBufferAttribute
+          ? attribute.data.array
+          : attribute.array;
+      if (!arrays.has(array.buffer)) {
+        arrays.add(array.buffer);
+        bytes += array.buffer.byteLength * 2;
+      }
+    }
+    for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+      for (const value of Object.values(material))
+        if (value instanceof THREE.Texture) textures.add(value);
+      if (material instanceof THREE.ShaderMaterial)
+        for (const uniform of Object.values(material.uniforms))
+          if (uniform.value instanceof THREE.Texture) textures.add(uniform.value);
+    }
+  });
+  for (const texture of textures) {
+    const image = texture.image as { width?: number; height?: number } | undefined;
+    bytes += (image?.width ?? 1) * (image?.height ?? 1) * 8;
+  }
+  return bytes;
+}
+
 /** Bake static architecture into a small number of material batches. */
 export function batchStatic(group: THREE.Group): THREE.Group {
   group.updateMatrixWorld(true);

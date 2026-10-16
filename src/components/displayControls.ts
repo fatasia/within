@@ -3,7 +3,7 @@ type LockableOrientation = ScreenOrientation & {
   lock?: (orientation: DisplayOrientation) => Promise<void>;
 };
 
-/** Native rotation only; CSS rotation would break touch coordinates and viewport layout. */
+/** Prefer native rotation; the page-level fallback is applied by useDisplayOrientation. */
 export async function requestDisplayOrientation(
   target: DisplayOrientation,
 ): Promise<'locked' | 'unsupported' | 'failed'> {

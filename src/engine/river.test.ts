@@ -1,10 +1,60 @@
-import { describe, expect, it } from 'vitest';
-import { Group, ShaderMaterial } from 'three';
+import { describe, expect, it, vi } from 'vitest';
+import { Group, ShaderMaterial, PerspectiveCamera, Scene, type WebGLRenderer } from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { getPainting } from '../data/paintings';
 import { buildRiver } from './river';
 
 describe('still river resources', () => {
+  it('refreshes moving or zoomed views immediately while throttling only stationary captures', () => {
+    const river = buildRiver(getPainting('wuhan'), 'high');
+    const scene = new Scene(),
+      camera = new PerspectiveCamera(39, 1.6, 0.1, 1600);
+    scene.add(river.mesh);
+    camera.position.set(-12, 5, -4);
+    camera.lookAt(0, 3, -140);
+    camera.updateMatrixWorld();
+    scene.updateMatrixWorld(true);
+    const render = vi.fn();
+    const renderer = {
+      xr: { enabled: false },
+      shadowMap: { autoUpdate: false },
+      getRenderTarget: () => null,
+      setRenderTarget: vi.fn(),
+      autoClear: true,
+      state: { buffers: { depth: { setMask: vi.fn() } } },
+      render,
+    } as unknown as WebGLRenderer;
+    const frame = (time: number) => {
+      river.update(time, 0);
+      river.mesh.onBeforeRender(
+        renderer,
+        scene,
+        camera,
+        river.mesh.geometry,
+        river.mesh.material as ShaderMaterial,
+        null!,
+      );
+    };
+    try {
+      frame(0);
+      frame(1 / 60);
+      expect(render).toHaveBeenCalledTimes(1);
+      camera.position.x += 0.01;
+      camera.updateMatrixWorld();
+      frame(1 / 60);
+      expect(render).toHaveBeenCalledTimes(2);
+      camera.zoom = 1.1;
+      camera.updateProjectionMatrix();
+      frame(1 / 60);
+      expect(render).toHaveBeenCalledTimes(3);
+      frame(1 / 60 + 1 / 30 - 1e-12);
+      expect(render).toHaveBeenCalledTimes(4);
+      frame(0);
+      expect(render).toHaveBeenCalledTimes(5);
+    } finally {
+      river.dispose();
+    }
+  });
   it('computes horizon absorption per fragment rather than from distant quad corners', () => {
     const river = buildRiver(getPainting('guilin'), 'balanced');
     const material = river.mesh.material as ShaderMaterial;

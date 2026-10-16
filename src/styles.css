@@ -88,7 +88,7 @@ button {
 .app {
   position: relative;
   min-height: 850px;
-  height: 100dvh;
+  height: var(--view-height, 100dvh);
   overflow: hidden;
   isolation: isolate;
 }
@@ -103,6 +103,15 @@ button {
   height: 100%;
   touch-action: none;
   outline: none;
+}
+.scene-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  z-index: -2;
 }
 .paper-grain {
   position: absolute;
@@ -260,7 +269,7 @@ button {
 .hero-copy h1 {
   font-family: var(--display);
   font-weight: 400;
-  font-size: clamp(55px, 5.3vw, 84px);
+  font-size: clamp(55px, calc(var(--view-width, 100vw) * 0.053), 84px);
   line-height: 1.22;
   letter-spacing: 3px;
   white-space: nowrap;
@@ -981,7 +990,7 @@ button {
   padding: 30px 34px;
   max-width: 620px;
   width: calc(100% - 36px);
-  max-height: 85dvh;
+  max-height: calc(var(--view-height, 100dvh) * 0.85);
   box-shadow: 0 24px 90px #10251c33;
 }
 .dialog::backdrop {
@@ -1344,7 +1353,7 @@ button {
   text-underline-offset: 4px;
 }
 .settings-panel {
-  max-height: calc(100dvh - 190px);
+  max-height: calc(var(--view-height, 100dvh) - 190px);
   overflow-y: auto;
 }
 .is-starry .dialog {
@@ -1371,7 +1380,7 @@ button {
     opacity: 0.4;
   }
 }
-@media (min-width: 1600px) {
+@container viewport (min-width: 1600px) {
   .hero-copy {
     left: 10%;
     top: 22%;
@@ -1391,7 +1400,7 @@ button {
     bottom: 27px;
   }
 }
-@media (max-height: 850px) and (min-width: 901px) {
+@container viewport (max-height: 850px) and (min-width: 901px) {
   .app {
     min-height: 690px;
   }
@@ -1435,7 +1444,7 @@ button {
     bottom: -17px;
   }
 }
-@media (max-width: 1100px) {
+@container viewport (max-width: 1100px) {
   .hero-copy {
     left: 6%;
     width: 350px;
@@ -1476,16 +1485,16 @@ button {
     right: 4%;
   }
 }
-@media (max-width: 700px) {
+@container viewport (max-width: 700px) {
   .app {
     height: auto;
-    min-height: 100dvh;
+    min-height: var(--view-height, 100dvh);
     overflow: clip;
     padding-bottom: 24px;
   }
   .world {
     position: fixed;
-    height: 100dvh;
+    height: var(--view-height, 100dvh);
   }
   .site-header {
     height: 78px;
@@ -1651,7 +1660,7 @@ button {
       linear-gradient(0deg, #172c40 0%, #172c40e8 18%, transparent 55%);
   }
   .is-exploring {
-    height: 100dvh;
+    height: var(--view-height, 100dvh);
     min-height: 550px;
     padding: 0;
     overflow: hidden;
@@ -1745,7 +1754,7 @@ button {
   .journey-panel {
     left: 13px;
     right: 13px;
-    bottom: max(14px, env(safe-area-inset-bottom));
+    bottom: max(14px, var(--safe-bottom));
     padding: 11px 12px 9px;
   }
   .journey-top {
@@ -1891,7 +1900,7 @@ button {
     display: none;
   }
 }
-@media (max-width: 380px) {
+@container viewport (max-width: 380px) {
   .hero-copy h1 {
     font-size: 44px;
   }
@@ -1929,7 +1938,7 @@ button {
 .is-recording .period-control {
   pointer-events: none;
 }
-@media (max-width: 700px) {
+@container viewport (max-width: 700px) {
   .is-gallery:not(.is-starry) .gallery-wash {
     background:
       linear-gradient(90deg, #e8e4d8f5 0%, #e8e4d8e8 38%, #e8e4d8ae 60%, #e8e4d808 100%),
@@ -2031,7 +2040,7 @@ button {
 }
 .original-viewport {
   overflow: auto;
-  max-height: 53dvh;
+  max-height: calc(var(--view-height, 100dvh) * 0.53);
   background: #ded9ca;
   border: 1px solid #c3c4b4;
   overscroll-behavior: contain;
@@ -2092,7 +2101,7 @@ button {
     display: flex;
   }
 }
-@media (max-width: 700px) {
+@container viewport (max-width: 700px) {
   .orientation-button {
     display: flex;
   }
@@ -2157,8 +2166,8 @@ button {
   .settings-panel {
     top: 194px;
     right: 12px;
-    width: min(290px, calc(100vw - 24px));
-    max-height: calc(100dvh - 216px);
+    width: min(290px, calc(var(--view-width, 100vw) - 24px));
+    max-height: calc(var(--view-height, 100dvh) - 216px);
   }
   .settings-panel button,
   .settings-panel select {
@@ -2194,7 +2203,7 @@ button {
   .period-control {
     top: 196px;
     left: 16px;
-    max-width: calc(100vw - 32px);
+    max-width: calc(var(--view-width, 100vw) - 32px);
   }
   .period-control button {
     min-height: 44px;
@@ -2214,7 +2223,7 @@ button {
   .original-dialog {
     width: calc(100% - 16px);
     padding: 16px;
-    max-height: 94dvh;
+    max-height: calc(var(--view-height, 100dvh) * 0.94);
   }
   .original-dialog h2 {
     font-size: 21px;
@@ -2229,86 +2238,88 @@ button {
   .scene-loading {
     top: 80px;
     right: 16px;
-    max-width: calc(100vw - 32px);
+    max-width: calc(var(--view-width, 100vw) - 32px);
   }
 }
-@media (max-height: 540px) and (orientation: landscape) and (pointer: coarse) {
-  .is-exploring {
-    min-height: 0;
-    height: 100dvh;
-  }
-  .is-exploring .site-header {
-    height: 54px;
-    margin: 0 14px;
-  }
-  .is-exploring .brand {
-    min-width: 0;
-  }
-  .experience-title {
-    top: 66px;
-    left: 16px;
-    max-width: 42%;
-  }
-  .experience-title h1 {
-    font-size: 22px;
-  }
-  .experience-title > span {
-    display: none;
-  }
-  .scene-tools {
-    top: 62px;
-    right: 14px;
-    left: auto;
-    flex-direction: row;
-    gap: 4px;
-  }
-  .tool-button {
-    width: 44px;
-    height: 44px;
-    border-radius: 7px;
-  }
-  .journey-panel {
-    left: 160px;
-    right: 14px;
-    bottom: 8px;
-    padding: 5px 9px;
-  }
-  .journey-bottom,
-  .chapter-caption,
-  .mini-map {
-    display: none;
-  }
-  .journey-top {
-    margin-bottom: 0;
-    gap: 5px;
-  }
-  .chapter-nav {
-    flex: 1;
-    flex-wrap: wrap;
-  }
-  .chapter-nav button {
-    min-height: 44px;
-  }
-  .walk-pad {
-    bottom: 16px;
-    left: 16px;
-  }
-  .settings-panel {
-    top: 112px;
-    right: 14px;
-    max-height: calc(100dvh - 126px);
-  }
-  .period-control {
-    top: 111px;
-    left: 16px;
-    transform: none;
-  }
-  .period-control > span {
-    display: none;
-  }
-  .period-control button {
-    min-height: 44px;
-    padding: 0 8px;
+@media (pointer: coarse) {
+  @container viewport (max-height: 540px) and (orientation: landscape) {
+    .is-exploring {
+      min-height: 0;
+      height: var(--view-height, 100dvh);
+    }
+    .is-exploring .site-header {
+      height: 54px;
+      margin: 0 14px;
+    }
+    .is-exploring .brand {
+      min-width: 0;
+    }
+    .experience-title {
+      top: 66px;
+      left: 16px;
+      max-width: 42%;
+    }
+    .experience-title h1 {
+      font-size: 22px;
+    }
+    .experience-title > span {
+      display: none;
+    }
+    .scene-tools {
+      top: 62px;
+      right: 14px;
+      left: auto;
+      flex-direction: row;
+      gap: 4px;
+    }
+    .tool-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 7px;
+    }
+    .journey-panel {
+      left: 160px;
+      right: 14px;
+      bottom: 8px;
+      padding: 5px 9px;
+    }
+    .journey-bottom,
+    .chapter-caption,
+    .mini-map {
+      display: none;
+    }
+    .journey-top {
+      margin-bottom: 0;
+      gap: 5px;
+    }
+    .chapter-nav {
+      flex: 1;
+      flex-wrap: wrap;
+    }
+    .chapter-nav button {
+      min-height: 44px;
+    }
+    .walk-pad {
+      bottom: 16px;
+      left: 16px;
+    }
+    .settings-panel {
+      top: 112px;
+      right: 14px;
+      max-height: calc(var(--view-height, 100dvh) - 126px);
+    }
+    .period-control {
+      top: 111px;
+      left: 16px;
+      transform: none;
+    }
+    .period-control > span {
+      display: none;
+    }
+    .period-control button {
+      min-height: 44px;
+      padding: 0 8px;
+    }
   }
 }
 
@@ -2334,68 +2345,70 @@ button {
     min-height: 44px;
   }
   .site-header {
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--safe-top);
   }
 }
-@media (max-width: 700px) {
+@container viewport (max-width: 700px) {
   .is-exploring .site-header {
-    height: calc(64px + env(safe-area-inset-top));
-    margin-left: max(12px, env(safe-area-inset-left));
-    margin-right: max(12px, env(safe-area-inset-right));
+    height: calc(64px + var(--safe-top));
+    margin-left: max(12px, var(--safe-left));
+    margin-right: max(12px, var(--safe-right));
   }
   .experience-title {
-    top: calc(78px + env(safe-area-inset-top));
-    left: max(16px, env(safe-area-inset-left));
+    top: calc(78px + var(--safe-top));
+    left: max(16px, var(--safe-left));
   }
   .scene-tools {
-    top: calc(142px + env(safe-area-inset-top));
-    left: max(16px, env(safe-area-inset-left));
+    top: calc(142px + var(--safe-top));
+    left: max(16px, var(--safe-left));
   }
   .settings-panel {
-    top: calc(194px + env(safe-area-inset-top));
-    max-height: calc(100dvh - 216px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    top: calc(194px + var(--safe-top));
+    max-height: calc(var(--view-height, 100dvh) - 216px - var(--safe-top) - var(--safe-bottom));
   }
   .period-control {
-    top: calc(196px + env(safe-area-inset-top));
+    top: calc(196px + var(--safe-top));
   }
   .toast {
-    top: calc(74px + env(safe-area-inset-top));
+    top: calc(74px + var(--safe-top));
   }
 }
-@media (max-height: 540px) and (orientation: landscape) and (pointer: coarse) {
-  .is-exploring .site-header {
-    height: calc(54px + env(safe-area-inset-top));
-    margin-inline: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right));
-  }
-  .experience-title {
-    top: calc(66px + env(safe-area-inset-top));
-    left: max(16px, env(safe-area-inset-left));
-  }
-  .scene-tools {
-    top: calc(62px + env(safe-area-inset-top));
-    right: max(14px, env(safe-area-inset-right));
-    left: auto;
-  }
-  .journey-panel {
-    bottom: max(8px, env(safe-area-inset-bottom));
-    right: max(14px, env(safe-area-inset-right));
-  }
-  .walk-pad {
-    bottom: max(16px, env(safe-area-inset-bottom));
-    left: max(16px, env(safe-area-inset-left));
-  }
-  .settings-panel {
-    top: calc(112px + env(safe-area-inset-top));
-    max-height: calc(100dvh - 126px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  }
-  .period-control {
-    top: calc(111px + env(safe-area-inset-top));
-  }
-  .original-viewport {
-    max-height: 44dvh;
-  }
-  .original-dialog {
-    max-height: calc(100dvh - 16px);
+@media (pointer: coarse) {
+  @container viewport (max-height: 540px) and (orientation: landscape) {
+    .is-exploring .site-header {
+      height: calc(54px + var(--safe-top));
+      margin-inline: max(14px, var(--safe-left)) max(14px, var(--safe-right));
+    }
+    .experience-title {
+      top: calc(66px + var(--safe-top));
+      left: max(16px, var(--safe-left));
+    }
+    .scene-tools {
+      top: calc(62px + var(--safe-top));
+      right: max(14px, var(--safe-right));
+      left: auto;
+    }
+    .journey-panel {
+      bottom: max(8px, var(--safe-bottom));
+      right: max(14px, var(--safe-right));
+    }
+    .walk-pad {
+      bottom: max(16px, var(--safe-bottom));
+      left: max(16px, var(--safe-left));
+    }
+    .settings-panel {
+      top: calc(112px + var(--safe-top));
+      max-height: calc(var(--view-height, 100dvh) - 126px - var(--safe-top) - var(--safe-bottom));
+    }
+    .period-control {
+      top: calc(111px + var(--safe-top));
+    }
+    .original-viewport {
+      max-height: calc(var(--view-height, 100dvh) * 0.44);
+    }
+    .original-dialog {
+      max-height: calc(var(--view-height, 100dvh) - 16px);
+    }
   }
 }
 .original-source-links {
@@ -2480,7 +2493,7 @@ button {
   border-color: rgba(218, 226, 218, 0.2);
 }
 .scene-picker-dialog {
-  width: min(540px, calc(100vw - 28px));
+  width: min(540px, calc(var(--view-width, 100vw) - 28px));
 }
 .scene-picker-hint {
   font-size: 12px;
@@ -2521,7 +2534,7 @@ button {
   font-size: 10px;
   opacity: 0.64;
 }
-@media (min-width: 701px) and (max-width: 1100px) {
+@container viewport (min-width: 701px) and (max-width: 1100px) {
   .is-exploring .site-header {
     gap: 8px;
   }
@@ -2532,10 +2545,10 @@ button {
     gap: 0;
   }
 }
-@media (max-width: 700px) {
+@container viewport (max-width: 700px) {
   .scene-switcher {
     position: absolute;
-    top: calc(72px + env(safe-area-inset-top));
+    top: calc(72px + var(--safe-top));
     left: 4px;
   }
   .is-exploring .experience-title {
@@ -2545,17 +2558,66 @@ button {
     padding-inline: 18px;
   }
 }
-@media (max-height: 540px) and (orientation: landscape) and (pointer: coarse) {
-  .scene-switcher {
-    position: static;
+@media (pointer: coarse) {
+  @container viewport (max-height: 540px) and (orientation: landscape) {
+    .scene-switcher {
+      position: static;
+    }
+    .is-exploring .experience-title {
+      display: none;
+    }
+    .is-exploring .site-header {
+      gap: 7px;
+    }
+    .is-exploring .view-switch button {
+      padding-inline: 7px;
+    }
   }
-  .is-exploring .experience-title {
-    display: none;
-  }
-  .is-exploring .site-header {
-    gap: 7px;
-  }
-  .is-exploring .view-switch button {
-    padding-inline: 7px;
-  }
+}
+
+/* Logical viewport: browser rotation when available, a real quarter-turn otherwise. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+#root {
+  container: viewport / size;
+  width: var(--view-width, 100%);
+  height: var(--view-height, 100dvh);
+}
+html[data-view-rotation='90'] {
+  overflow: hidden;
+  --safe-top: env(safe-area-inset-right, 0px);
+  --safe-right: env(safe-area-inset-bottom, 0px);
+  --safe-bottom: env(safe-area-inset-left, 0px);
+  --safe-left: env(safe-area-inset-top, 0px);
+}
+html[data-view-rotation='90'] body {
+  overflow: hidden;
+}
+html[data-view-rotation='90'] #root {
+  position: fixed;
+  left: 100%;
+  top: 0;
+  transform-origin: 0 0;
+  transform: rotate(90deg);
+}
+html[data-view-rotation='90'] .app {
+  min-height: 0;
+  height: 100%;
+}
+/* Modal dialogs live in the top layer and do not inherit ancestor transforms. */
+html[data-view-rotation='90'] .dialog {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  width: min(680px, calc(var(--view-width) - 32px));
+  max-width: none;
+  max-height: calc(var(--view-height) - 24px);
+  transform: translate(-50%, -50%) rotate(90deg);
 }

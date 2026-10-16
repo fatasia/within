@@ -3,10 +3,10 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type { ExperienceState, Painting, Telemetry } from '../types';
 import { getPainting } from '../data/paintings';
 import { clamp, seededRandom } from './math';
-import { buildTerrain, groundHeight } from './terrain';
+import { buildTerrainSteps, groundHeight } from './terrain';
 import { buildForest, buildVillage, buildEmpire, boat, bridge } from './props';
 import { mistMaterial } from './materials';
-import { batchStatic, disposeObject } from './resources';
+import { batchStatic, disposeObject, estimateSceneBytes } from './resources';
 import { createLandscapeSky, createWindowHalos } from './atmosphere';
 import { buildNearDetails } from './details';
 import { buildWinterDetails, createWinterSky, refineWinterTerrain } from './winter';
@@ -22,16 +22,34 @@ import { buildRiver, type River } from './river';
 import { paintFilmFrame } from './film';
 import { getCinematicView, type CinematicView } from './cinematography';
 import { buildEasterEgg } from './easterEgg';
-import { buildQingming } from './qingming';
+import { buildQingmingSteps } from './qingming';
 import { buildLandscapeDetails } from './landscapes';
 import { buildWuhan, updateWuhan } from './wuhan';
 import { getWuhanGround, wuhanPath, wuhanWalkHeight } from './wuhanLayout';
 import { pointerDistance, scrollZoom, walkInput, wheelPixels } from './interaction';
+import { orientCanvasEvent } from '../components/viewport';
 
 interface Callbacks {
   onTelemetry: (data: Telemetry) => void;
   onError: (message: string) => void;
   onEncounter?: () => void;
+}
+interface SceneBundle {
+  retainedBytes: number;
+  content: THREE.Group;
+  river: River | null;
+  sky: THREE.Mesh | null;
+  halos: THREE.Mesh | null;
+  mist: THREE.Group;
+  empire: THREE.Group | null;
+  wuhan: THREE.Group | null;
+  vegetation: VegetationMotion | null;
+  livingActors: LivingActors | null;
+  lakeBirds: ReturnType<typeof buildLakeBirds> | null;
+  waterfall: Waterfall | null;
+  boats: THREE.Group[];
+  birds: THREE.LineSegments | null;
+  scenePeriod: number;
 }
 const vector = (v: readonly number[]) => new THREE.Vector3(v[0], v[1], v[2]);
 export class Experience {
@@ -82,6 +100,15 @@ export class Experience {
   private resizeObserver: ResizeObserver;
   private abort = new AbortController();
   private disposed = false;
+  private sceneBuilding = false;
+  private sceneReady = false;
+  private sceneQuality: ExperienceState['quality'] = 'high';
+  private scenePeriod = 0;
+  // Two retained worlds plus the active world; never preload the whole collection.
+  private sceneCache = new Map<string, SceneBundle>();
+  private sceneRequest = 0;
+  private pendingScene: ExperienceState | null = null;
+  private sceneTask: Promise<void> | null = null;
   private filmActive = false;
   private filmCancel: (() => void) | null = null;
   private offline: { state: ExperienceState; progress: number; canvas: HTMLCanvasElement } | null =
@@ -113,6 +140,15 @@ export class Experience {
     this.renderer.domElement.setAttribute('role', 'img');
     this.renderer.domElement.tabIndex = 0;
     host.appendChild(this.renderer.domElement);
+    for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel'] as const)
+      this.renderer.domElement.addEventListener(
+        type,
+        (event) => orientCanvasEvent(this.renderer.domElement, event),
+        {
+          capture: true,
+          signal: this.abort.signal,
+        },
+      );
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.065;
@@ -150,19 +186,78 @@ export class Experience {
     this.frame = requestAnimationFrame(this.tick);
   }
   private loadPainting(): void {
-    this.livingActors?.dispose();
-    this.livingActors = null;
-    this.vegetation?.dispose();
-    this.vegetation = null;
+    for (const _ of this.loadPaintingSteps()) void _;
+  }
+  private captureScene(): SceneBundle {
+    return {
+      retainedBytes: estimateSceneBytes(this.content),
+      content: this.content,
+      river: this.river,
+      sky: this.sky,
+      halos: this.halos,
+      mist: this.mist,
+      empire: this.empire,
+      wuhan: this.wuhan,
+      vegetation: this.vegetation,
+      livingActors: this.livingActors,
+      lakeBirds: this.lakeBirds,
+      waterfall: this.waterfall,
+      boats: this.boats,
+      birds: this.birds,
+      scenePeriod: this.scenePeriod,
+    };
+  }
+  private disposeScene(bundle: SceneBundle): void {
+    bundle.livingActors?.dispose();
+    bundle.vegetation?.dispose();
+    bundle.river?.dispose();
+    disposeObject(bundle.content);
+  }
+  private *loadPaintingSteps(): Generator<void> {
     this.clearInput();
     this.releasePointerLock();
     this.walkInitialized = false;
     this.scrollMagnification = 1;
     this.camera.zoom = 1;
     this.camera.updateProjectionMatrix();
-    this.river?.dispose();
+    this.content.removeFromParent();
+    if (this.sceneReady) {
+      const oldKey = `${this.painting.id}:${this.sceneQuality}`;
+      const duplicate = this.sceneCache.get(oldKey);
+      if (duplicate) this.disposeScene(duplicate);
+      this.sceneCache.set(oldKey, this.captureScene());
+    } else this.disposeScene(this.captureScene());
+    this.sceneReady = false;
+    this.painting = getPainting(this.state.painting);
+    this.sceneQuality = this.state.quality;
+    const key = `${this.painting.id}:${this.sceneQuality}`;
+    const cached = this.sceneCache.get(key);
+    this.sceneCache.delete(key);
+    while (
+      this.sceneCache.size > 2 ||
+      [...this.sceneCache.values()].reduce((sum, bundle) => sum + bundle.retainedBytes, 0) >
+        96 * 1024 * 1024
+    ) {
+      const oldest = this.sceneCache.keys().next().value!;
+      this.disposeScene(this.sceneCache.get(oldest)!);
+      this.sceneCache.delete(oldest);
+    }
+    if (cached) {
+      Object.assign(this, cached);
+      this.scene.add(this.content);
+      this.route = new THREE.CatmullRomCurve3(this.painting.route.map(vector));
+      this.progress = 0;
+      if (this.painting.id === 'empire' && this.scenePeriod !== this.state.period)
+        this.setPeriod(this.state.period);
+      this.resetSceneView();
+      this.sceneReady = true;
+      return;
+    }
+    this.content = new THREE.Group();
+    this.scene.add(this.content);
     this.river = null;
-    disposeObject(this.content);
+    this.vegetation = null;
+    this.livingActors = null;
     this.boats = [];
     this.mist = new THREE.Group();
     this.sky = null;
@@ -174,23 +269,30 @@ export class Experience {
     this.painting = getPainting(this.state.painting);
     this.route = new THREE.CatmullRomCurve3(this.painting.route.map(vector));
     this.progress = 0;
-    const terrain = buildTerrain(this.painting);
+    const terrain = yield* buildTerrainSteps(this.painting);
     if (this.painting.id === 'winter') refineWinterTerrain(terrain.group);
+    this.content.add(terrain.group);
     const custom = ['qingming', 'zhangjiajie', 'guilin', 'wuhan'].includes(this.painting.id);
+    yield;
     const village = custom ? new THREE.Group() : buildVillage(this.painting);
+    this.content.add(village);
+    yield;
     this.halos = createWindowHalos(village);
-    this.content.add(
-      terrain.group,
-      custom ? new THREE.Group() : buildForest(this.painting),
-      batchStatic(village),
-      this.halos,
-      buildNearDetails(this.painting),
-    );
+    village.removeFromParent();
+    this.content.add(batchStatic(village), this.halos);
+    yield;
+    if (!custom) this.content.add(buildForest(this.painting));
+    yield;
+    this.content.add(buildNearDetails(this.painting));
+    yield;
     if (this.painting.id === 'winter') this.content.add(buildWinterDetails(this.painting));
+    yield;
     if (this.painting.id === 'starry') this.content.add(buildStarryDetails(this.painting));
-    if (this.painting.id === 'qingming') this.content.add(buildQingming(this.painting));
+    yield;
+    if (this.painting.id === 'qingming') this.content.add(yield* buildQingmingSteps(this.painting));
     if (this.painting.id === 'zhangjiajie' || this.painting.id === 'guilin')
       this.content.add(buildLandscapeDetails(this.painting));
+    yield;
     if (this.painting.id === 'wuhan') {
       this.wuhan = buildWuhan(this.painting, this.state.quality);
       this.content.add(this.wuhan);
@@ -210,6 +312,7 @@ export class Experience {
           : undefined,
       ),
     );
+    yield;
     this.rebuildRiver();
     if (this.painting.id === 'starry' || this.painting.id === 'winter') {
       this.sky = this.painting.id === 'starry' ? createPainterlyStarrySky() : createWinterSky();
@@ -218,7 +321,9 @@ export class Experience {
       this.sky = createLandscapeSky(this.painting);
       this.content.add(this.sky);
     }
+    yield;
     if (this.painting.id === 'empire') {
+      this.scenePeriod = this.state.period;
       this.empire = this.createEmpire(this.state.period);
       this.content.add(this.empire);
     }
@@ -284,6 +389,13 @@ export class Experience {
         object.receiveShadow = true;
       }
     });
+    yield;
+    this.vegetation = attachVegetationMotion(this.content);
+    this.livingActors = buildLivingActors(this.painting, this.content);
+    this.resetSceneView();
+    this.sceneReady = true;
+  }
+  private resetSceneView(): void {
     this.renderer.shadowMap.needsUpdate = true;
     this.currentEye.copy(vector(this.painting.overview.eye));
     this.currentTarget.copy(vector(this.painting.overview.target));
@@ -292,13 +404,67 @@ export class Experience {
     this.controls.target.copy(this.currentTarget);
     this.scene.background = new THREE.Color(this.painting.palette.sky);
     this.scene.fog = new THREE.Fog(this.painting.palette.sky, 100, 340);
-    this.vegetation = attachVegetationMotion(this.content);
-    this.livingActors = buildLivingActors(this.painting, this.content);
+    this.night = resolveSceneNight(this.painting.id, this.state.time, this.progress);
     this.idleTime = 0;
   }
   private addWaterfall(): void {
     this.waterfall = createWaterfall(this.painting);
     this.content.add(this.waterfall);
+  }
+  /** Yield between model groups; rapid selections supersede unfinished geometry. */
+  suspendForSceneSwitch(): void {
+    this.sceneBuilding = true;
+    this.clearInput();
+  }
+  async configureAsync(next: ExperienceState): Promise<void> {
+    this.pendingScene = { ...next };
+    this.sceneRequest++;
+    if (!this.sceneTask) {
+      this.sceneTask = this.drainSceneChanges().finally(() => {
+        this.sceneTask = null;
+      });
+    }
+    return this.sceneTask;
+  }
+  private async drainSceneChanges(): Promise<void> {
+    this.sceneBuilding = true;
+    try {
+      while (this.pendingScene && !this.disposed) {
+        const next = this.pendingScene;
+        const version = this.sceneRequest;
+        this.pendingScene = null;
+        const previous = this.state;
+        this.state = { ...next };
+        let complete = true;
+        let sliceStart = performance.now();
+        for (const _ of this.loadPaintingSteps()) {
+          void _;
+          if (performance.now() - sliceStart >= 8) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            sliceStart = performance.now();
+          }
+          if (this.disposed || version !== this.sceneRequest) {
+            complete = false;
+            break;
+          }
+        }
+        if (!complete) continue;
+        await this.renderer.compileAsync(this.scene, this.camera);
+        if (this.disposed || version !== this.sceneRequest) continue;
+        // Geometry is ready. Reuse the normal transition path for input, quality and mode.
+        this.state = { ...previous, painting: next.painting };
+        this.configure(next);
+        this.renderer.shadowMap.needsUpdate = true;
+        // Keep the preview until the selected world has produced its first real frame.
+        this.updateCamera(10);
+        this.updateAtmosphere(10);
+        this.renderer.info.reset();
+        this.renderer.render(this.scene, this.camera);
+      }
+    } finally {
+      this.sceneBuilding = false;
+      this.lastTime = 0;
+    }
   }
   configure(next: ExperienceState): void {
     const previous = this.state;
@@ -306,6 +472,7 @@ export class Experience {
     if (next.painting !== previous.painting) this.loadPainting();
     if (Math.abs(next.progress - this.progress) > 0.003) this.progress = clamp(next.progress);
     if (next.quality !== previous.quality) {
+      this.sceneQuality = next.quality;
       this.setQuality(next.painting === previous.painting);
       if (this.wuhan && next.painting === previous.painting) {
         this.vegetation?.dispose();
@@ -338,6 +505,7 @@ export class Experience {
     this.mist.visible = next.mist && next.quality !== 'low';
   }
   private setPeriod(period: number): void {
+    this.scenePeriod = period;
     if (this.empire) {
       this.content.remove(this.empire);
       disposeObject(this.empire);
@@ -662,8 +830,8 @@ export class Experience {
       document.pointerLockElement === canvas
         ? new THREE.Vector2(0, 0)
         : new THREE.Vector2(
-            ((clientX - bounds.left) / bounds.width) * 2 - 1,
-            1 - ((clientY - bounds.top) / bounds.height) * 2,
+            ((clientX - bounds.left) / canvas.clientWidth) * 2 - 1,
+            1 - ((clientY - bounds.top) / canvas.clientHeight) * 2,
           );
     this.camera.updateMatrixWorld();
     visitor.updateWorldMatrix(true, true);
@@ -811,6 +979,10 @@ export class Experience {
   private tick = (time: number): void => {
     if (this.disposed) return;
     this.frame = requestAnimationFrame(this.tick);
+    if (this.sceneBuilding) {
+      this.lastTime = 0;
+      return;
+    }
     if (document.hidden && !this.filmActive) {
       this.lastTime = 0;
       return;
@@ -1119,6 +1291,8 @@ export class Experience {
   dispose(): void {
     this.livingActors?.dispose();
     this.disposed = true;
+    this.sceneRequest++;
+    this.pendingScene = null;
     this.vegetation?.dispose();
     this.clearInput();
     this.releasePointerLock();
@@ -1129,6 +1303,8 @@ export class Experience {
     this.controls.dispose();
     this.river?.dispose();
     disposeObject(this.content);
+    for (const bundle of this.sceneCache.values()) this.disposeScene(bundle);
+    this.sceneCache.clear();
     this.sun.shadow.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from 'react';
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from '@phosphor-icons/react';
+import { elementRotation, localPointer } from './viewport';
 
 /** Captured left-hand movement leaves the scene free for a second finger to look around. */
 export function WalkJoystick({ onMove }: { onMove: (x: number, forward: number) => void }) {
@@ -20,9 +21,15 @@ export function WalkJoystick({ onMove }: { onMove: (x: number, forward: number) 
   const move = (event: PointerEvent<HTMLDivElement>) => {
     if (pointer.current !== event.pointerId) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const dx = event.clientX - rect.left - rect.width / 2;
-    const dy = event.clientY - rect.top - rect.height / 2;
-    const radius = rect.width * 0.32;
+    const point = localPointer(
+      rect,
+      event.clientX,
+      event.clientY,
+      elementRotation(event.currentTarget),
+    );
+    const dx = point.x - event.currentTarget.offsetWidth / 2;
+    const dy = point.y - event.currentTarget.offsetHeight / 2;
+    const radius = event.currentTarget.offsetWidth * 0.32;
     const distance = Math.hypot(dx, dy);
     const scale = distance > radius ? radius / distance : 1;
     setPosition({ x: dx * scale, y: dy * scale });

@@ -28,4 +28,15 @@ describe('ten-second delivery edit', () => {
       [0, 1, 2, 3, 4],
     );
   });
+  it('ends botanical and cliff-landscape edits with breathing room, not a second macro', () => {
+    for (const painting of PAINTINGS.filter((p) =>
+      ['wuhan', 'guilin', 'zhangjiajie'].includes(p.id),
+    )) {
+      const { eye, target } = getFilmShot(painting, 7, 10).view;
+      expect(
+        Math.hypot(eye[0] - target[0], eye[1] - target[1], eye[2] - target[2]),
+        painting.id,
+      ).toBeGreaterThan(75);
+    }
+  });
 });

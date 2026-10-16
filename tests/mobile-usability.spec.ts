@@ -96,7 +96,8 @@ for (const viewport of [
         exact: true,
       });
       await rotate.tap();
-      await expect(page.getByRole('status')).toContainText('请转动设备');
+      await expect(page.getByRole('status')).toContainText('已切换');
+      await expect(page.locator('html')).toHaveAttribute('data-view-rotation', '90');
       await page.evaluate(() => {
         Object.defineProperty(document.documentElement, 'requestFullscreen', {
           configurable: true,
@@ -111,12 +112,17 @@ for (const viewport of [
           },
         });
       });
-      await rotate.tap();
+      await page
+        .getByRole('button', {
+          name: viewport.width > viewport.height ? '切换横屏' : '切换竖屏',
+          exact: true,
+        })
+        .tap();
       await expect(page.getByRole('status')).toContainText('已锁定');
       await expect(page.locator('html')).toHaveAttribute('data-fullscreen-requested', 'true');
       await expect(page.locator('html')).toHaveAttribute(
         'data-locked-direction',
-        viewport.width > viewport.height ? 'portrait' : 'landscape',
+        viewport.width > viewport.height ? 'landscape' : 'portrait',
       );
       await page.getByRole('button', { name: '画境设置', exact: true }).tap();
       await expect(page.getByRole('region', { name: '画境设置' })).toBeVisible();

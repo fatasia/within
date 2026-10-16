@@ -31,14 +31,24 @@ describe('original artwork references', () => {
         paths.add(image.src);
       }
     }
-    expect(paths.size).toBe(11);
+    expect(paths.size).toBe(18);
   });
   it('labels partial scroll reproductions as details, not complete originals', () => {
-    for (const id of ['qianli', 'fuchun', 'qingming'] as const) {
+    for (const id of ['qianli', 'fuchun'] as const) {
       expect(ORIGINALS[id]!.images.every((image) => image.scope === 'detail')).toBe(true);
       expect(ORIGINALS[id]!.images[0]!.caption).toContain('不是');
     }
     expect(ORIGINALS.winter!.licenseUrl).toBe('https://creativecommons.org/licenses/by/4.0/');
+  });
+  it('provides the complete Song Qingming scroll before its six continuous detail windows', () => {
+    const images = ORIGINALS.qingming!.images;
+    expect(images[0]!.src).toBe('originals/qingming-full.webp');
+    expect(images[0]!.scope).toBe('complete');
+    expect(images.slice(1, 7).map((image) => image.src)).toEqual(
+      Array.from({ length: 6 }, (_, i) => `originals/qingming-section-${i + 1}.webp`),
+    );
+    expect(images.slice(1).every((image) => image.scope === 'detail')).toBe(true);
+    expect(images.at(-1)!.caption).toContain('不是全卷');
   });
   it('provides all five empire paintings in chronological order', () => {
     expect(ORIGINALS.empire!.images.map((image) => image.period)).toEqual([0, 1, 2, 3, 4]);

@@ -11,7 +11,7 @@ export const QINGMING: Painting = {
   technique: '绢本 · 淡设色',
   tagline: '一河烟火，半卷人间。',
   introduction:
-    '从郊野阡陌，沿汴河穿过虹桥，走入东角子门。船工、行旅与街边铺席，在同一卷春日里相逢。',
+    '由卷首村舍与疏林，沿汴河经过虹桥，穿过城门走到卷尾街坊。五段场景串起全卷叙事，可打开北宋原本完整画卷逐段对照。',
   accent: '#805a38',
   palette: {
     sky: '#e7decc',
@@ -25,30 +25,32 @@ export const QINGMING: Painting = {
   peaks: [],
   overview: { eye: [-50, 25, 56], target: [-10, 8, -9] },
   route: [
-    [-119, 4, 25],
-    [-74, 4, 18],
+    [-126, 4, -43],
+    [-100, 4, -28],
+    [-74, 4, -15],
     [-20, 11, 3.3],
     [30, 4, -23],
     [55, 4, -45],
-    [114, 4, -45],
+    [92, 4, -45],
+    [113, 4, -63],
   ],
   chapters: [
     {
       title: '郊野春行',
       subtitle: 'THE OUTSKIRTS',
-      description: '低檐村舍与疏柳散在河岸，田垄和木篱留在近处；沿土路向前看，密集的街屋还在远方。',
+      description: '先见疏林、茅檐和篱院，村人在门前停留；土路向河岸伸去，城内的密集街屋还在远方。',
       progress: 0,
     },
     {
       title: '汴河舟楫',
       subtitle: 'THE BIAN RIVER',
-      description: '货船与木栈台沿汴河排开，岸上放着成摞货包；两侧铺席靠近水路，生意与河岸相连。',
+      description: '货船靠近木栈台，坡板连接河岸；搬货人对面接住货包，舟运与岸边铺席在此衔接。',
       progress: 0.2,
     },
     {
       title: '虹桥相会',
       subtitle: 'THE RAINBOW BRIDGE',
-      description: '交错木梁托起弧形桥面，桥板、栏杆与小摊近在眼前；向两侧望去，可见汴河上的货船。',
+      description: '卧桅工作船进入木拱桥下，船工守着绳索与桅架；上方桥板、栏杆和铺席连成热闹街道。',
       progress: 0.4,
     },
     {
@@ -60,7 +62,8 @@ export const QINGMING: Painting = {
     {
       title: '人间烟火',
       subtitle: 'THE MARKET STREETS',
-      description: '街边招牌与棚架相接，摊面摆着器物，木车载着货包；沿开阔街道，细看铺面的瓦与窗。',
+      description:
+        '欢门与邻铺接续城内街道，后巷围合成小院；从门前铺席走到卷尾，看街屋由近处延展开。',
       progress: 0.83,
     },
   ],
