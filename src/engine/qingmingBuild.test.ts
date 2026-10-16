@@ -1,3 +1,4 @@
+import { QINGMING_TRIANGLE_BUDGET } from './qingmingBudget';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { buildQingmingSteps } from './qingming';
@@ -35,7 +36,7 @@ describe('incremental Qingming construction', () => {
           (object.geometry.index?.count ?? object.geometry.attributes.position!.count) / 3;
       });
       expect(draws).toBeLessThan(40);
-      expect(triangles).toBeLessThan(450000);
+      expect(triangles).toBeLessThan(QINGMING_TRIANGLE_BUDGET);
       expect(model.getObjectByName('gate-donkey-cart')!.userData.livingTransport).toBe(true);
     } finally {
       disposeObject(model);

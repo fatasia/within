@@ -1,3 +1,4 @@
+import { QINGMING_TRIANGLE_BUDGET } from './qingmingBudget';
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { QINGMING } from '../data/qingming';
@@ -26,7 +27,7 @@ describe('Qingming city', () => {
       expect(position.array.every(Number.isFinite)).toBe(true);
     });
     expect(meshes).toBeLessThan(40);
-    expect(triangles).toBeLessThan(450_000);
+    expect(triangles).toBeLessThan(QINGMING_TRIANGLE_BUDGET);
     expect(triangles).toBeGreaterThan(200_000);
     disposeObject(model);
   }, 20_000);
