@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PAINTINGS, chapterAt, getPainting } from './paintings';
 
 describe('chapter introductions', () => {
-  it('puts the four featured scenes first while preserving the remaining order', () => {
+  it('puts the featured scenes first while preserving the remaining order', () => {
     expect(PAINTINGS.map((painting) => painting.id)).toEqual([
       'starry',
       'winter',
@@ -14,13 +14,19 @@ describe('chapter introductions', () => {
       'empire',
       'zhangjiajie',
       'guilin',
+      'arctic',
+      'dunhuang',
+      'huangshan',
+      'xihu',
+      'kanas',
+      'deepsea',
     ]);
   });
-  it('gives all 50 chapters a unique, short introduction', () => {
-    expect(PAINTINGS).toHaveLength(10);
+  it('gives all 80 chapters a unique, short introduction', () => {
+    expect(PAINTINGS).toHaveLength(16);
     const chapters = PAINTINGS.flatMap((painting) => painting.chapters);
-    expect(chapters).toHaveLength(50);
-    expect(new Set(chapters.map((chapter) => chapter.description)).size).toBe(50);
+    expect(chapters).toHaveLength(80);
+    expect(new Set(chapters.map((chapter) => chapter.description)).size).toBe(80);
     for (const painting of PAINTINGS) {
       expect(painting.chapters).toHaveLength(5);
       for (const chapter of painting.chapters) {

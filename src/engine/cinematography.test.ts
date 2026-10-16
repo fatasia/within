@@ -11,7 +11,7 @@ const paintings = PAINTINGS;
 
 describe('cinematic landscape routes', () => {
   it('keeps contextual subjects without forcing every world into a macro shot', () => {
-    expect(paintings).toHaveLength(10);
+    expect(paintings).toHaveLength(16);
     for (const painting of paintings) {
       const frames = getCinematicKeyframes(painting);
       expect(frames.length, painting.id).toBeGreaterThanOrEqual(8);
