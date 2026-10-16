@@ -8,6 +8,45 @@ import { blendXishanGround } from './xishanLayout';
 import { chinesePeakHeight, colorChineseRock, isChineseLandscape } from './chineseLandscape';
 import { rockLandformHeight, colorRockLandform, addRockSurface } from './rockLandforms';
 import { empirePeakHeight, getEmpireGround } from './empireLandform';
+import { snowHeight } from './featuredArctic';
+import { duneHeight } from './featuredDunhuang';
+import { kanasGroundY } from './featuredKanas';
+import { bedHeight } from './featuredDeepsea';
+import { bankHeight } from './featuredSakura';
+import { xihuGroundY } from './featuredXihu';
+
+const FEATURED_IDS = new Set([
+  'roadster',
+  'arctic',
+  'dunhuang',
+  'huangshan',
+  'xihu',
+  'kanas',
+  'deepsea',
+  'sakura',
+]);
+
+/**
+ * Featured worlds own their relief: each entry delegates to the scene's own
+ * surface function so walking matches the visible terrain exactly.  Scenes
+ * without open water never return 0; lake/river scenes return 0 offshore.
+ */
+const FEATURED_GROUND: Record<string, (x: number, z: number) => number> = {
+  roadster: () => .8,
+  arctic: (x, z) => (z > -26 ? Math.max(snowHeight(x, z), 0.36) : 0),
+  dunhuang: (x, z) => Math.max(duneHeight(x, z), 0.36),
+  huangshan: () => 0.6,
+  xihu: (x, z) => Math.max(0, xihuGroundY(x, z)),
+  kanas: (x, z) => {
+    const y = kanasGroundY(x, z);
+    return y > 0.5 ? y : 0;
+  },
+  deepsea: bedHeight,
+  sakura: (x, z) => {
+    const y = bankHeight(x, z);
+    return y > 0.4 ? y : 0;
+  },
+};
 
 /** A continuous, deterministic height field shared by rendering and walking collision. */
 export function peakHeight(peak: Peak, x: number, z: number): number {
@@ -66,6 +105,11 @@ export function peakHeight(peak: Peak, x: number, z: number): number {
     : THREE.MathUtils.lerp(natural, authored, 1 - THREE.MathUtils.smoothstep(z, -24, -14));
 }
 export function groundHeight(painting: Painting, x: number, z: number): number {
+  // Featured worlds own their relief (ice, cave, cloud sea, lake, forest and
+  // seabed).  Do not leak the painting's generic peak field into those scenes;
+  // it produces unrelated mountains behind the authored composition.
+  const featured = FEATURED_GROUND[painting.id];
+  if (featured) return featured(x, z);
   if (painting.id === 'empire') return getEmpireGround(x, z);
   if (painting.id === 'qingming') return cityGround(x, z, true);
   if (painting.id === 'wuhan') return getWuhanGround(x, z);
@@ -163,7 +207,8 @@ export function* buildTerrainSteps(painting: Painting): Generator<void, TerrainR
   try {
     const group = new THREE.Group();
     group.name = 'Continuous painted landscape';
-    const winter = painting.id === 'winter';
+    const winter = painting.id === 'winter' || painting.id === 'arctic';
+    const featuredFlat = FEATURED_IDS.has(painting.id);
     const rockLandscape = painting.id === 'zhangjiajie' || painting.id === 'guilin';
     texture = yield* makePaperTextureSteps(painting.seed, painting.id);
     yield;
@@ -210,7 +255,7 @@ export function* buildTerrainSteps(painting: Painting): Generator<void, TerrainR
       const x = positions.getX(i),
         z = positions.getZ(i);
       const height = painting.id === 'qingming' ? cityGround(x, z) : groundHeight(painting, x, z);
-      positions.setY(i, winter && height <= 0.66 ? -0.25 : height);
+      positions.setY(i, featuredFlat ? -0.27 : winter && height <= 0.66 ? -0.25 : height);
       let summit = 30,
         strongest = -1;
       for (const peak of painting.peaks) {

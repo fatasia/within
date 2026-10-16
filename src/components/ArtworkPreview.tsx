@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Painting } from '../types';
 import { seededRandom } from '../engine/math';
+import { FEATURED_SCENES } from '../data/featuredScenes';
 
 type Canvas = CanvasRenderingContext2D;
 type Point = readonly [number, number];
@@ -935,7 +936,7 @@ function wuhan(ctx: Canvas, random: () => number) {
   }
 }
 
-export function ArtworkPreview({ painting }: { painting: Painting }) {
+function IllustratedPreview({ painting }: { painting: Painting }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const ctx = ref.current?.getContext('2d');
@@ -982,4 +983,20 @@ export function ArtworkPreview({ painting }: { painting: Painting }) {
     ctx.globalAlpha = 1;
   }, [painting]);
   return <canvas ref={ref} width={W * 2} height={H * 2} aria-hidden="true" />;
+}
+
+/** Featured cards show the actual rendered world, not the generic mountain illustration. */
+export function ArtworkPreview({ painting }: { painting: Painting }) {
+  if (painting.id === 'roadster' || FEATURED_SCENES.some(scene => scene.id === painting.id)) {
+    return <img
+      src={`${import.meta.env.BASE_URL}previews/${painting.id}-thumb.webp`}
+      alt=""
+      width={960}
+      height={480}
+      decoding="async"
+      loading="lazy"
+      draggable={false}
+    />;
+  }
+  return <IllustratedPreview painting={painting} />;
 }

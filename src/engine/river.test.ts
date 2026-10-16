@@ -1,10 +1,43 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Group, ShaderMaterial, PerspectiveCamera, Scene, type WebGLRenderer } from 'three';
+import { Group, ShaderMaterial, PerspectiveCamera, Scene, Vector3, type WebGLRenderer } from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { getPainting } from '../data/paintings';
 import { buildRiver } from './river';
+import { createLandscapeSky } from './atmosphere';
 
 describe('still river resources', () => {
+  it('moves the hull waterline mask with the Sakura boat on every quality tier', () => {
+    for (const quality of ['low', 'balanced', 'high'] as const) {
+      const river = buildRiver(getPainting('sakura'), quality);
+      try {
+        river.setSakuraHull([3, .06, -20], [0, Math.PI / 2, 0]);
+        const material = river.mesh.material as ShaderMaterial;
+        expect(material.uniforms.uSakuraHullActive.value).toBe(1);
+        const local = new Vector3(3, .06, -22).applyMatrix4(material.uniforms.uSakuraHullInverse.value);
+        expect(local.x).toBeCloseTo(2);
+        expect(local.z).toBeCloseTo(0);
+        expect(material.fragmentShader).toContain('if (abs(hull.z) < halfWidth) discard');
+        river.setSakuraHull([-10, .08, -60], [0, 0, .02]);
+        expect(new Vector3(-10, .08, -60).applyMatrix4(material.uniforms.uSakuraHullInverse.value).length()).toBeLessThan(1e-10);
+      } finally { river.dispose(); }
+    }
+    const other = buildRiver(getPainting('qianli'), 'low');
+    other.setSakuraHull([0, 0, 0], [0, 0, 0]);
+    expect((other.mesh.material as ShaderMaterial).uniforms.uSakuraHullActive.value).toBe(0);
+    other.dispose();
+  });
+  it('uses one sun direction for the Sakura sky and water, without changing other rivers', () => {
+    const sakura = getPainting('sakura');
+    const river = buildRiver(sakura, 'balanced');
+    const sky = createLandscapeSky(sakura);
+    const other = buildRiver(getPainting('qianli'), 'low');
+    const water = (river.mesh.material as ShaderMaterial).uniforms;
+    const atmosphere = (sky.material as ShaderMaterial).uniforms;
+    expect(water.uSunDirection.value.equals(atmosphere.uSunDirection.value)).toBe(true);
+    expect(water.uSakura.value).toBe(1);
+    expect((other.mesh.material as ShaderMaterial).uniforms.uSakura.value).toBe(0);
+    river.dispose(); other.dispose(); sky.geometry.dispose(); (sky.material as ShaderMaterial).dispose();
+  });
   it('refreshes moving or zoomed views immediately while throttling only stationary captures', () => {
     const river = buildRiver(getPainting('wuhan'), 'high');
     const scene = new Scene(),

@@ -13,9 +13,9 @@ import { disposeObject } from './resources';
 
 describe('quiet visitors', () => {
   it('gives every scene distinct restrained clothing colors and original warm dialogue', () => {
-    expect(Object.keys(EASTER_EGG_PROFILES)).toHaveLength(16);
+    expect(Object.keys(EASTER_EGG_PROFILES)).toHaveLength(18);
     expect(new Set(Object.values(EASTER_EGG_PROFILES).map((profile) => profile.color)).size).toBe(
-      16,
+      18,
     );
     expect(Object.keys(ENCOUNTER_TEXT).sort()).toEqual(Object.keys(EASTER_EGG_PROFILES).sort());
     for (const text of Object.values(ENCOUNTER_TEXT)) {

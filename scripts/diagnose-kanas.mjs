@@ -1,0 +1,8 @@
+import {chromium} from '@playwright/test';
+import {writeFile} from 'node:fs/promises';
+const browser=await chromium.launch({headless:true,args:['--use-angle=d3d11']});const page=await browser.newPage({viewport:{width:1440,height:900}});
+await page.route('**/kanas-diagnostic',r=>r.fulfill({contentType:'text/html',body:'<style>html,body,#stage{width:100%;height:100%;margin:0}</style><div id="stage"></div>'}));await page.goto('http://127.0.0.1:5173/kanas-diagnostic');
+console.log(await page.evaluate(async()=>{const {Experience}=await import('/src/engine/Experience.ts');const {initialState}=await import('/src/state.ts');const T=await import('/node_modules/three/build/three.module.js');const {kanasGroundY}=await import('/src/engine/featuredKanas.ts');const e=new Experience(document.getElementById('stage'),{...initialState,painting:'kanas',entered:true},{onTelemetry(){}});e.beginOfflineFilm(1440,900);window.e=e;const world=e.content.children.find(o=>o.userData.featuredWorld==='kanas');const land=world.children[0];window.land=land;e.renderOfflineFrame(0,0);return{camera:e.camera.position.toArray(),landTransform:land.matrixWorld.elements,normal: Array.from(land.geometry.attributes.normal.array.slice(0,15)),samples:[[-12,-5],[0,20],[38,136],[-36,16]].map(([x,z])=>({x,z,y:kanasGroundY(x,z)}))}}));
+await writeFile('artifacts/kanas-fix/t0.jpg',Buffer.from((await page.evaluate(()=>e.renderer.domElement.toDataURL('image/jpeg',.9))).split(',')[1],'base64'));
+await page.evaluate(()=>{land.material.side=2;land.material.needsUpdate=true;e.renderOfflineFrame(0,0)});await writeFile('artifacts/kanas-fix/double.jpg',Buffer.from((await page.evaluate(()=>e.renderer.domElement.toDataURL('image/jpeg',.9))).split(',')[1],'base64'));
+await browser.close();

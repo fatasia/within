@@ -144,6 +144,11 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
           <a className="original-source" href={painting.source} target="_blank" rel="noreferrer">
             查看地域资料 <ArrowSquareOut size={18} />
           </a>
+          {painting.id === 'roadster' && (
+            <a className="original-source" href={`${import.meta.env.BASE_URL}assets/neon/README.md`} target="_blank" rel="noreferrer">
+              夜街资产来源与许可 <ArrowSquareOut size={18} />
+            </a>
+          )}
         </>
       )}
     </Dialog>

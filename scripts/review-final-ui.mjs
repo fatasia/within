@@ -1,0 +1,4 @@
+import {chromium} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+await mkdir('artifacts/final-ui',{recursive:true});const browser=await chromium.launch({headless:true,args:['--use-angle=d3d11']});
+try{for(const painting of ['arctic','xihu'])for(const width of [1440,390]){const page=await browser.newPage({viewport:{width,height:width===390?844:900}});await page.addInitScript(p=>localStorage.setItem('ruhua.preferences.v1',JSON.stringify({painting:p})),painting);await page.goto('http://127.0.0.1:5173/');await page.getByRole('button',{name:'走进画中',exact:true}).click();await page.waitForTimeout(1400);if(painting==='arctic')await page.getByRole('slider',{name:'游览进度'}).fill('380');await page.waitForTimeout(400);await page.screenshot({path:`artifacts/final-ui/${painting}-${width}.png`});console.log(painting,width,await page.locator('.journey-panel').boundingBox());await page.close()}}finally{await browser.close()}

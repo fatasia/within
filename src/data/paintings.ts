@@ -3,6 +3,7 @@ import { QINGMING } from './qingming';
 import { REAL_LANDSCAPES } from './landscapes';
 import { WUHAN_PAINTING } from './wuhan';
 import { EMPIRE_PEAKS } from '../engine/empireLandform';
+import { ROADSTER } from './roadster';
 import { FEATURED_SCENES } from './featuredScenes';
 const chapter = (title: string, subtitle: string, description: string, progress: number) => ({
   title,
@@ -448,17 +449,19 @@ const COLLECTION: Painting[] = [
 const featuredOrder = new Map<PaintingId, number>([
   ['starry', 0],
   ['winter', 1],
-  ['qingming', 2],
-  ['wuhan', 3],
-  ['arctic', 4],
+  ['qingming', -2],
+  ['wuhan', -1],
+  ['roadster', -3],
+  ['arctic', 4.5],
   ['dunhuang', 5],
   ['huangshan', 6],
-  ['xihu', 7],
+  ['xihu', 4.8],
   ['kanas', 8],
-  ['deepsea', 9],
+  ['deepsea', 4.7],
+  ['sakura', 4.6],
 ]);
-export const PAINTINGS: Painting[] = [...COLLECTION, QINGMING, ...REAL_LANDSCAPES, WUHAN_PAINTING, ...FEATURED_SCENES]
-  .sort((a, b) => (featuredOrder.get(a.id) ?? 4) - (featuredOrder.get(b.id) ?? 4))
+export const PAINTINGS: Painting[] = [...COLLECTION, QINGMING, ...REAL_LANDSCAPES, WUHAN_PAINTING, ...FEATURED_SCENES, ROADSTER]
+  .sort((a, b) => (featuredOrder.get(a.id) ?? 100) - (featuredOrder.get(b.id) ?? 100))
   .map((painting) => ({
     ...painting,
     peaks: painting.peaks.map((peak) => ({ ...peak, profile: painting.id })),

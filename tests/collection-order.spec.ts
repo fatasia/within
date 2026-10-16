@@ -7,12 +7,17 @@ test('featured scenes lead the collection on desktop and mobile', async ({ page 
     const cards = page
       .getByRole('region', { name: '画境收藏' })
       .getByRole('button', { name: /^选择/ });
-    await expect(cards).toHaveCount(10);
+    await expect(cards).toHaveCount(18);
     for (const [index, title] of [
-      '星月夜',
-      '山中冬夜',
+      'Roadster · 未来之形',
       '清明上河图',
       '武汉 · 桂雨东湖',
+      '星月夜',
+      '山中冬夜',
+      '北极冰川 · 极光',
+      '樱谷行舟',
+      '深海蓝眼泪 · 生物荧光',
+      '西湖雷峰塔 · 雨后',
     ].entries()) {
       await expect(cards.nth(index)).toHaveAccessibleName(`选择${title}`);
       await expect(cards.nth(index)).toContainText(String(index + 1).padStart(2, '0'));

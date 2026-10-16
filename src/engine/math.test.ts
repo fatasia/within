@@ -18,12 +18,17 @@ describe('deterministic landscape generation', () => {
     for (let i = -20; i < 20; i++) expect(noise(i * 0.34, i * 0.71, 4)).toBeGreaterThanOrEqual(0);
   });
   it('has finite terrain and submerged edges in all ten worlds', () => {
-    for (const p of PAINTINGS)
+    // Featured worlds own their relief; their peak entries are inert data and
+    // groundHeight answers the scene's own surface function instead.
+    const featured = new Set(['arctic', 'dunhuang', 'huangshan', 'xihu', 'kanas', 'deepsea', 'sakura']);
+    for (const p of PAINTINGS) {
+      if (featured.has(p.id)) continue;
       for (const peak of p.peaks) {
         expect(Number.isFinite(peakHeight(peak, peak.x, peak.z))).toBe(true);
         expect(peakHeight(peak, peak.x + peak.radius * 2, peak.z)).toBe(-0.25);
         expect(groundHeight(p, peak.x, peak.z)).toBeGreaterThan(0);
       }
+    }
   });
   it('keeps the summit continuous when approached from every direction', () => {
     // The previous angular ridge function was nonzero at radius zero, producing
@@ -50,7 +55,7 @@ describe('deterministic landscape generation', () => {
 });
 describe('experience state', () => {
   it('has ordered reachable chapters and valid routes', () => {
-    expect(new Set(PAINTINGS.map((p) => p.id)).size).toBe(16);
+    expect(new Set(PAINTINGS.map((p) => p.id)).size).toBe(18);
     for (const p of PAINTINGS) {
       expect(p.route.length).toBeGreaterThan(3);
       expect(p.chapters).toHaveLength(5);
@@ -69,9 +74,9 @@ describe('experience state', () => {
   it('defaults sound on without starting movement', () => {
     expect(
       restorePreferences('{"painting":"starry","sound":true,"playing":true,"quality":"high"}'),
-    ).toMatchObject({ painting: 'starry', sound: true, playing: false, quality: 'high' });
-    expect(restorePreferences(null).sound).toBe(true);
-    expect(restorePreferences('{"sound":false}').sound).toBe(true);
+    ).toMatchObject({ painting: 'starry', sound: false, playing: false, quality: 'high' });
+    expect(restorePreferences(null).sound).toBe(false);
+    expect(restorePreferences('{"sound":false}').sound).toBe(false);
     expect(restorePreferences('{"painting":"winter"}').painting).toBe('winter');
   });
   it('opens at high quality even after a previous manually reduced session', () => {

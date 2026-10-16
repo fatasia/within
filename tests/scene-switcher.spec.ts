@@ -20,7 +20,6 @@ for (const viewport of [
       await expect(page.getByRole('button', { name: '走进画中', exact: true })).toBeEnabled();
       await page.getByRole('button', { name: '走进画中', exact: true }).click();
       await page.getByRole('button', { name: '步行', exact: true }).click();
-      await page.getByRole('button', { name: '关闭配乐与音效', exact: true }).click();
       await page.getByRole('button', { name: '画境设置', exact: true }).click();
       await page.getByLabel('渲染画质').selectOption('low');
       await page.locator('#music-volume').press('Home');
@@ -74,15 +73,15 @@ for (const viewport of [
       await page.getByRole('button', { name: '选择画境，当前星月夜', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: '切换画境', exact: true });
       await expect(dialog).toBeVisible();
-      await expect(dialog.locator('.scene-picker-list > button')).toHaveCount(10);
+      await expect(dialog.locator('.scene-picker-list > button')).toHaveCount(18);
       const labels = await dialog
         .locator('.scene-picker-list > button')
         .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')));
       expect(labels.slice(0, 4)).toEqual([
-        '切换到星月夜',
-        '切换到山中冬夜',
+        '切换到Roadster · 未来之形',
         '切换到清明上河图',
         '切换到武汉 · 桂雨东湖',
+        '切换到星月夜',
       ]);
       await page.keyboard.press('Escape');
       await expect(dialog).toHaveCount(0);

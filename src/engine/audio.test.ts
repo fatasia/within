@@ -14,17 +14,17 @@ describe('original scene scores', () => {
       expect(palette.description.length).toBeGreaterThan(5);
   });
   it('assigns every scene a distinct motif, tempo and tonal palette', () => {
-    expect(Object.keys(SOUND_PALETTES)).toHaveLength(16);
+    expect(Object.keys(SOUND_PALETTES)).toHaveLength(18);
     expect(
       new Set(Object.values(SOUND_PALETTES).map((p) => JSON.stringify([p.motif, p.root, p.tempo])))
         .size,
-    ).toBe(16);
+    ).toBe(18);
     for (const id of Object.keys(SOUND_PALETTES) as PaintingId[]) {
       const phrase = composePhrase(id, 0);
       expect(phrase).toEqual(composePhrase(id, 0));
       expect(phrase).not.toEqual(composePhrase(id, 3));
       expect(phrase.notes.length).toBeGreaterThan(10);
-      expect(phrase.fields.length).toBeGreaterThan(0);
+      if(id==='roadster')expect(phrase.fields).toHaveLength(0);else expect(phrase.fields.length).toBeGreaterThan(0);
       for (const note of phrase.notes) {
         expect(note.at).toBeGreaterThanOrEqual(0);
         expect(note.at).toBeLessThan(phraseDuration(SOUND_PALETTES[id]));

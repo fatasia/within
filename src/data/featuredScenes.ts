@@ -17,7 +17,7 @@ const peaks = (...items: Array<[number, number, number, number, number, number?]
     ...(stretch === undefined ? {} : { stretch }),
   }));
 
-/** Six new chapters for the collection. They share the same measured route scale as the paintings. */
+/** Seven thematic scenes, with routes scaled for interactive viewing. */
 export const FEATURED_SCENES: Painting[] = [
   {
     id: 'arctic',
@@ -28,7 +28,7 @@ export const FEATURED_SCENES: Painting[] = [
     era: '当代 · 极地观察',
     technique: '冰川地貌 · 实景意象',
     tagline: '雪线尽头，极光正在融化。',
-    introduction: '走进极夜的冰湾。蓝色冰脊、慢慢漂移的浮冰与一只远望海面的北极熊，共同守住北方的寂静。',
+    introduction: '沿雪岸走进冰湾，看浮冰、白熊与冰川后的极光。企鹅作为南极来客加入这处极地意象，并非北极原生动物。',
     accent: '#8fb7c8',
     palette: { sky: '#102b48', water: '#28536a', low: '#8da9b1', high: '#e9f2f2', ink: '#1f3d54', leaf: '#b9d7d4' },
     seed: 2401,
@@ -42,7 +42,7 @@ export const FEATURED_SCENES: Painting[] = [
       [-70, -4, 28, 11, 72, 0.86],
       [47, 4, 32, 15, 81, 0.82],
     ),
-    overview: { eye: [37, 28, 133], target: [0, 21, -40] },
+      overview: { eye: [-4, 11, 48], target: [-9, 7, -30] },
     route: [[-100, 2, 25], [-64, 2, 15], [-28, 2, 4], [9, 2, -8], [47, 2, 5], [82, 2, 14], [112, 2, 24]],
     chapters: [
       chapter('冰湾初见', 'THE ICE BAY', '雪原在脚下铺开，冰川从远处缓缓压入海湾；先让眼睛适应极夜的蓝。', 0),
@@ -111,7 +111,7 @@ export const FEATURED_SCENES: Painting[] = [
       [-52, 2, 21, 12, 75, 0.88],
       [55, 7, 25, 18, 83, 0.84],
     ),
-    overview: { eye: [44, 38, 142], target: [0, 39, -42] },
+    overview: { eye: [32, 24, 72], target: [-8, 27, -35] },
     route: [[-103, 2, 27], [-67, 2, 17], [-31, 2, 6], [2, 2, -7], [34, 2, 4], [72, 2, 14], [108, 2, 24]],
     chapters: [
       chapter('云门初入', 'THE CLOUD GATE', '松林在石阶两侧合拢，潮湿岩面反射一层淡光；抬头只看见山脊的一角。', 0),
@@ -146,7 +146,7 @@ export const FEATURED_SCENES: Painting[] = [
       [-62, 4, 20, 8, 71, 0.9],
       [55, 5, 22, 11, 79, 0.88],
     ),
-    overview: { eye: [33, 26, 132], target: [5, 16, -38] },
+    overview: { eye: [28, 18, 48], target: [0, 9, -24] },
     route: [[-106, 2, 26], [-68, 2, 16], [-29, 2, 5], [7, 2, -7], [43, 2, 3], [78, 2, 15], [109, 2, 26]],
     chapters: [
       chapter('湖岸初晴', 'THE LAKE AFTER RAIN', '雨幕刚刚散开，湿石路和柳叶还挂着水；湖面留出一整片安静的灰青。', 0),
@@ -168,7 +168,7 @@ export const FEATURED_SCENES: Painting[] = [
     tagline: '金色白桦，湖雾从木屋门前经过。',
     introduction: '走进喀纳斯的秋天。白桦与落叶松在湖湾两侧交替变色，木屋升起炊烟，晨雾沿着水面慢慢退开。',
     accent: '#ad7a40',
-    palette: { sky: '#cdd8d1', water: '#597e7d', low: '#617650', high: '#b7a47b', ink: '#45564a', leaf: '#a37c3e' },
+    palette: { sky: '#cdd8d1', water: '#5fa89e', low: '#617650', high: '#b7a47b', ink: '#45564a', leaf: '#a37c3e' },
     seed: 198,
     peaks: peaks(
       [-111, -61, 35, 36, 6, 0.74],
@@ -181,7 +181,7 @@ export const FEATURED_SCENES: Painting[] = [
       [-57, 3, 22, 12, 71, 0.88],
       [54, 4, 23, 16, 80, 0.84],
     ),
-    overview: { eye: [38, 31, 136], target: [0, 23, -40] },
+    overview: { eye: [38, 24, 100], target: [-4, 4, -22] },
     route: [[-105, 2, 26], [-67, 2, 16], [-29, 2, 5], [6, 2, -8], [41, 2, 3], [77, 2, 15], [109, 2, 26]],
     chapters: [
       chapter('湖谷入秋', 'THE AUTUMN VALLEY', '第一片金黄落在湖湾边，远山仍保留冷绿；木栈道沿着水线向林中伸去。', 0),
@@ -216,7 +216,7 @@ export const FEATURED_SCENES: Painting[] = [
       [-56, 1, 24, 10, 73, 0.86],
       [54, 4, 27, 13, 84, 0.82],
     ),
-    overview: { eye: [29, 20, 128], target: [0, 12, -40] },
+    overview: { eye: [12, 16, 68], target: [0, 10, -28] },
     route: [[-106, 2, 25], [-68, 2, 15], [-31, 2, 4], [6, 2, -9], [42, 2, 3], [77, 2, 15], [109, 2, 25]],
     chapters: [
       chapter('蓝光边界', 'THE TWILIGHT ZONE', '最后一束天光沉在海面上方，海底坡面开始发亮；一粒粒微光在黑暗里回应脚步。', 0),
@@ -226,5 +226,40 @@ export const FEATURED_SCENES: Painting[] = [
       chapter('无光之海', 'THE ABYSS', '越过峡谷，声音和颜色都变得稀薄，只剩远处微光和缓慢起伏的海底地形。', 0.87),
     ],
     source: 'https://oceanexplorer.noaa.gov/explorations/10bioluminescence/welcome.html',
+  },
+  {
+    id: 'sakura',
+    title: '樱谷行舟',
+    shortTitle: '樱谷行舟',
+    english: 'SAKURA RIVER · A BOAT JOURNEY',
+    artist: '日本 · 河谷行舟',
+    era: '当代 · 春日行舟',
+    technique: '河谷地貌 · 实景意象',
+    tagline: '花吹雪满川，一舟行入画中。',
+    introduction: '随一叶小舟进入日本河谷。樱并木、朱红太鼓桥、五重塔街町与千本鸟居沿岸次第展开；暮色四合时，灯火与花影一同落进水里。',
+    accent: '#d98aa6',
+    palette: { sky: '#ccd8d2', water: '#6d9e94', low: '#5f7a52', high: '#b9c0a8', ink: '#3c4f45', leaf: '#e8a7c0' },
+    seed: 3119,
+    peaks: peaks(
+      [-112, -60, 34, 20, 8, 0.76],
+      [-76, -72, 32, 30, 16, 0.72],
+      [-37, -68, 38, 25, 24, 0.74],
+      [6, -78, 36, 33, 31, 0.7],
+      [48, -68, 40, 27, 44, 0.74],
+      [90, -74, 34, 24, 56, 0.76],
+      [119, -55, 26, 19, 65, 0.82],
+      [-58, 3, 22, 10, 71, 0.88],
+      [56, 4, 24, 13, 80, 0.86],
+    ),
+    overview: { eye: [0, 13, 35], target: [0, 5, -30] },
+    route: [[-100, 2, 25], [-63, 2, 15], [-27, 2, 5], [8, 2, -8], [42, 2, 4], [76, 2, 15], [108, 2, 25]],
+    chapters: [
+      chapter('谷口晨雾', 'THE VALLEY MIST', '晨雾还压着河谷，富士的山影在雾后浮出一线；花瓣落在水面，船家已把篙点进浅滩。', 0),
+      chapter('樱并木', 'THE CHERRY AVENUE', '两岸樱树把河道夹成一条花廊，风一过，瓣落如雪；抬头只看见粉白的花隙与天光。', 0.22),
+      chapter('太鼓桥', 'THE DRUM BRIDGE', '朱红的太鼓桥高高拱起，桥影落进水里合成一枚圆；舟身压低，正好从桥洞下缓缓穿过。', 0.44),
+      chapter('街町与五重塔', 'THE PAGODA TOWN', '白墙町屋沿岸排开，五重塔的相轮在午后发亮；石板路上飘着茶炊与木屐的轻响。', 0.65),
+      chapter('鸟居隧道', 'THE TORII TUNNEL', '千本鸟居沿山径一路点起朱红，尽头大鸟居立在湖心；暮色里灯火渐次亮起，花瓣还在落。', 0.87),
+    ],
+    source: 'https://github.com/billpwchan/sakura-fantasy',
   },
 ];

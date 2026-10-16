@@ -30,19 +30,21 @@ for (const mobile of [false, true]) {
       isMobile: mobile,
     });
 
-    test('first entry starts default sound; mute survives subsequent interactions', async ({
+    test('entry stays silent; explicit sound starts and mute survives interactions', async ({
       page,
     }) => {
       await observeAudio(page);
       await page.goto('/');
-      await expect(page.getByRole('button', { name: '关闭配乐与音效' })).toHaveAttribute(
+      await expect(page.getByRole('button', { name: '开启配乐与音效' })).toHaveAttribute(
         'aria-pressed',
-        'true',
+        'false',
       );
       expect(await audioStates(page)).toEqual([]);
       const enter = page.getByRole('button', { name: '走进画中' });
       if (mobile) await enter.tap();
       else await enter.click();
+      expect(await audioStates(page)).toEqual([]);
+      await page.getByRole('button', { name: '开启配乐与音效' }).click();
       await expect.poll(() => audioStates(page)).toEqual(['running']);
       await page.getByRole('button', { name: '画境设置', exact: true }).click();
       await expect(page.getByRole('slider', { name: /背景音乐/ })).toHaveValue('0.58');
@@ -58,10 +60,9 @@ for (const mobile of [false, true]) {
   });
 }
 
-test('muting as the first gesture does not create an audio context', async ({ page }) => {
+test('first entry does not create an audio context', async ({ page }) => {
   await observeAudio(page);
   await page.goto('/');
-  await page.getByRole('button', { name: '关闭配乐与音效' }).click();
   await page.getByRole('button', { name: '走进画中' }).click();
   expect(await audioStates(page)).toEqual([]);
   await expect(page.getByRole('button', { name: '开启配乐与音效' })).toHaveAttribute(
@@ -70,12 +71,12 @@ test('muting as the first gesture does not create an audio context', async ({ pa
   );
 });
 
-test('keyboard entry starts sound without a separate audio action', async ({ page }) => {
+test('keyboard entry does not initialize audio hardware', async ({ page }) => {
   await observeAudio(page);
   await page.goto('/');
   const enter = page.getByRole('button', { name: '走进画中' });
   await expect(enter).toBeEnabled();
   await enter.focus();
   await page.keyboard.press('Enter');
-  await expect.poll(() => audioStates(page)).toEqual(['running']);
+  expect(await audioStates(page)).toEqual([]);
 });

@@ -5,6 +5,7 @@ import { clamp } from './math';
 
 /** Three deliberate shots, rather than accelerating a 150-second journey into ten seconds. */
 const detailShots: Record<Painting['id'], readonly [number, number]> = {
+  roadster: [.2,.72],
   starry: [0.44, 0.65],
   winter: [0.22, 0.65],
   qingming: [0.36, 0.83],
@@ -15,6 +16,13 @@ const detailShots: Record<Painting['id'], readonly [number, number]> = {
   empire: [0.44, 0.87],
   zhangjiajie: [0.43, 0.66],
   guilin: [0.21, 0.43],
+  arctic: [0.38, 0.69],
+  dunhuang: [0.32, 0.66],
+  huangshan: [0.4, 0.72],
+  xihu: [0.34, 0.68],
+  kanas: [0.36, 0.7],
+  deepsea: [0.42, 0.76],
+  sakura: [0.36, 0.74],
 };
 export interface FilmShot {
   progress: number;

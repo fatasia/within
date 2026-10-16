@@ -175,7 +175,7 @@ function servingCounter(materials: StreetMaterials): THREE.Group {
 }
 
 /** One donkey-drawn load approaches the gate; exact vehicle classification is unverified. */
-function gateTransport(materials: StreetMaterials): THREE.Group {
+export function gateTransport(materials: StreetMaterials): THREE.Group {
   const group = new THREE.Group();
   group.name = 'gate-donkey-cart';
   const body = (at: Point, scale: Point, material: THREE.Material) => {
@@ -191,6 +191,7 @@ function gateTransport(materials: StreetMaterials): THREE.Group {
   for (const side of [-1, 1]) {
     const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.075, 5, 20), materials.dark);
     wheel.position.set(0, 0.8, side * 0.9);
+    wheel.userData.motionPart = `wheel:${side}`;
     group.add(wheel);
     for (let j = 0; j < 10; j++) {
       const a = (j / 10) * Math.PI * 2;
@@ -202,7 +203,7 @@ function gateTransport(materials: StreetMaterials): THREE.Group {
         materials.wood,
         1,
         4,
-      );
+      ).userData.motionPart = `wheel:${side}`;
     }
     rod(group, v([0, 0.9, side * 0.5]), v([3.9, 1.05, side * 0.42]), 0.055, materials.wood, 1, 6);
     curveRod(
@@ -256,7 +257,7 @@ function gateTransport(materials: StreetMaterials): THREE.Group {
         materials.clay,
         0.65,
         7,
-      );
+      ).userData.motionPart = `leg:${side}:${fore}`;
       rod(
         group,
         v([knee, 0.58, side * 0.27]),
@@ -265,8 +266,8 @@ function gateTransport(materials: StreetMaterials): THREE.Group {
         materials.clay,
         0.8,
         6,
-      );
-      body([x + 0.12, 0.08, side * 0.27], [0.1, 0.08, 0.075], materials.dark);
+      ).userData.motionPart = `leg:${side}:${fore}`;
+      body([x + 0.12, 0.08, side * 0.27], [0.1, 0.08, 0.075], materials.dark).userData.motionPart = `leg:${side}:${fore}`;
     }
     curveRod(
       group,

@@ -23,6 +23,7 @@ interface Profile {
 
 /** Authored additions requested by the viewer, not figures attributed to the original paintings. */
 export const EASTER_EGG_PROFILES: Record<EasterEggId, Profile> = {
+  roadster: {color:'#6c7480',colorName:'银灰',dress:'coat',x:12,z:4,yaw:-.5,hair:'long'},
   qianli: {
     color: '#a96f61',
     colorName: '赭红',
@@ -105,10 +106,18 @@ export const EASTER_EGG_PROFILES: Record<EasterEggId, Profile> = {
     hair: 'bun',
   },
   wuhan: { color: '#baa35f', colorName: '桂黄', dress: 'coat', x: 0, z: 0, yaw: 0, hair: 'long' },
+  arctic: { color: '#9dbdd1', colorName: '冰蓝', dress: 'coat', x: -68, z: -4, yaw: 0.18, hair: 'long' },
+  dunhuang: { color: '#b77b4c', colorName: '赭金', dress: 'robe', x: -52, z: -3, yaw: -0.1, hair: 'bun' },
+  huangshan: { color: '#718a6d', colorName: '松青', dress: 'coat', x: -52, z: 2, yaw: 0.18, hair: 'long' },
+  xihu: { color: '#827c9c', colorName: '雨紫', dress: 'dress', x: -62, z: 14, yaw: -0.32, hair: 'long' },
+  kanas: { color: '#b47b45', colorName: '秋棕', dress: 'coat', x: -57, z: 13, yaw: 0.12, hair: 'long' },
+  deepsea: { color: '#4faeb5', colorName: '海青', dress: 'coat', x: -50, z: -6, yaw: 0.05, hair: 'long' },
+  sakura: { color: '#c96f8e', colorName: '樱粉', dress: 'dress', x: -55, z: 8, yaw: -0.12, hair: 'bun' },
 };
 
 /** Original dialogue for the added visitor; none of these passages is an artist quotation. */
 export const ENCOUNTER_TEXT: Record<EasterEggId, { title: string; text: string }> = {
+  roadster: {title:'试车场边',text:'车身依据官方图片重建，冷气与吸附展示原理。沿车侧观察轮拱与玻璃舱，也可以换一种喷漆再看雨夜霓虹的光线如何滑过棱面。'},
   qianli: {
     title: '桥畔一语',
     text: '我常在桥边看船，早些时候，山是青的，这会儿又添了一点绿。岸上的人家已经亮起灯，我想，走得再远的人，见到这样的光，也会觉得离家近了一些。桥上有风，这里正好歇歇脚。',
@@ -149,6 +158,13 @@ export const ENCOUNTER_TEXT: Record<EasterEggId, { title: string; text: string }
     title: '桂香小雨',
     text: '这阵雨很细，桂花的香气倒比晴天更清楚。出门前只想着走一小段，到了树下，又舍不得马上回去。街灯映在湿地上，暖暖的一小片；等雨再轻些，我想带着衣袖里这点秋意，慢慢走回家。',
   },
+  arctic: { title: '冰湾回望', text: '风从冰脊后面来，雪地上的脚印还没有被吹散。远处那只熊并不急着走，它只是望着海。我们也站一会儿吧，极光亮起时，白色的世界会有一点绿色的暖意。' },
+  dunhuang: { title: '窟前微光', text: '沙粒落在鞋面上，窟里的颜色却还留着。有人在千年前抬头看过这朵莲花，也许那一刻的光和今天一样安静。走出去时别忘了回望，星河会替石壁把故事继续说完。' },
+  huangshan: { title: '松风作伴', text: '云从脚下经过，山石上的水痕还带着清晨的凉意。松树把根扎进最窄的缝里，也把一小片影子留给路人。慢慢走，下一阵风会把远处的峰顶送到眼前。' },
+  xihu: { title: '雨后湖边', text: '雨停得很轻，柳叶上的水珠还在一颗颗落下。塔影被湖水揉开，又慢慢合拢；有人在桥上走，有人在岸边等。这样的傍晚不必赶路，钟声会替我们记住回家的方向。' },
+  kanas: { title: '木屋灯火', text: '白桦的叶子落了一半，木屋窗里的灯却刚刚亮起来。湖雾从门前经过，把远山藏了一会儿，又还回来。把手伸进风里吧，秋天的气味总会让人想起一顿热饭。' },
+  deepsea: { title: '蓝光之下', text: '这里听不见岸上的喧闹，只有水流从身边缓慢经过。那一点蓝光不是星星，却同样会在黑暗里给人方向。别害怕再往前，鲸影会从远处经过，留下比声音更长的回声。' },
+  sakura: { title: '花吹雪', text: '风把一树的花都吹进了河里，水面成了一条流动的粉白路。船家并不急，只是慢慢稳住橹，说走慢些，才看得清花瓣是先打转、再落水的。等晚上灯笼一亮，街町的灯影也会被这场花雨泡得柔软。' },
 };
 
 /** Search only a small authored clearing; never silently relocate to an unrelated summit. */

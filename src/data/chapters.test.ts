@@ -4,29 +4,31 @@ import { PAINTINGS, chapterAt, getPainting } from './paintings';
 describe('chapter introductions', () => {
   it('puts the featured scenes first while preserving the remaining order', () => {
     expect(PAINTINGS.map((painting) => painting.id)).toEqual([
-      'starry',
-      'winter',
+      'roadster',
       'qingming',
       'wuhan',
+      'starry',
+      'winter',
+      'arctic',
+      'sakura',
+      'deepsea',
+      'xihu',
+      'dunhuang',
+      'huangshan',
+      'kanas',
       'qianli',
       'fuchun',
       'xishan',
       'empire',
       'zhangjiajie',
       'guilin',
-      'arctic',
-      'dunhuang',
-      'huangshan',
-      'xihu',
-      'kanas',
-      'deepsea',
     ]);
   });
-  it('gives all 80 chapters a unique, short introduction', () => {
-    expect(PAINTINGS).toHaveLength(16);
+  it('gives all 90 chapters a unique, short introduction', () => {
+    expect(PAINTINGS).toHaveLength(18);
     const chapters = PAINTINGS.flatMap((painting) => painting.chapters);
-    expect(chapters).toHaveLength(80);
-    expect(new Set(chapters.map((chapter) => chapter.description)).size).toBe(80);
+    expect(chapters).toHaveLength(90);
+    expect(new Set(chapters.map((chapter) => chapter.description)).size).toBe(90);
     for (const painting of PAINTINGS) {
       expect(painting.chapters).toHaveLength(5);
       for (const chapter of painting.chapters) {

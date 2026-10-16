@@ -1,0 +1,10 @@
+import { chromium } from '@playwright/test';
+import { mkdir,writeFile } from 'node:fs/promises';
+const dir='artifacts/roadster-review';await mkdir(dir,{recursive:true});
+const browser=await chromium.launch({headless:true,args:['--use-angle=d3d11']});try{
+const page=await browser.newPage({viewport:{width:1600,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+await page.route('**/roadster-review',r=>r.fulfill({contentType:'text/html',body:'<style>html,body,#stage{margin:0;width:100%;height:100%}</style><div id="stage"></div>'}));await page.goto('http://127.0.0.1:5173/roadster-review');
+const shots=await page.evaluate(async()=>{const {Experience}=await import('/src/engine/Experience.ts');const {initialState}=await import('/src/state.ts');const {sampleRoadsterMotion,sampleRoadsterCockpit}=await import('/src/engine/roadsterMotion.ts');const e=new Experience(document.getElementById('stage'),{...initialState,painting:'roadster',time:'day'},{onTelemetry(){},onError(m){throw Error(m)}});try{e.beginOfflineFilm(1600,1000);await Promise.all(e.content.children.map(o=>o.userData.ready));return [
+['front',{eye:[-4.9,2.8,-6.5],target:[0,1.35,0]},0],['side',{eye:[-7,2,0],target:[0,1.4,0]},0],['rear',{eye:[4.5,2.6,6],target:[0,1.4,0]},0],['cockpit',sampleRoadsterCockpit(0),0],['jet',sampleRoadsterMotion(.48),.48],['grip',sampleRoadsterMotion(.8),.8]].map(([name,v,p])=>{e.renderOfflineFrame(p,12,v);return{name,image:e.renderer.domElement.toDataURL('image/png'),calls:e.renderer.info.render.calls,triangles:e.renderer.info.render.triangles}})}finally{e.dispose()}});
+for(const s of shots)await writeFile(`${dir}/${s.name}.png`,Buffer.from(s.image.split(',')[1],'base64'));await writeFile(`${dir}/stats.json`,JSON.stringify({errors,shots:shots.map(({name,calls,triangles})=>({name,calls,triangles}))},null,2));console.log({errors,shots:shots.map(({name,calls,triangles})=>({name,calls,triangles}))});if(errors.length)throw Error(errors.join('\n'));
+}finally{await browser.close()}

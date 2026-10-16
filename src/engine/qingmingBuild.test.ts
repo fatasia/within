@@ -42,11 +42,19 @@ describe('incremental Qingming construction', () => {
     }
   });
 
-  for (const stop of [1, 90, 650, 1200, 1800]) {
-    it(`releases pending geometry when cancelled at construction step ${stop}`, () => {
+  for (const checkpoint of [1, 90, 650, 1200, 'last-yield'] as const) {
+    it(`releases pending geometry when cancelled at construction step ${checkpoint}`, () => {
       const geometry = vi.spyOn(THREE.BufferGeometry.prototype, 'dispose');
       const material = vi.spyOn(THREE.Material.prototype, 'dispose');
       try {
+        let stop: number;
+        if (checkpoint === 'last-yield') {
+          const reference = buildQingmingSteps(QINGMING);
+          stop = 0;
+          let next = reference.next();
+          while (!next.done) { stop++; next = reference.next(); }
+          disposeObject(next.value);
+        } else stop = checkpoint;
         const steps = buildQingmingSteps(QINGMING);
         for (let i = 0; i < stop; i++) expect(steps.next().done).toBe(false);
         geometry.mockClear();

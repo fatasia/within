@@ -36,6 +36,17 @@ export const WALK_STARTS = {
   zhangjiajie: alongPath(-32, (x) => landscapeRiverCenter({ id: 'zhangjiajie' }, x) + 9, 0.12),
   guilin: alongPath(-32, (x) => landscapeRiverCenter({ id: 'guilin' }, x) + 28, 0.035),
   wuhan: alongPath(-14, wuhanPath, 0.025),
+  arctic: { x: -34, z: 23, yaw: 0.18, pitch: 0.06 },
+  dunhuang: { x: -42, z: 20, yaw: -0.1, pitch: 0.04 },
+  huangshan: { x: -28, z: 28, yaw: 0.18, pitch: 0.12 },
+  // Start on the stone approach so Leifeng Pagoda and the three legend
+  // figures read at human scale instead of becoming a distant icon.
+  xihu: { x: -18, z: 12, yaw: -0.18, pitch: 0.045 },
+  kanas: { x: -35, z: 25, yaw: 0.12, pitch: 0.05 },
+  deepsea: { x: -30, z: 20, yaw: 0.05, pitch: 0.03 },
+  // West bank beside the cherry avenue, facing up the river towards the drum bridge.
+  roadster: {x:-.38,z:.12,yaw:0,pitch:0},
+  sakura: { x: -20, z: 16, yaw: -0.15, pitch: 0.05 },
 } as const satisfies Record<PaintingId, WalkStart>;
 
 export function getWalkStart(id: PaintingId): WalkStart {

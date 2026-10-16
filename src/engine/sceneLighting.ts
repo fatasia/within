@@ -18,6 +18,7 @@ interface LightingPalette {
 
 /** Interpretive seasonal light, not a claim to measured lighting in the source paintings. */
 export const SCENE_LIGHTING: Readonly<Record<PaintingId, LightingPalette>> = {
+  roadster: {direct:[1.4,1.5],fill:[1.3,1.4],sun:['#bedde9','#bedde9'],ambient:['#8ca1bf','#8ca1bf'],ground:['#283347','#283347'],dusk:'#233b4b',duskStrength:0,nightSky:'#07131f',daySky:'#07131f',fog:[45,260],mist:0},
   qianli: {
     direct: [1.55, 0.65],
     fill: [1.42, 0.96],
@@ -127,6 +128,91 @@ export const SCENE_LIGHTING: Readonly<Record<PaintingId, LightingPalette>> = {
     fog: [45, 265],
     mist: 0.08,
   },
+  arctic: {
+    direct: [1.25, 1.15],
+    fill: [1.65, 1.5],
+    sun: ['#e9f4ff', '#c9def1'],
+    ambient: ['#d2e8f0', '#a8c7da'],
+    ground: ['#c2dae2', '#7898ac'],
+    dusk: '#4c7297',
+    duskStrength: 0.14,
+    nightSky: '#0b2440',
+    fog: [85, 430],
+    mist: 0.14,
+  },
+  dunhuang: {
+    direct: [1.35, 0.4],
+    fill: [1.25, 0.65],
+    sun: ['#f4c58d', '#bd7856'],
+    ambient: ['#d6a276', '#754e58'],
+    ground: ['#9d714c', '#352839'],
+    dusk: '#8b4c4d',
+    duskStrength: 0.26,
+    nightSky: '#221c30',
+    fog: [88, 410],
+    mist: 0.13,
+  },
+  huangshan: {
+    direct: [1.05, 0.46],
+    fill: [1.52, 0.86],
+    sun: ['#e6e6d4', '#8ea9bd'],
+    ambient: ['#c8d7d0', '#647c87'],
+    ground: ['#667d68', '#293f43'],
+    dusk: '#a2aeb0',
+    duskStrength: 0.17,
+    nightSky: '#253847',
+    fog: [40, 250],
+    mist: 0.2,
+  },
+  xihu: {
+    direct: [0.9, 0.35],
+    fill: [1.62, 0.82],
+    sun: ['#dbe7e3', '#7f9cab'],
+    ambient: ['#c7d9d5', '#526b76'],
+    ground: ['#607665', '#283e43'],
+    dusk: '#9aabb0',
+    duskStrength: 0.16,
+    nightSky: '#263a48',
+    fog: [48, 300],
+    mist: 0.2,
+  },
+  kanas: {
+    direct: [1.2, 0.45],
+    fill: [1.42, 0.82],
+    sun: ['#f0d19e', '#8aa5b3'],
+    ambient: ['#d9d5bb', '#5f7380'],
+    ground: ['#6e754f', '#293e48'],
+    dusk: '#9d8060',
+    duskStrength: 0.22,
+    nightSky: '#263b4a',
+    fog: [62, 330],
+    mist: 0.18,
+  },
+  deepsea: {
+    direct: [1.15, 1.05],
+    // Keep bioluminescent details readable at the forced night exposure.
+    fill: [1.85, 1.75],
+    sun: ['#8bd5e8', '#85bed8'],
+    ambient: ['#82becd', '#77acc2'],
+    ground: ['#3c7585', '#32546e'],
+    dusk: '#083e59',
+    duskStrength: 0,
+    nightSky: '#12394f',
+    fog: [70, 320],
+    mist: 0.1,
+  },
+  sakura: {
+    direct: [1.25, 0.4],
+    fill: [1.55, 0.8],
+    sun: ['#f2ead8', '#93a7b8'],
+    ambient: ['#dfe6da', '#5e7382'],
+    ground: ['#6f7c5c', '#283c40'],
+    dusk: '#e2b4a4',
+    duskStrength: 0.2,
+    nightSky: '#22303e',
+    fog: [55, 340],
+    mist: 0.15,
+  },
   empire: {
     direct: [1.65, 0.65],
     fill: [1.38, 1.0],
@@ -195,7 +281,7 @@ export function createLightingState(): SceneLightingState {
 }
 
 export function resolveSceneNight(id: PaintingId, time: TimeMode, progress: number): number {
-  if (id === 'starry' || id === 'winter') return 1;
+  if (isNightScene(id)) return 1;
   return time === 'night'
     ? 1
     : time === 'day'
@@ -203,6 +289,11 @@ export function resolveSceneNight(id: PaintingId, time: TimeMode, progress: numb
       : time === 'sunset'
         ? 0.4
         : clamp((progress - 0.48) * 2);
+}
+
+/** Shared by the renderer and UI so labels never use daylight ink over a night scene. */
+export function isNightScene(id: PaintingId): boolean {
+  return id === 'roadster' || id === 'starry' || id === 'winter' || id === 'arctic' || id === 'deepsea';
 }
 
 /** Reuse out across frames; the caller owns exponential smoothing of the night value. */

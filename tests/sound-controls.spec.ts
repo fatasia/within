@@ -11,6 +11,7 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto('/');
     await expect(page.getByRole('button', { name: '走进画中' })).toBeEnabled();
+    await page.getByRole('button', { name: '开启配乐与音效' }).click();
     await expect(page.getByRole('button', { name: '关闭配乐与音效' })).toHaveAttribute(
       'aria-pressed',
       'true',
