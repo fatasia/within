@@ -1,3 +1,4 @@
+import { QINGMING_TRIANGLE_BUDGET } from './qingmingBudget';
 import { qingmingMainStreet, qingmingRiver, cityGround } from './cityLayout';
 import * as THREE from 'three';
 import { it, expect } from 'vitest';
@@ -19,7 +20,7 @@ it('keeps the extended full-scroll city inside its existing draw and geometry bu
         (object.geometry.index?.count ?? object.geometry.getAttribute('position').count) / 3;
     });
     console.log('Qingming current budget', { triangles, meshes });
-    expect(triangles).toBeLessThan(450000);
+    expect(triangles).toBeLessThan(QINGMING_TRIANGLE_BUDGET);
     expect(meshes).toBeLessThan(40);
     expect(group.userData.layoutRevision.cityCourts).toBe(10);
     expect(

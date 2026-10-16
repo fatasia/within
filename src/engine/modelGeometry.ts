@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 /** Small geometry primitives shared by the handcrafted, texture-free models. */
 export function rod(
-  group: THREE.Group,
+  group: THREE.Object3D,
   start: THREE.Vector3,
   end: THREE.Vector3,
   radius: number,
@@ -22,7 +22,7 @@ export function rod(
 }
 
 export function curveRod(
-  group: THREE.Group,
+  group: THREE.Object3D,
   points: THREE.Vector3[],
   radius: number,
   material: THREE.Material,

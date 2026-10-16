@@ -15,7 +15,7 @@ import { curveRod } from './modelGeometry';
 type Update = (time: number) => void;
 
 /** Rigid pieces share one skinned draw; no per-frame vertex uploads or model rebuilds. */
-function bakeRig(root: THREE.Bone): THREE.SkinnedMesh {
+export function bakeQingmingRig(root: THREE.Bone): THREE.SkinnedMesh {
   root.updateMatrixWorld(true);
   const bones: THREE.Bone[] = [];
   const sources: THREE.Mesh[] = [];
@@ -285,7 +285,7 @@ export function buildQingmingLife(materials: StreetMaterials): THREE.Group {
     driver.arms[1]!.rotation.x = 0; // The right hand keeps hold of the leading rope.
   });
 
-  group.add(bakeRig(rig));
+  group.add(bakeQingmingRig(rig));
   group.userData.walkers = 13;
   group.userData.movingCarts = 1;
   const update = (time: number) => {
@@ -328,7 +328,7 @@ export function prepareQingmingBoats(vessels: THREE.Group[]): THREE.Group {
       );
     });
   }
-  const mesh = bakeRig(root);
+  const mesh = bakeQingmingRig(root);
   mesh.name = 'qingming-moving-boats';
   group.add(mesh);
   registerUpdate(group, (time) => {

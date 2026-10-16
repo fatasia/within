@@ -11,6 +11,9 @@ import {
   roofSurfaceY,
   type RoofProfile,
 } from './qingmingRoof';
+import { buildQingmingShopFront } from './qingmingCommerce';
+import { buildQingmingDailyLife } from './qingmingDailyLife';
+import { buildQingmingRiverCraft } from './qingmingRiverCraft';
 import { disposeObject } from './resources';
 import { batchQingmingSteps } from './qingmingBatch';
 import { buildQingmingLife, prepareQingmingBoats } from './qingmingLife';
@@ -147,14 +150,22 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     skin,
   };
   const signGeometry: THREE.BufferGeometry[] = [];
+  const shopInventory: { kind: string; position: number[] }[] = [];
   const box = (g: THREE.Group, size: Point, p: Point, m: THREE.Material) => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), m);
     mesh.position.set(...p);
     g.add(mesh);
     return mesh;
   };
-  const beam = (g: THREE.Group, a: Point, b: Point, r = 0.09, m: THREE.Material = wood) =>
-    rod(g, v(a), v(b), r, m, 1, 5);
+  const beam = (g: THREE.Group, a: Point, b: Point, r = 0.09, m: THREE.Material = wood) => {
+    const mesh = rod(g, v(a), v(b), r, m, 1, 5);
+    // Thin attached beams do not need hidden end-cap triangles.
+    if (r < 0.1) {
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.CylinderGeometry(r, r, v(a).distanceTo(v(b)), 5, 1, true);
+    }
+    return mesh;
+  };
 
   function roof(g: THREE.Group, w: number, d: number, y: number, h: number, detail = true) {
     const profile: RoofProfile = { width: w, depth: d, base: y - 0.2, rise: h, detailed: detail };
@@ -206,8 +217,35 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     city.add(g);
     const h = tall ? 6.4 : 3.9;
     const hero = Math.abs(x + 20) < 27;
+    const openShop = z > -60 && x > -66;
     box(g, [w + 0.5, 0.3, d + 0.45], [0, 0.15, 0], stone);
-    box(g, [w - 0.3, h, d - 0.3], [0, h / 2 + 0.3, 0], plaster);
+    if (openShop) {
+      // Real recessed storefront, not a door painted onto a solid building.
+      box(g, [w - 0.3, h, 0.2], [0, h / 2 + 0.3, -d / 2 + 0.25], plaster);
+      for (const side of [-1, 1])
+        box(g, [0.2, h, d - 0.3], [side * (w / 2 - 0.25), h / 2 + 0.3, 0], plaster);
+      box(
+        g,
+        [w - 0.3, Math.max(0.3, h - 2.5), 0.18],
+        [0, 2.8 + Math.max(0.3, h - 2.5) / 2, d / 2 - 0.12],
+        plaster,
+      );
+      box(g, [w - 0.5, 0.08, d - 0.5], [0, 0.34, 0], earth);
+      box(g, [w - 0.5, 0.12, d - 0.5], [0, 2.82, 0], wood);
+      const furnishing = buildQingmingShopFront(index, w - 0.65, d - 0.15, streetMaterials);
+      furnishing.position.y = 0.38;
+      g.add(furnishing);
+      shopInventory.push({ kind: furnishing.userData.shopKind, position: [x, z] });
+      for (const side of [-1, 1]) {
+        const shutter = box(
+          g,
+          [0.42, 2.28, 0.09],
+          [side * (w / 2 - 0.56), 1.5, d / 2 + 0.14],
+          wood,
+        );
+        shutter.rotation.y = side * 0.5;
+      }
+    } else box(g, [w - 0.3, h, d - 0.3], [0, h / 2 + 0.3, 0], plaster);
     for (const s of [-1, 1])
       for (const q of [-1, 1])
         box(g, [0.18, h, 0.18], [s * (w / 2 - 0.12), h / 2 + 0.3, q * (d / 2 - 0.12)], wood);
@@ -221,12 +259,12 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     }
     for (let j = 0; j < 3; j++) {
       const xx = (j - 1) * w * 0.29;
-      box(g, [w * 0.23, 1.8, 0.04], [xx, 1.35, d / 2], j === 1 ? dark : wood);
-      if (j !== 1)
+      if (!openShop) box(g, [w * 0.23, 1.8, 0.04], [xx, 1.35, d / 2], j === 1 ? dark : wood);
+      if (j !== 1 && !openShop)
         for (let k = -2; k <= 2; k++)
           box(g, [0.045, 1.5, 0.05], [xx + k * w * 0.035, 1.45, d / 2 + 0.05], linen);
       if (tall) {
-        box(g, [w * 0.22, 1.2, 0.04], [xx, 4.6, d / 2], glow);
+        box(g, [w * 0.22, 1.2, 0.04], [xx, 4.6, d / 2], dark);
         for (let k = -2; k <= 2; k++)
           box(g, [0.055, 1.3, 0.06], [xx + k * w * 0.04, 4.6, d / 2 + 0.08], dark);
         box(g, [w * 0.25, 0.08, 0.06], [xx, 4.6, d / 2 + 0.08], dark);
@@ -250,6 +288,22 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     }
     const awning = box(g, [w - 0.7, 0.09, 2.5], [0, 2.9, d / 2 + 0.85], index % 3 ? linen : blue);
     awning.rotation.x = 0.1;
+    if (openShop) {
+      // A few folds and a hanging edge replace the rigid solid awning slab.
+      g.remove(awning); awning.geometry.dispose();
+      const fabric=(index%3 ? linen : blue).clone();fabric.side=THREE.DoubleSide;
+      const geo=new THREE.PlaneGeometry(w-.7,2.5,8,2);
+      const p=geo.getAttribute('position');
+      for(let j=0;j<p.count;j++){
+        const xx=p.getX(j),zz=p.getY(j);
+        p.setXYZ(j,xx,2.95-Math.cos(xx/(w-.7)*Math.PI)*.12-zz*.075, d/2+.85+zz);
+      }
+      geo.computeVertexNormals();g.add(new THREE.Mesh(geo,fabric));
+      const trim=new THREE.PlaneGeometry(w-.7,.25,8,1);
+      const tp=trim.getAttribute('position');
+      for(let j=0;j<tp.count;j++)tp.setZ(j,Math.sin(tp.getX(j)*7)*.025);
+      trim.computeVertexNormals();const edge=new THREE.Mesh(trim,fabric);edge.position.set(0,2.69,d/2+2.1);g.add(edge);
+    }
     for (const s of [-1, 1])
       beam(g, [s * (w / 2 - 0.5), 0, d / 2 + 1.9], [s * (w / 2 - 0.5), 2.9, d / 2 + 1.9]);
     sign(g, 0, tall ? 5.9 : 3.2, d / 2 + 0.15, index);
@@ -260,7 +314,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       lamp.castShadow = false;
       g.add(lamp);
     }
-    if (hero) {
+    if (hero && !openShop) {
       // Street-level construction: stone footings, beam shoulders and diagonal brackets.
       for (const side of [-1, 1]) {
         const xx = side * (w / 2 - 0.38);
@@ -340,6 +394,15 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         jar.scale.setScalar(1.4);
         g.add(jar);
       }
+    }
+    if (x > 60 && index % 2 === 0) {
+      const rear = new THREE.Group();
+      rear.position.set(w * 0.12, 0, -d / 2 - 1.6);
+      g.add(rear);
+      box(rear, [w * 0.72, 2.5, 3.1], [0, 1.25, 0], plaster);
+      const rearRoof = roof(rear, w * 0.72 + 1, 4, 2.565, 0.65, false);
+      rear.add(new THREE.Mesh(roofGableGeometry(rearRoof, w * 0.72, 3.1, 2.5), plaster));
+      for (let k = 0; k < 5; k++) box(rear, [0.1, 1.3, 0.1], [(k - 2) * w * 0.12, 1.7, 1.6], wood);
     }
     return g;
   }
@@ -542,6 +605,9 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
     // Rural western quarter, then a progressively denser waterfront and city.
     city.add(yield* buildQingmingScrollSteps(streetMaterials));
+    const riverCraft = buildQingmingRiverCraft(streetMaterials);
+    const craftInventory = riverCraft.userData.inventory;
+    city.add(riverCraft);
     yield;
     for (let i = 0; i < 22; i++) {
       const x = -65 + i * 8.5;
@@ -573,7 +639,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         7 + (i % 2),
         i === 11 || i % 3 === 0,
         Math.sin(i * 0.8) * 0.08,
-        i === 11 ? 3 : i + 3,
+        i === 11 ? 0 : i + 3,
       );
       // Rear lanes stagger around courts instead of repeating the front street's rigid grid.
       if (x > 55 || i % 3 === 0)
@@ -910,6 +976,8 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       for (let row = 0; row < 4; row++) {
         if (row === 0 && i % 8 === 0) yield;
         const x = -129 + i * 1.14 + (row % 2) * 0.55;
+        // Most of the painted street is packed earth, not a continuous modern pavement.
+        if (x < 49 || x > 62) continue;
         const flag = box(
           city,
           [1.02, 0.035, 1.1],
@@ -933,14 +1001,23 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     const riverLife = prepareQingmingBoats(movingBoats);
     detached.add(riverLife);
     yield;
+    const dailyLife = buildQingmingDailyLife(streetMaterials);
+    detached.add(dailyLife);
+    yield;
     result = yield* batchQingmingSteps(city);
-    result.add(livingTransport, streetLife, riverLife);
+    result.add(livingTransport, streetLife, riverLife, dailyLife);
     const streetUpdate = featuredUpdate(streetLife)!;
     const riverUpdate = featuredUpdate(riverLife)!;
     registerUpdate(result, (time, night) => {
       streetUpdate(time, night);
       riverUpdate(time, night);
+      featuredUpdate(dailyLife)?.(time, night);
     });
+    result.userData.detailInventory = {
+      shops: shopInventory,
+      craft: craftInventory,
+      daily: dailyLife.userData.inventory,
+    };
     result.userData.streetFoci = {
       huanmen: [84.4, 6.0, -48.2],
       counter: [76.1, 3.8, -48.7],
@@ -973,7 +1050,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         ctx.font = '64px "Kaiti SC", KaiTi, serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ['茶坊', '脚店', '香铺', '酒肆', '布帛', '食店', '药铺', '杂货'].forEach((word, i) =>
+        ['酒肆', '茶食', '药铺', '布帛', '竹木', '纸铺', '米行', '客舍'].forEach((word, i) =>
           ctx.fillText(word, 256, i * 128 + 64),
         );
         const texture = new THREE.CanvasTexture(canvas);

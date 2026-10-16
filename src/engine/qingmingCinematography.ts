@@ -49,12 +49,25 @@ const frames: readonly CinematicKeyframe[] = [
     target: [46, 4, -45.2],
     detail: true,
   },
-  { progress: 0.79, subject: '城内街坊', eye: [70, 13, -31], target: [91, 5, -52] },
+  {
+    progress: 0.79,
+    subject: '驮货队与沿街顾客',
+    eye: [83, 6.6, -42.4],
+    target: [75, 4.7, -45.2],
+    detail: true,
+  },
   {
     progress: 0.83,
     subject: '酒肆欢门与邻铺',
     eye: [89, 8, -40],
     target: [84.4, 6.2, -48.2],
+    detail: true,
+  },
+  {
+    progress: 0.885,
+    subject: '八行铺面与柜台货品',
+    eye: [105, 6.2, -43],
+    target: [109.6, 4.3, -52],
     detail: true,
   },
   {

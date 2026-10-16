@@ -9,6 +9,12 @@ import {
 } from './sceneLighting';
 
 describe('Painting-specific seasonal light', () => {
+  it('keeps the Qingming street interiors readable at the end of the journey', () => {
+    const light = sampleSceneLighting(getPainting('qingming'), 1, true, 2, createLightingState());
+    expect(light.ambientIntensity).toBeGreaterThanOrEqual(1.2);
+    expect(light.sunIntensity).toBeGreaterThanOrEqual(0.75);
+    expect(light.groundColor.r).toBeGreaterThan(0.2);
+  });
   it('keeps polar ice and deepwater subjects readable while retaining a dark background', () => {
     for (const id of ['arctic', 'deepsea'] as const) {
       expect(isNightScene(id)).toBe(true);
