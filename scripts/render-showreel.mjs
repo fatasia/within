@@ -59,7 +59,7 @@ try {
       await Promise.all(ready);
       if (shot.action) engine.triggerRoadster(shot.action);
       const painting = getPainting(shot.id);
-      const view = shot.view ?? getCinematicView(painting, shot.progress);
+      const view = shot.view ?? (shot.overview ? painting.overview : getCinematicView(painting, shot.progress));
       const selectedTime = shot.time ?? (shot.id === 'arctic' ? 9 : 8);
       window.showreel = {
         frame(seconds, raw = false) {
