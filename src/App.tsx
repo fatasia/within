@@ -47,6 +47,7 @@ import { ENCOUNTER_TEXT } from './engine/easterEgg';
 import { CHARACTER_ENCOUNTERS } from './engine/characterEncounters';
 import { afterPaint } from './components/displayControls';
 import { useDisplayOrientation } from './components/useDisplayOrientation';
+import { MobileControls } from './components/MobileControls';
 import { OriginalViewer } from './components/OriginalViewer';
 
 const modes: { id: ViewMode; label: string; icon: Icon }[] = [
@@ -60,7 +61,7 @@ const times: { id: TimeMode; label: string; icon: Icon }[] = [
   { id: 'sunset', label: '薄暮', icon: SunHorizon },
   { id: 'night', label: '夜色', icon: Moon },
 ];
-type Modal = 'about' | 'help' | 'film' | 'encounter' | 'original' | 'scenes' | null;
+type Modal = 'mobile-tools' | 'mobile-chapters' | 'mobile-car' | 'about' | 'help' | 'film' | 'encounter' | 'original' | 'scenes' | null;
 function download(url: string, name: string) {
   const a = document.createElement('a');
   a.href = url;
@@ -650,6 +651,14 @@ export function App() {
       )}
       {state.entered && (
         <>
+          <MobileControls key={painting.id} painting={painting} state={state} sound={soundEnabled}
+            onHome={() => patch({ entered: false, playing: false, mode: 'scroll' })}
+            onScenes={() => { setSettings(false); setModal('scenes'); }}
+            onSound={() => void toggleSound()} onTools={() => { setSettings(false); setModal('mobile-tools'); }}
+            onChapters={() => setModal('mobile-chapters')} onCar={() => setModal('mobile-car')}
+            onMode={(mode) => patch({ mode, playing: false })}
+            onPlay={() => patch({ playing: !state.playing, mode: ['sakura','roadster'].includes(state.painting) && state.mode === 'walk' ? 'walk' : 'scroll', progress: state.progress >= 1 ? 0 : state.progress })}
+            onSeek={seek} driveHold={driveHold} />
           <div className="experience-title">
             <h1>{painting.shortTitle}</h1>
             <span>
@@ -981,6 +990,32 @@ export function App() {
           </button>
         </Dialog>
       )}
+      {modal === 'mobile-tools' && <Dialog title="画境工具" onClose={() => setModal(null)} className="mobile-sheet">
+        <div className="mobile-tool-grid">
+          <button onClick={() => setModal('original')}><ImageSquare size={22}/>原作与出处</button>
+          <button onClick={() => { setModal(null); saveView(); }}><Camera size={22}/>取景保存</button>
+          <button onClick={() => setModal('film')}><FilmStrip size={22}/>导出影片</button>
+          <button onClick={() => { setModal(null); setSettings(true); }}><GearSix size={22}/>画境设置</button>
+          <button disabled={rotating} onClick={() => { setModal(null); void rotateDisplay(); }}><ArrowsClockwise size={22}/>{landscape ? '切换竖屏' : '切换横屏'}</button>
+          <button onClick={() => { setModal(null); void toggleFull(); }}><ArrowsOut size={22}/>{fullscreen ? '退出全屏' : '全屏'}</button>
+          <button onClick={() => { engine.current?.resetView(); patch({progress:0,playing:false}); setModal(null); }}><ArrowCounterClockwise size={22}/>重置视角</button>
+          <button onClick={() => setModal('help')}><Info size={22}/>操作说明</button>
+          <button onClick={() => setModal('mobile-chapters')}><BookOpen size={22}/>章节与速度</button>
+        </div>
+      </Dialog>}
+      {modal === 'mobile-chapters' && <Dialog title={painting.shortTitle} onClose={() => setModal(null)} className="mobile-sheet">
+        <p className="mobile-chapter-copy">{chapter.description}</p>
+        <div className="mobile-chapter-list">{painting.chapters.map((c,i)=><button key={c.title} aria-current={i===chapterIndex?'step':undefined} onClick={()=>{seek(c.progress);setModal(null);}}><span>{String(i+1).padStart(2,'0')}</span>{c.title}{i===chapterIndex&&<Check size={18}/>}</button>)}</div>
+        <button className="mobile-speed" aria-label="切换游览速度" onClick={()=>patch({speed:nextSpeed(state.speed)})}>游览速度 <strong>{state.speed}×</strong></button>
+        {state.painting==='empire'&&<div className="mobile-chapter-list">{PERIODS.map((p,i)=><button key={p} aria-pressed={state.period===i} onClick={()=>{patch({period:i});setModal(null);}}>{p}</button>)}</div>}
+      </Dialog>}
+      {modal === 'mobile-car' && <Dialog title="赛博试场" onClose={()=>setModal(null)} className="mobile-sheet">
+        <p className="mobile-chapter-copy">{Math.round(roadsterSpeed)} KM/H · {roadsterChallenge}</p>
+        <div className="mobile-paints" aria-label="车身喷漆">{([['#c4c7cc','银白'],['#aa162d','深红'],['#1b2027','曜黑'],['#275072','深蓝'],['#dedbd0','珍珠白']] as const).map(([color,label])=><button key={color} aria-label={`${label}喷漆`} aria-pressed={roadsterPaint===color} onClick={()=>{setRoadsterPaint(color);engine.current?.setRoadsterPaint(color);}}><i style={{background:color}}/>{label}</button>)}</div>
+        <div className="mobile-tool-grid">{([['boost','冷气跃升'],['grip','吸附抓地'],['dance','车顶彩蛋'],['reset','重新发车']] as const).map(([action,label])=><button key={action} onClick={()=>{engine.current?.triggerRoadster(action);if(action==='reset')patch({progress:0,playing:false});setModal(null);}}>{label}</button>)}
+        <button {...driveHold('throttle',-1)}>按住倒车</button></div>
+        <p className="dialog-note">幻想互动 · 非实测车型能力</p>
+      </Dialog>}
       {modal === 'scenes' && (
         <Dialog title="切换画境" onClose={() => setModal(null)} className="scene-picker-dialog">
           <p className="scene-picker-hint">从展卷起点开始，保留当前播放、画质与声音设置。</p>

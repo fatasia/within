@@ -52,7 +52,7 @@ for (const viewport of [
       await page.getByRole('button', { name: '暂停游览', exact: true }).tap();
       await assertTouchable(
         page,
-        '.home-button, .view-switch button, .header-actions button, .scene-tools button, .playback button',
+        '.mobile-top button,.mobile-modes button,.mobile-play,.mobile-details',
       );
       await page.getByRole('button', { name: '步行', exact: true }).tap();
       await expect(page.getByRole('button', { name: '步行', exact: true })).toHaveAttribute(
@@ -69,7 +69,8 @@ for (const viewport of [
       await expect(page.locator('.toast')).toHaveCount(0, { timeout: 5000 });
       await page.screenshot({ path: testInfo.outputPath('walk-controls.png') });
 
-      await page.getByRole('button', { name: '查看原作与出处', exact: true }).tap();
+      await page.getByRole('button', { name: '更多操作', exact: true }).tap();
+      await page.getByRole('button', { name: '原作与出处', exact: true }).tap();
       const dialog = page.getByRole('dialog');
       const original = dialog.locator('.original-viewport img');
       await expect(original).toBeVisible();
@@ -95,6 +96,7 @@ for (const viewport of [
         name: viewport.width > viewport.height ? '切换竖屏' : '切换横屏',
         exact: true,
       });
+      await page.getByRole('button', { name: '更多操作', exact: true }).tap();
       await rotate.tap();
       await expect(page.getByRole('status')).toContainText('已切换');
       await expect(page.locator('html')).toHaveAttribute('data-view-rotation', '90');
@@ -112,6 +114,7 @@ for (const viewport of [
           },
         });
       });
+      await page.getByRole('button', { name: '更多操作', exact: true }).tap();
       await page
         .getByRole('button', {
           name: viewport.width > viewport.height ? '切换横屏' : '切换竖屏',
@@ -124,6 +127,7 @@ for (const viewport of [
         'data-locked-direction',
         viewport.width > viewport.height ? 'landscape' : 'portrait',
       );
+      await page.getByRole('button', { name: '更多操作', exact: true }).tap();
       await page.getByRole('button', { name: '画境设置', exact: true }).tap();
       await expect(page.getByRole('region', { name: '画境设置' })).toBeVisible();
       await page.getByRole('button', { name: '关闭设置' }).tap();
@@ -132,7 +136,8 @@ for (const viewport of [
 
       // Observe real configure calls rather than inferring loaded geometry from the heading.
       await page.evaluate(async () => {
-        const module = '/src/engine/Experience.ts';
+        const module = performance.getEntriesByType('resource').map(entry => entry.name)
+          .find(name => /\/src\/engine\/Experience\.ts(?:\?|$)/.test(name)) ?? '/src/engine/Experience.ts';
         const { Experience } = await import(/* @vite-ignore */ module);
         const original = Experience.prototype.configure;
         Experience.prototype.configure = function (state: { painting: string }) {
