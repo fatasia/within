@@ -1976,20 +1976,23 @@ button {
   text-underline-offset: 4px;
 }
 .original-link {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px max-content;
   margin-top: 10px;
   width: max-content;
   max-width: 100%;
-  flex-wrap: nowrap;
+  justify-content: start;
+  align-items: center;
+  column-gap: 10px;
+  padding-inline: 8px;
   white-space: nowrap;
   line-height: 1.2;
 }
 .original-link svg {
-  flex: 0 0 auto;
+  display: block;
 }
 .original-link > span {
   display: block;
-  flex: 0 0 auto;
 }
 .tool-button {
   min-width: 44px;
