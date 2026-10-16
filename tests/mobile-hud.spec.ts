@@ -35,7 +35,10 @@ for (const viewport of [
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByRole('button', { name: '切换游览速度', exact: true }).click();
     await expect(page.locator('.mobile-speed')).toContainText('2×');
-    await page.getByRole('dialog').getByRole('button', { name: /03.*白熊远行/ }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /03.*白熊远行/ })
+      .click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.getByRole('button', { name: '更多操作', exact: true }).click();
     await page.getByRole('button', { name: '画境设置', exact: true }).click();
@@ -59,7 +62,9 @@ for (const viewport of [
     ).toHaveAttribute('aria-pressed', 'true');
     await page.getByRole('button', { name: /选择画境，当前/ }).click();
     await page.getByRole('button', { name: /^切换到Roadster/ }).click();
-    await page.getByRole('button', { name: '玩车', exact: true }).click();
+    await page.locator('.mobile-boost').click();
+    await expect(page.locator('.mobile-car-speed')).toContainText('KM/H');
+    await page.getByRole('button', { name: '车辆', exact: true }).click();
     await page.getByRole('button', { name: '深红喷漆' }).click();
     await expect(page.getByRole('button', { name: '深红喷漆' })).toHaveAttribute(
       'aria-pressed',
@@ -67,6 +72,11 @@ for (const viewport of [
     );
     await page.getByRole('button', { name: '车顶彩蛋', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.getByRole('button', { name: '车辆', exact: true }).click();
+    await page.getByRole('button', { name: '切换倒车挡', exact: true }).click();
+    await expect(page.getByRole('button', { name: '倒车', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: '车辆', exact: true }).click();
+    await page.getByRole('button', { name: '切换前进挡', exact: true }).click();
     const throttle = page.getByRole('button', { name: '油门', exact: true });
     await throttle.dispatchEvent('pointerdown', {
       pointerId: 1,

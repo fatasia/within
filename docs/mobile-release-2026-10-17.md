@@ -10,3 +10,7 @@
 225 项单元测试、lint、TypeScript、生产构建通过；11 项 E2E 分组复跑通过。截图：artifacts/mobile-hud-2026-10-17/。构建仍提示原有 Three.js 主包较大，未宣称真机帧率。
 
 部署：沿用轻量服务器 /within/、GitHub Pages 和 CloudBase /within/，不修改域名或权限。三处均 HTTP 200，入口一致为 index-DMAQccaD.js；腾讯轻量服务器手机端实际进入、时间轴与更多菜单截图通过。GitHub Pages 运行 38937114082 成功，CloudBase 80 文件上传及校验通过。轻量服务器备份 /srv/within-backup-20261017-0110。
+
+## 车辆工具栏追加
+
+方向键与踏板合并为两个拇指区域；跃升保留快捷按钮，顶栏显示实时车速。车辆面板集中换漆、抓地、舞蹈和重置，倒挡改为选择挡位后直接用踏板操作。保留山水时间轴。360/390px 竖屏与844px横屏、换漆、跃升、换挡、配乐共6项 E2E 通过，lint/typecheck/build 通过。新入口 index-CkGXEE9Y.js。

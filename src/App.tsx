@@ -79,6 +79,7 @@ function loadInitial(): ExperienceState {
 }
 
 export function App() {
+  const [roadsterReverse, setRoadsterReverse] = useState(false);
   const [roadsterMusicPlaying, setRoadsterMusicPlaying] = useState(false);
   const roadsterMusic = useRef<RoadsterMusic | null>(null);
   const [roadsterPaint,setRoadsterPaint]=useState('#c4c7cc');
@@ -656,6 +657,7 @@ export function App() {
             onScenes={() => { setSettings(false); setModal('scenes'); }}
             onSound={() => void toggleSound()} onTools={() => { setSettings(false); setModal('mobile-tools'); }}
             onChapters={() => setModal('mobile-chapters')} onCar={() => setModal('mobile-car')}
+            onBoost={() => engine.current?.triggerRoadster('boost')} carSpeed={roadsterSpeed} reverse={roadsterReverse}
             onMode={(mode) => patch({ mode, playing: false })}
             onPlay={() => patch({ playing: !state.playing, mode: ['sakura','roadster'].includes(state.painting) && state.mode === 'walk' ? 'walk' : 'scroll', progress: state.progress >= 1 ? 0 : state.progress })}
             onSeek={seek} driveHold={driveHold} />
@@ -1009,11 +1011,11 @@ export function App() {
         <button className="mobile-speed" aria-label="切换游览速度" onClick={()=>patch({speed:nextSpeed(state.speed)})}>游览速度 <strong>{state.speed}×</strong></button>
         {state.painting==='empire'&&<div className="mobile-chapter-list">{PERIODS.map((p,i)=><button key={p} aria-pressed={state.period===i} onClick={()=>{patch({period:i});setModal(null);}}>{p}</button>)}</div>}
       </Dialog>}
-      {modal === 'mobile-car' && <Dialog title="赛博试场" onClose={()=>setModal(null)} className="mobile-sheet">
-        <p className="mobile-chapter-copy">{Math.round(roadsterSpeed)} KM/H · {roadsterChallenge}</p>
+      {modal === 'mobile-car' && <Dialog title="赛博试场" onClose={()=>setModal(null)} className="mobile-sheet mobile-car-sheet">
+        <div className="mobile-car-summary"><span><strong>{Math.round(roadsterSpeed)}</strong> KM/H</span><small>{roadsterChallenge}</small></div>
         <div className="mobile-paints" aria-label="车身喷漆">{([['#c4c7cc','银白'],['#aa162d','深红'],['#1b2027','曜黑'],['#275072','深蓝'],['#dedbd0','珍珠白']] as const).map(([color,label])=><button key={color} aria-label={`${label}喷漆`} aria-pressed={roadsterPaint===color} onClick={()=>{setRoadsterPaint(color);engine.current?.setRoadsterPaint(color);}}><i style={{background:color}}/>{label}</button>)}</div>
         <div className="mobile-tool-grid">{([['boost','冷气跃升'],['grip','吸附抓地'],['dance','车顶彩蛋'],['reset','重新发车']] as const).map(([action,label])=><button key={action} onClick={()=>{engine.current?.triggerRoadster(action);if(action==='reset')patch({progress:0,playing:false});setModal(null);}}>{label}</button>)}
-        <button {...driveHold('throttle',-1)}>按住倒车</button></div>
+        <button aria-pressed={roadsterReverse} onClick={()=>{engine.current?.setRoadsterInput({throttle:0});setRoadsterReverse(!roadsterReverse);setModal(null);}}>{roadsterReverse?'切换前进挡':'切换倒车挡'}</button></div>
         <p className="dialog-note">幻想互动 · 非实测车型能力</p>
       </Dialog>}
       {modal === 'scenes' && (
