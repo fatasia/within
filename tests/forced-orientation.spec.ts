@@ -49,15 +49,16 @@ for (const viewport of [
       });
       await page.getByRole('button', { name: '走进画中', exact: true }).tap();
       await page.getByRole('button', { name: '暂停游览', exact: true }).tap();
+      await page.getByRole('button', { name: '更多操作', exact: true }).tap();
       await page.getByRole('button', { name: '切换横屏', exact: true }).tap();
       await expect(page.locator('html')).toHaveAttribute('data-view-rotation', '90');
-      await expect(page.getByRole('button', { name: '切换竖屏', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: '更多操作', exact: true })).toBeVisible();
       const dimensions = await page
         .locator('[data-testid=world]')
         .evaluate((n) => ({ width: n.clientWidth, height: n.clientHeight }));
       expect(dimensions).toEqual({ width: viewport.height, height: viewport.width });
       const controls = await page
-        .locator('.home-button,.scene-tools button,.scene-switcher button,.view-switch button')
+        .locator('.mobile-top button,.mobile-modes button')
         .evaluateAll((nodes) =>
           nodes.map((n) => {
             const r = n.getBoundingClientRect();
@@ -117,7 +118,8 @@ for (const viewport of [
       expect(Math.abs(motion.moving.x)).toBeLessThan(0.01);
       expect(motion.released).toEqual({ x: 0, y: 0 });
       await page.screenshot({ path: testInfo.outputPath('forced-landscape.png') });
-      await page.getByRole('button', { name: '查看原作与出处', exact: true }).tap();
+      await page.getByRole('button', { name: '更多操作', exact: true }).tap();
+      await page.getByRole('button', { name: '原作与出处', exact: true }).tap();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
       await expect
@@ -131,6 +133,7 @@ for (const viewport of [
       await expect(page.locator('html')).toHaveAttribute('data-view-rotation', '0');
       await page.setViewportSize(viewport);
       await expect(page.locator('html')).toHaveAttribute('data-view-rotation', '90');
+      await page.getByRole('button', { name: '更多操作', exact: true }).tap();
       await page.getByRole('button', { name: '切换竖屏', exact: true }).tap();
       await expect(page.locator('html')).toHaveAttribute('data-view-rotation', '0');
       await page.getByRole('button', { name: '返回画境首页', exact: true }).tap();
