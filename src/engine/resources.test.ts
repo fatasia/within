@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { batchStatic, disposeObject } from './resources';
+import { batchStatic, disposeObject, estimateSceneBytes } from './resources';
 
 function expandedPositions(geometry: THREE.BufferGeometry): number[] {
   const position = geometry.getAttribute('position');
@@ -11,6 +11,20 @@ function expandedPositions(geometry: THREE.BufferGeometry): number[] {
 }
 
 describe('indexed static material batches', () => {
+  it('estimates retained buffers once per shared allocation, including instances and morphs', () => {
+    const group = new THREE.Group();
+    const geometry = new THREE.BoxGeometry();
+    const material = new THREE.MeshBasicMaterial();
+    group.add(new THREE.Mesh(geometry, material));
+    const once = estimateSceneBytes(group);
+    group.add(new THREE.Mesh(geometry, material));
+    expect(estimateSceneBytes(group)).toBe(once);
+    geometry.morphAttributes.position = [new THREE.Float32BufferAttribute(new Float32Array(72), 3)];
+    const instances = new THREE.InstancedMesh(geometry, material, 3);
+    group.add(instances);
+    expect(estimateSceneBytes(group)).toBe(once + (72 * 4 + 3 * 16 * 4) * 2);
+    disposeObject(group);
+  });
   it('preserves every transformed triangle while mixing indexed and unindexed parts', () => {
     const root = new THREE.Group();
     root.position.set(4, -2, 8);

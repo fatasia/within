@@ -4,9 +4,11 @@ import type { Painting } from '../types';
 import { seededRandom } from './math';
 import { boat } from './props';
 import { curveRod, rod } from './modelGeometry';
-import { batchStatic } from './resources';
+import { disposeObject } from './resources';
+import { batchQingmingSteps } from './qingmingBatch';
 import { buildQingmingEpisodes, rammedWallSegment } from './qingmingEpisodes';
-import { prepareLivingTransport } from './livingActors';
+import { prepareQingmingTransportSteps } from './qingmingTransport';
+import { buildQingmingScrollSteps, QINGMING_SCROLL_FOCI } from './qingmingScroll';
 import {
   clothCanopy,
   potteryJar,
@@ -24,6 +26,13 @@ const mat = (color: string) => new THREE.MeshStandardMaterial({ color, roughness
 
 /** Hand-built Song street sections, batched by material after placement. */
 export function buildQingming(painting: Painting): THREE.Group {
+  const steps = buildQingmingSteps(painting);
+  let next = steps.next();
+  while (!next.done) next = steps.next();
+  return next.value;
+}
+
+export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.Group> {
   const city = new THREE.Group();
   const random = seededRandom(painting.seed);
   const wood = mat('#614b37'),
@@ -368,330 +377,393 @@ export function buildQingming(painting: Painting): THREE.Group {
   }
 
   // Earthen lanes remain open: a waterfront path and the east-west city street.
-  box(city, [265, 0.04, 7], [0, 2.82, -45], earth);
-  for (let x = -126; x < 135; x += 7)
-    for (const s of [-1, 1]) {
-      box(city, [7.1, 0.05, 5], [x, 2.81, qingmingRiver(x) + s * 17], earth);
-      if (x > -60) box(city, [7, 1.2, 0.6], [x, 2.18, qingmingRiver(x) + s * 12.4], stone);
-    }
-  // Rural western quarter, then a progressively denser waterfront and city.
-  for (let i = 0; i < 9; i++)
-    house(
-      -122 + (i % 3) * 16,
-      -33 - Math.floor(i / 3) * 17,
-      6.1,
-      5.4,
-      false,
-      i % 2 ? 0.1 : -0.1,
-      i,
-    );
-  for (let i = 0; i < 22; i++) {
-    const x = -65 + i * 8.5;
-    if (Math.abs(x + 20) < 7) continue;
-    house(x, qingmingRiver(x) - 26.5, 6.7 + random(), 6.8, i % 4 === 1, 0, i);
-  }
-  for (let i = 0; i < 16; i++) {
-    const x = -8 + i * 8.4;
-    if (Math.abs(x - 55) < 7) continue;
-    house(x, -55, 6.7, 7.5, i === 11 || i % 3 === 0, 0, i === 11 ? 3 : i + 3);
-    house(x, -83, 6.5, 8, i % 4 === 0, 0, i + 5);
-  }
-  for (let i = 0; i < 13; i++) {
-    const x = -46 + i * 12;
-    if (Math.abs(x + 20) < 8) continue;
-    house(x, qingmingRiver(x) + 31, 7, 6, i % 5 === 0, Math.PI, i);
-  }
-  for (let i = 0; i < 36; i++) {
-    const x = -64 + i * 5.4;
-    if (Math.abs(x + 20) < 8) continue;
-    stall(x, qingmingRiver(x) - 18.5, 0, i);
-  }
-  for (let i = 0; i < 20; i++) stall(-4 + i * 6.4, -40, Math.PI, i);
-  for (let i = 0; i < 115; i++) {
-    const x = -125 + random() * 254;
-    const z =
-      i % 3 === 0
-        ? -45 + (random() - 0.5) * 4
-        : qingmingRiver(x) + (i % 2 ? 16 : -15) + (random() - 0.5) * 2;
-    person(x, z, random() * Math.PI * 2, i);
-  }
-
-  // Rainbow bridge: a clear river span with interlocking timber ribs, no masonry arch.
-  const riverZ = qingmingRiver(-20);
-  for (let i = 0; i < 55; i++) {
-    const z = riverZ - 22 + i * 0.8,
-      y = qingmingBridgeHeight(z);
-    const slope = ((z - riverZ) * 13.4) / (22 * 22);
-    const deck = box(
-      city,
-      [8.6, 0.28, 0.82 * Math.sqrt(1 + slope * slope)],
-      [-20, y - 0.14, z],
-      i % 4 ? wood : ochre,
-    );
-    deck.rotation.x = Math.atan(slope);
-    const grain = new THREE.Group();
-    grain.position.copy(deck.position);
-    grain.rotation.copy(deck.rotation);
-    city.add(grain);
-    for (let j = 0; j < 4; j++) {
-      const mark = box(
-        grain,
-        [1.1 + (j % 2) * 0.6, 0.006, 0.012],
-        [-3 + j * 1.9, 0.145, (j % 2 ? -1 : 1) * 0.18],
-        dark,
-      );
-      mark.rotation.y = (j % 2 ? 1 : -1) * 0.012;
-    }
-    if (i % 5 === 0) {
-      const knot = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.008, 3, 8), dark);
-      knot.rotation.x = Math.PI / 2;
-      knot.scale.x = 2.2;
-      knot.position.set(1.6, 0.148, 0.1);
-      grain.add(knot);
-    }
-    if (i % 3 === 0)
+  let result: THREE.Group | undefined;
+  const detached = new THREE.Group();
+  let completed = false;
+  try {
+    box(city, [265, 0.04, 7], [0, 2.82, -45], earth);
+    for (let x = -126; x < 135; x += 7)
       for (const s of [-1, 1]) {
-        beam(city, [-20 + s * 4.2, y, z], [-20 + s * 4.2, y + 1.2, z], 0.085);
-        if (i < 52) {
-          beam(
-            city,
-            [-20 + s * 4.2, y + 0.25, z],
-            [-20 + s * 4.2, qingmingBridgeHeight(z + 2.4) + 0.95, z + 2.4],
-            0.045,
-          );
-          box(city, [0.24, 0.1, 0.25], [-20 + s * 4.2, y + 1.22, z], wood);
-          beam(
-            city,
-            [-20 + s * 4.2, y + 1.12, z],
-            [-20 + s * 4.2, qingmingBridgeHeight(z + 2.4) + 1.12, z + 2.4],
-            0.09,
-          );
-        }
+        box(city, [7.1, 0.05, 5], [x, 2.81, qingmingRiver(x) + s * 17], earth);
+        if (x > -60) box(city, [7, 1.2, 0.6], [x, 2.18, qingmingRiver(x) + s * 12.4], stone);
+        yield;
       }
-  }
-  for (const x of [-23.5, -21.2, -18.8, -16.5])
-    for (let i = 0; i < 10; i++) {
-      const z1 = riverZ - 22 + i * 4.4,
-        z2 = z1 + 4.4;
-      beam(
-        city,
-        [x, qingmingBridgeHeight(z1) - 0.9, z1],
-        [x, qingmingBridgeHeight(z2) - 0.9, z2],
-        0.27,
-      );
-      if (i < 9)
-        beam(
-          city,
-          [x, qingmingBridgeHeight(z1) - 1.7, z1],
-          [x, qingmingBridgeHeight(z2 + 4.4) - 0.5, z2 + 4.4],
-          0.16,
-        );
-      beam(
-        city,
-        [-24, qingmingBridgeHeight(z1) - 0.65, z1],
-        [-16, qingmingBridgeHeight(z1) - 0.65, z1],
-        0.15,
-      );
-    }
-  for (let i = 0; i < 18; i++) {
-    const z = riverZ - 20 + i * 2.2;
-    person(-21.6 + random() * 3.3, z, i % 2 ? 0 : Math.PI, i, qingmingBridgeHeight(z));
-  }
-  for (const z of [riverZ - 12, riverZ + 12])
-    stall(-23, z, Math.PI / 2, 1, qingmingBridgeHeight(z));
-
-  // Approaching from the west, the bow enters the span without an upright mast.
-  const passageBoat = qingmingPassageBoat({ timber: wood, dark, cloth: linen, robe: blue, skin });
-  passageBoat.position.set(-25, 0.45, riverZ - 0.5);
-  city.add(passageBoat);
-
-  // The gate is aligned with the principal street; an actual open arch is retained.
-  const gate = new THREE.Group();
-  gate.position.set(55, 2.8, -45);
-  gate.rotation.y = Math.PI / 2;
-  city.add(gate);
-  for (const s of [-1, 1]) box(gate, [9, 10, 7], [s * 9, 5, 0], stone);
-  box(gate, [10, 2.8, 7], [0, 9, 0], stone);
-  const arch = new THREE.Mesh(new THREE.TorusGeometry(4.3, 0.6, 4, 18, Math.PI), stone);
-  arch.position.y = 4;
-  arch.scale.z = 5;
-  gate.add(arch);
-  for (const face of [-1, 1])
+    // Rural western quarter, then a progressively denser waterfront and city.
+    city.add(yield* buildQingmingScrollSteps(streetMaterials));
+    yield;
     for (let i = 0; i < 22; i++) {
-      const a = (i / 22) * Math.PI + 0.008,
-        b = ((i + 1) / 22) * Math.PI - 0.008;
-      const shape = new THREE.Shape();
-      shape.moveTo(Math.cos(a) * 3.71, Math.sin(a) * 3.71);
-      shape.lineTo(Math.cos(a) * 4.9, Math.sin(a) * 4.9);
-      shape.absarc(0, 0, 4.9, a, b, false);
-      shape.lineTo(Math.cos(b) * 3.71, Math.sin(b) * 3.71);
-      shape.absarc(0, 0, 3.71, b, a, true);
-      shape.closePath();
-      const wedge = new THREE.Mesh(
-        new THREE.ExtrudeGeometry(shape, { depth: 0.16, bevelEnabled: false, curveSegments: 2 }),
-        i % 3 ? stone : streetMaterials.clay,
-      );
-      wedge.position.set(0, 4, face > 0 ? 3.51 : -3.67);
-      gate.add(wedge);
+      const x = -65 + i * 8.5;
+      if (Math.abs(x + 20) < 7) continue;
+      house(x, qingmingRiver(x) - 26.5, 6.7 + random(), 6.8, i % 4 === 1, 0, i);
+      yield;
     }
-  // Recessed brick joints, jambs and door leaves give the gateway a human-scale edge.
-  const mortar = mat('#827c68');
-  for (const face of [-1, 1])
-    for (const side of [-1, 1]) {
-      for (let row = 0; row < 17; row++) {
-        box(gate, [8.9, 0.035, 0.025], [side * 9, row * 0.56 + 0.3, face * 3.515], mortar);
-        for (let j = 0; j < 6; j++)
-          box(
-            gate,
-            [0.035, 0.53, 0.03],
-            [side * 9 - 4.1 + j * 1.45 + (row % 2) * 0.5, row * 0.56 + 0.58, face * 3.52],
-            mortar,
-          );
-      }
-      box(gate, [0.18, 4.1, 6.6], [side * 4.55, 2.05, 0], wood);
-      for (let j = 0; j < 9; j++)
-        box(gate, [0.2, 3.95, 0.06], [side * 4.42, 2.05, -2.9 + j * 0.7], dark);
+    for (let i = 0; i < 16; i++) {
+      const x = -8 + i * 8.4;
+      if (Math.abs(x - 55) < 7) continue;
+      house(x, -55, 6.7, 7.5, i === 11 || i % 3 === 0, 0, i === 11 ? 3 : i + 3);
+      // Rear lanes stagger around courts instead of repeating the front street's rigid grid.
+      if (x > 55 || i % 3 === 0)
+        house(
+          x + Math.sin(i * 1.7) * 1.3,
+          -83 + Math.sin(i * 0.8) * 1.5,
+          6.5,
+          8,
+          i % 4 === 0,
+          0.05 * Math.sin(i),
+          i + 5,
+        );
+      yield;
     }
-  for (let i = -7; i <= 7; i++) box(gate, [1.05, 1.05, 0.8], [i * 1.8, 10.5, 3.1], stone);
-  box(gate, [12, 4.5, 6], [0, 12.3, 0], plaster);
-  for (const face of [-1, 1])
-    for (let i = -2; i <= 2; i++) {
-      box(gate, [1.15, 2.7, 0.08], [i * 2.1, 12.3, face * 3.05], dark);
-      for (let j = -1; j <= 1; j++)
-        box(gate, [0.065, 2.7, 0.08], [i * 2.1 + j * 0.3, 12.3, face * 3.12], wood);
+    for (let i = 0; i < 13; i++) {
+      const x = -46 + i * 12;
+      if (Math.abs(x + 20) < 8) continue;
+      house(x, qingmingRiver(x) + 31, 7, 6, i % 5 === 0, Math.PI, i);
+      yield;
     }
-  roof(gate, 15, 10, 14.5, 3.6);
-  for (const s of [-1, 1])
-    for (let j = 0; j < 3; j++) {
-      const z = -45 + s * (22 + j * 12);
-      if (z > -11 || z < -100) continue;
-      const wall = rammedWallSegment(streetMaterials);
-      wall.position.set(55, 2.8, z);
-      city.add(wall);
-      for (let k = 0; k < 5; k++)
-        box(city, [0.8, 1, 1.1], [56.7, 10.5, z - 5 + k * 2.5], streetMaterials.earth);
+    for (let i = 0; i < 36; i++) {
+      const x = -64 + i * 5.4;
+      if (Math.abs(x + 20) < 8) continue;
+      stall(x, qingmingRiver(x) - 18.5, 0, i);
+      yield;
+    }
+    for (let i = 0; i < 20; i++) {
+      stall(-4 + i * 6.4, -40, Math.PI, i);
+      yield;
+    }
+    for (let i = 0; i < 115; i++) {
+      const x = -125 + random() * 254;
+      const z =
+        i % 3 === 0
+          ? -45 + (random() - 0.5) * 4
+          : qingmingRiver(x) + (i % 2 ? 16 : -15) + (random() - 0.5) * 2;
+      person(x, z, random() * Math.PI * 2, i);
+      yield;
     }
 
-  // Cargo boats, riverside timber jetties, sacks and handcarts.
-  for (let i = 0; i < 11; i++) {
-    const x = -114 + i * 23;
-    if (Math.abs(x + 20) < 9) continue;
-    const vessel = boat();
-    vessel.position.set(x, 0.6, qingmingRiver(x) + (i % 2 ? -7 : 6));
-    vessel.scale.setScalar(i % 3 ? 1.3 : 1.8);
-    vessel.rotation.y = i % 2 ? 0.08 : Math.PI + 0.1;
-    city.add(vessel);
-    if (i % 2) {
-      const z = qingmingRiver(x) - 10;
-      box(city, [8, 0.3, 4.8], [x, 2, z], wood);
-      for (const a of [-1, 1])
-        for (const b of [-1, 1])
-          beam(city, [x + a * 3.5, 0, z + b * 2], [x + a * 3.5, 2.5, z + b * 2], 0.16);
-      for (let k = 0; k < 8; k++)
-        box(city, [0.8, 0.6, 0.7], [x - 2 + (k % 4), 2.5, z + Math.floor(k / 4)], linen);
+    // Rainbow bridge: a clear river span with interlocking timber ribs, no masonry arch.
+    const riverZ = qingmingRiver(-20);
+    for (let i = 0; i < 55; i++) {
+      yield;
+      const z = riverZ - 22 + i * 0.8,
+        y = qingmingBridgeHeight(z);
+      const slope = ((z - riverZ) * 13.4) / (22 * 22);
+      const deck = box(
+        city,
+        [8.6, 0.28, 0.82 * Math.sqrt(1 + slope * slope)],
+        [-20, y - 0.14, z],
+        i % 4 ? wood : ochre,
+      );
+      deck.rotation.x = Math.atan(slope);
+      const grain = new THREE.Group();
+      grain.position.copy(deck.position);
+      grain.rotation.copy(deck.rotation);
+      city.add(grain);
+      for (let j = 0; j < 4; j++) {
+        const mark = box(
+          grain,
+          [1.1 + (j % 2) * 0.6, 0.006, 0.012],
+          [-3 + j * 1.9, 0.145, (j % 2 ? -1 : 1) * 0.18],
+          dark,
+        );
+        mark.rotation.y = (j % 2 ? 1 : -1) * 0.012;
+      }
+      if (i % 5 === 0) {
+        const knot = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.008, 3, 8), dark);
+        knot.rotation.x = Math.PI / 2;
+        knot.scale.x = 2.2;
+        knot.position.set(1.6, 0.148, 0.1);
+        grain.add(knot);
+      }
+      if (i % 3 === 0)
+        for (const s of [-1, 1]) {
+          beam(city, [-20 + s * 4.2, y, z], [-20 + s * 4.2, y + 1.2, z], 0.085);
+          if (i < 52) {
+            beam(
+              city,
+              [-20 + s * 4.2, y + 0.25, z],
+              [-20 + s * 4.2, qingmingBridgeHeight(z + 2.4) + 0.95, z + 2.4],
+              0.045,
+            );
+            box(city, [0.24, 0.1, 0.25], [-20 + s * 4.2, y + 1.22, z], wood);
+            beam(
+              city,
+              [-20 + s * 4.2, y + 1.12, z],
+              [-20 + s * 4.2, qingmingBridgeHeight(z + 2.4) + 1.12, z + 2.4],
+              0.09,
+            );
+          }
+        }
     }
-  }
-  for (let i = 0; i < 8; i++) {
-    if (i === 5) continue; // Replaced by the complete gate approach rather than a duplicate cart.
-    const x = -90 + i * 28,
-      z = -44;
-    box(city, [2.5, 0.2, 1.4], [x, 3.55, z], wood);
-    for (const s of [-1, 1]) {
-      const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.065, 4, 12), dark);
-      wheel.position.set(x, 3.45, z + s * 0.85);
-      city.add(wheel);
-      for (let k = 0; k < 4; k++)
+    for (const x of [-23.5, -21.2, -18.8, -16.5])
+      for (let i = 0; i < 10; i++) {
+        yield;
+        const z1 = riverZ - 22 + i * 4.4,
+          z2 = z1 + 4.4;
         beam(
           city,
-          [
-            x - Math.cos((k * Math.PI) / 4) * 0.6,
-            3.45 - Math.sin((k * Math.PI) / 4) * 0.6,
-            z + s * 0.85,
-          ],
-          [
-            x + Math.cos((k * Math.PI) / 4) * 0.6,
-            3.45 + Math.sin((k * Math.PI) / 4) * 0.6,
-            z + s * 0.85,
-          ],
-          0.035,
+          [x, qingmingBridgeHeight(z1) - 0.9, z1],
+          [x, qingmingBridgeHeight(z2) - 0.9, z2],
+          0.27,
         );
-      beam(city, [x, 3.55, z + s * 0.55], [x + 2.8, 3.25, z + s * 0.55], 0.055);
-    }
-    for (let k = 0; k < 3; k++) box(city, [0.65, 0.6, 1.05], [x - 0.8 + k * 0.8, 3.95, z], linen);
-  }
-  for (let i = 0; i < 34; i++) {
-    const x = -131 + random() * 260;
-    tree(x, i < 16 ? qingmingRiver(x) + 22 : -95 + random() * 13, 4.8 + random() * 3);
-  }
-  // Farm furrows and woven fences keep the western approach intentionally quiet.
-  for (let i = 0; i < 12; i++) box(city, [48, 0.07, 0.18], [-108, 2.88, 27 + i * 1.2], ochre);
-  for (let i = 0; i < 20; i++) {
-    const x = -133 + i * 2.4;
-    beam(city, [x, 2.8, 44], [x, 3.85, 44], 0.05);
-    if (i < 19) beam(city, [x, 3.4, 44], [x + 2.4, 3.4, 44], 0.045);
-  }
-
-  // Broken, slightly uneven paving; never a single featureless street plane.
-  const paving = [mat('#b3aa91'), mat('#a89d82')];
-  for (let i = 0; i < 230; i++)
-    for (let row = 0; row < 4; row++) {
-      const x = -129 + i * 1.14 + (row % 2) * 0.55;
-      const flag = box(
-        city,
-        [1.02, 0.035, 1.1],
-        [x, 2.85 + random() * 0.015, -46.8 + row * 1.2],
-        paving[(i + row) % 2]!,
-      );
-      flag.rotation.y = (random() - 0.5) * 0.08;
-    }
-
-  const episodes = buildQingmingEpisodes(streetMaterials);
-  const transport = episodes.getObjectByName('gate-donkey-cart') as THREE.Group;
-  transport.removeFromParent();
-  const livingTransport = prepareLivingTransport(transport);
-  city.add(episodes);
-  const result = batchStatic(city);
-  result.add(livingTransport);
-  result.userData.streetFoci = {
-    huanmen: [84.4, 6.0, -48.2],
-    counter: [76.1, 3.8, -48.7],
-    transport: [47, 4.0, -45.2],
-    rammedWall: [57.5, 6, -67],
-  };
-  result.userData.bridgePassage = {
-    name: 'qingming-bridge-passage-boat',
-    position: [-25, 0.45, riverZ - 0.5],
-    pose: 'fixed-lowered-rig',
-  };
-  // One atlas for all legible shop signs, kept separate from material-color batching.
-  if (typeof document !== 'undefined' && signGeometry.length) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 1024;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#3d392d';
-      ctx.fillRect(0, 0, 512, 1024);
-      ctx.fillStyle = '#d8c59a';
-      ctx.font = '64px "Kaiti SC", KaiTi, serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ['茶坊', '脚店', '香铺', '酒肆', '布帛', '食店', '药铺', '杂货'].forEach((word, i) =>
-        ctx.fillText(word, 256, i * 128 + 64),
-      );
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      const geo = mergeGeometries(signGeometry);
-      if (geo)
-        result.add(
-          new THREE.Mesh(
-            geo,
-            new THREE.MeshStandardMaterial({ map: texture, roughness: 1, side: THREE.DoubleSide }),
-          ),
+        if (i < 9)
+          beam(
+            city,
+            [x, qingmingBridgeHeight(z1) - 1.7, z1],
+            [x, qingmingBridgeHeight(z2 + 4.4) - 0.5, z2 + 4.4],
+            0.16,
+          );
+        beam(
+          city,
+          [-24, qingmingBridgeHeight(z1) - 0.65, z1],
+          [-16, qingmingBridgeHeight(z1) - 0.65, z1],
+          0.15,
         );
+      }
+    for (let i = 0; i < 18; i++) {
+      const z = riverZ - 20 + i * 2.2;
+      person(-21.6 + random() * 3.3, z, i % 2 ? 0 : Math.PI, i, qingmingBridgeHeight(z));
+      yield;
+    }
+    for (const z of [riverZ - 12, riverZ + 12])
+      stall(-23, z, Math.PI / 2, 1, qingmingBridgeHeight(z));
+
+    // Approaching from the west, the bow enters the span without an upright mast.
+    const passageBoat = qingmingPassageBoat({ timber: wood, dark, cloth: linen, robe: blue, skin });
+    passageBoat.position.set(-25, 0.45, riverZ - 0.5);
+    city.add(passageBoat);
+    yield;
+
+    // The gate is aligned with the principal street; an actual open arch is retained.
+    const gate = new THREE.Group();
+    gate.position.set(55, 2.8, -45);
+    gate.rotation.y = Math.PI / 2;
+    city.add(gate);
+    for (const s of [-1, 1]) box(gate, [9, 10, 7], [s * 9, 5, 0], stone);
+    box(gate, [10, 2.8, 7], [0, 9, 0], stone);
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(4.3, 0.6, 4, 18, Math.PI), stone);
+    arch.position.y = 4;
+    arch.scale.z = 5;
+    gate.add(arch);
+    for (const face of [-1, 1])
+      for (let i = 0; i < 22; i++) {
+        const a = (i / 22) * Math.PI + 0.008,
+          b = ((i + 1) / 22) * Math.PI - 0.008;
+        const shape = new THREE.Shape();
+        shape.moveTo(Math.cos(a) * 3.71, Math.sin(a) * 3.71);
+        shape.lineTo(Math.cos(a) * 4.9, Math.sin(a) * 4.9);
+        shape.absarc(0, 0, 4.9, a, b, false);
+        shape.lineTo(Math.cos(b) * 3.71, Math.sin(b) * 3.71);
+        shape.absarc(0, 0, 3.71, b, a, true);
+        shape.closePath();
+        const wedge = new THREE.Mesh(
+          new THREE.ExtrudeGeometry(shape, { depth: 0.16, bevelEnabled: false, curveSegments: 2 }),
+          i % 3 ? stone : streetMaterials.clay,
+        );
+        wedge.position.set(0, 4, face > 0 ? 3.51 : -3.67);
+        gate.add(wedge);
+        yield;
+      }
+    // Recessed brick joints, jambs and door leaves give the gateway a human-scale edge.
+    const mortar = mat('#827c68');
+    for (const face of [-1, 1])
+      for (const side of [-1, 1]) {
+        for (let row = 0; row < 17; row++) {
+          yield;
+          box(gate, [8.9, 0.035, 0.025], [side * 9, row * 0.56 + 0.3, face * 3.515], mortar);
+          for (let j = 0; j < 6; j++)
+            box(
+              gate,
+              [0.035, 0.53, 0.03],
+              [side * 9 - 4.1 + j * 1.45 + (row % 2) * 0.5, row * 0.56 + 0.58, face * 3.52],
+              mortar,
+            );
+        }
+        box(gate, [0.18, 4.1, 6.6], [side * 4.55, 2.05, 0], wood);
+        for (let j = 0; j < 9; j++)
+          box(gate, [0.2, 3.95, 0.06], [side * 4.42, 2.05, -2.9 + j * 0.7], dark);
+      }
+    for (let i = -7; i <= 7; i++) box(gate, [1.05, 1.05, 0.8], [i * 1.8, 10.5, 3.1], stone);
+    box(gate, [12, 4.5, 6], [0, 12.3, 0], plaster);
+    for (const face of [-1, 1])
+      for (let i = -2; i <= 2; i++) {
+        box(gate, [1.15, 2.7, 0.08], [i * 2.1, 12.3, face * 3.05], dark);
+        for (let j = -1; j <= 1; j++)
+          box(gate, [0.065, 2.7, 0.08], [i * 2.1 + j * 0.3, 12.3, face * 3.12], wood);
+      }
+    roof(gate, 15, 10, 14.5, 3.6);
+    for (const s of [-1, 1])
+      for (let j = 0; j < 3; j++) {
+        const z = -45 + s * (22 + j * 12);
+        if (z > -11 || z < -100) continue;
+        const wall = rammedWallSegment(streetMaterials);
+        wall.position.set(55, 2.8, z);
+        city.add(wall);
+        for (let k = 0; k < 5; k++)
+          box(city, [0.8, 1, 1.1], [56.7, 10.5, z - 5 + k * 2.5], streetMaterials.earth);
+      }
+
+    // Cargo boats, riverside timber jetties, sacks and handcarts.
+    for (let i = 0; i < 11; i++) {
+      yield;
+      const x = -114 + i * 23;
+      // Quiet countryside and city-end banks leave room for the main working-water sequence.
+      if (Math.abs(x + 20) < 9 || [0, 8, 10].includes(i)) continue;
+      const vessel = boat();
+      vessel.position.set(x, 0.6, qingmingRiver(x) + (i % 2 ? -7 : 6));
+      vessel.scale.setScalar(i % 3 ? 1.3 : 1.8);
+      vessel.rotation.y = i % 2 ? 0.08 : Math.PI + 0.1;
+      city.add(vessel);
+      if (i % 2) {
+        const z = qingmingRiver(x) - 10;
+        box(city, [8, 0.3, 4.8], [x, 2, z], wood);
+        for (const a of [-1, 1])
+          for (const b of [-1, 1])
+            beam(city, [x + a * 3.5, 0, z + b * 2], [x + a * 3.5, 2.5, z + b * 2], 0.16);
+        for (let k = 0; k < 8; k++)
+          box(city, [0.8, 0.6, 0.7], [x - 2 + (k % 4), 2.5, z + Math.floor(k / 4)], linen);
+      }
+    }
+    for (let i = 0; i < 8; i++) {
+      if (i === 5) continue; // Replaced by the complete gate approach rather than a duplicate cart.
+      yield;
+      const x = -90 + i * 28,
+        z = -44;
+      box(city, [2.5, 0.2, 1.4], [x, 3.55, z], wood);
+      for (const s of [-1, 1]) {
+        const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.065, 4, 12), dark);
+        wheel.position.set(x, 3.45, z + s * 0.85);
+        city.add(wheel);
+        for (let k = 0; k < 4; k++)
+          beam(
+            city,
+            [
+              x - Math.cos((k * Math.PI) / 4) * 0.6,
+              3.45 - Math.sin((k * Math.PI) / 4) * 0.6,
+              z + s * 0.85,
+            ],
+            [
+              x + Math.cos((k * Math.PI) / 4) * 0.6,
+              3.45 + Math.sin((k * Math.PI) / 4) * 0.6,
+              z + s * 0.85,
+            ],
+            0.035,
+          );
+        beam(city, [x, 3.55, z + s * 0.55], [x + 2.8, 3.25, z + s * 0.55], 0.055);
+      }
+      for (let k = 0; k < 3; k++) box(city, [0.65, 0.6, 1.05], [x - 0.8 + k * 0.8, 3.95, z], linen);
+    }
+    for (let i = 0; i < 34; i++) {
+      const x = -131 + random() * 260;
+      tree(x, i < 16 ? qingmingRiver(x) + 22 : -95 + random() * 13, 4.8 + random() * 3);
+      yield;
+    }
+    // Farm furrows and woven fences keep the western approach intentionally quiet.
+    for (let i = 0; i < 12; i++) box(city, [48, 0.07, 0.18], [-108, 2.88, 27 + i * 1.2], ochre);
+    for (let i = 0; i < 20; i++) {
+      const x = -133 + i * 2.4;
+      beam(city, [x, 2.8, 44], [x, 3.85, 44], 0.05);
+      if (i < 19) beam(city, [x, 3.4, 44], [x + 2.4, 3.4, 44], 0.045);
+    }
+
+    // Broken, slightly uneven paving; never a single featureless street plane.
+    const paving = [mat('#b3aa91'), mat('#a89d82')];
+    for (let i = 57; i < 230; i++)
+      for (let row = 0; row < 4; row++) {
+        if (row === 0 && i % 8 === 0) yield;
+        const x = -129 + i * 1.14 + (row % 2) * 0.55;
+        const flag = box(
+          city,
+          [1.02, 0.035, 1.1],
+          [x, 2.85 + random() * 0.015, -46.8 + row * 1.2],
+          paving[(i + row) % 2]!,
+        );
+        flag.rotation.y = (random() - 0.5) * 0.08;
+      }
+
+    const episodes = buildQingmingEpisodes(streetMaterials);
+    city.add(episodes);
+    yield;
+    const transport = episodes.getObjectByName('gate-donkey-cart') as THREE.Group;
+    transport.removeFromParent();
+    const livingTransport = yield* prepareQingmingTransportSteps(transport);
+    detached.add(livingTransport);
+    yield;
+    yield;
+    result = yield* batchQingmingSteps(city);
+    result.add(livingTransport);
+    result.userData.streetFoci = {
+      huanmen: [84.4, 6.0, -48.2],
+      counter: [76.1, 3.8, -48.7],
+      transport: [47, 4.0, -45.2],
+      rammedWall: [57.5, 6, -67],
+    };
+    result.userData.scrollFoci = QINGMING_SCROLL_FOCI;
+    result.userData.scrollSections = ['郊野', '汴河', '虹桥', '城门', '城内'];
+    result.userData.bridgePassage = {
+      name: 'qingming-bridge-passage-boat',
+      position: [-25, 0.45, riverZ - 0.5],
+      pose: 'fixed-lowered-rig',
+    };
+    // One atlas for all legible shop signs, kept separate from material-color batching.
+    if (typeof document !== 'undefined' && signGeometry.length) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 1024;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#3d392d';
+        ctx.fillRect(0, 0, 512, 1024);
+        ctx.fillStyle = '#d8c59a';
+        ctx.font = '64px "Kaiti SC", KaiTi, serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ['茶坊', '脚店', '香铺', '酒肆', '布帛', '食店', '药铺', '杂货'].forEach((word, i) =>
+          ctx.fillText(word, 256, i * 128 + 64),
+        );
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const geo = mergeGeometries(signGeometry);
+        if (geo)
+          result.add(
+            new THREE.Mesh(
+              geo,
+              new THREE.MeshStandardMaterial({
+                map: texture,
+                roughness: 1,
+                side: THREE.DoubleSide,
+              }),
+            ),
+          );
+      }
+    }
+    signGeometry.forEach((geometry) => geometry.dispose());
+    result.name = 'qingming-city';
+    completed = true;
+    return result;
+  } finally {
+    signGeometry.forEach((geometry) => geometry.dispose());
+    if (!completed) {
+      disposeObject(city);
+      disposeObject(detached);
+      if (result) disposeObject(result);
+      [
+        wood,
+        dark,
+        plaster,
+        tile,
+        tileLight,
+        stone,
+        earth,
+        linen,
+        red,
+        leaf,
+        leafDark,
+        skin,
+        blue,
+        ochre,
+        glow,
+        ...Object.values(streetMaterials),
+      ].forEach((material) => material.dispose());
     }
   }
-  signGeometry.forEach((geometry) => geometry.dispose());
-  result.name = 'qingming-city';
-  return result;
 }

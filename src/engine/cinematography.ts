@@ -3,9 +3,9 @@ import type { Painting, Vec3 } from '../types';
 import { clamp, seededRandom } from './math';
 import { groundHeight } from './terrain';
 import { landscapeRiverCenter } from './geography';
-import { qingmingBridgeHeight, qingmingRiver } from './cityLayout';
+import { getQingmingKeyframes } from './qingmingCinematography';
 import { wuhanPath, WUHAN_FLOWER_FOCUS } from './wuhanLayout';
-import { XISHAN_CARAVAN_FOCUS, XISHAN_EAVE_FOCUS } from './xishanLayout';
+import { XISHAN_CARAVAN_FOCUS } from './xishanLayout';
 
 export interface CinematicView {
   eye: Vec3;
@@ -85,7 +85,7 @@ function winterDetails(p: Painting): { tree: Vec3; stone: Vec3 } {
   return { tree, stone: ground(p, sx, sz, radius * 0.5) };
 }
 
-/** Each chapter arrives at an actual authored object, with room to see its construction. */
+/** Objects anchor a landscape composition, rather than filling the lens as isolated macros. */
 export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[] {
   const existing = cache.get(p);
   if (existing) return existing;
@@ -96,10 +96,10 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       frames = [
         overview(p, 0),
         frame(0.1, '洲岸与江面', [-68, 19, 55], [-44, 6, 10]),
-        frame(0.2, '帆舟与竹篷', offset(boat, 6, 3, 8), boat, true),
-        frame(0.31, '船舷与帆索', offset(boat, 3.5, 1.9, 5.5), boat, true),
-        frame(0.4, '石桥木栏', [5, 5.3, 13], [1, 3.8, 7.9], true),
-        frame(0.62, '青绿主峰', [34, 30, 31], [20, 35, -27]),
+        frame(0.2, '帆舟与开阔江面', offset(boat, 13, 7, 22), offset(boat, 0, 3, -9), true),
+        frame(0.31, '舟行青山之间', offset(boat, 10, 5, 17), offset(boat, 0, 2, -5), true),
+        frame(0.4, '石桥与两岸', [35, 30, 110], [1, 20, -10], true),
+        frame(0.62, '青绿主峰', [41, 36, 62], [20, 32, -27]),
         frame(0.85, '江天与村落', [69, 46, 102], [18, 20, -19]),
         overview(p, 1),
       ];
@@ -111,27 +111,25 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       frames = [
         overview(p, 0),
         frame(0.11, '低洲与淡山', [-62, 12, 42], [-38, 5, 7]),
-        frame(0.22, '沙洲泊舟', offset(boat, 5, 2.3, 7), boat, true),
-        frame(0.34, '岸边屋檐', offset(house, -6, 1, 9), house, true),
-        frame(0.44, '瓦垄与木柱', offset(house, -3, 0.3, 5.4), house, true),
-        frame(0.65, '远岫留白', [28, 16, 38], [40, 13, -34]),
+        frame(0.22, '沙洲泊舟', offset(boat, 11, 5, 19), offset(boat, 0, 2, -6), true),
+        frame(0.34, '疏林中的岸舍', offset(house, -24, 12, 42), offset(house, 8, 11, -18), true),
+        frame(0.44, '瓦檐与江岸', offset(house, -25, 12, 50), offset(house, 0, 5, -10), true),
+        frame(0.65, '远岫留白', [25, 20, 63], [40, 14, -34]),
         frame(0.87, '一江闲意', [60, 31, 96], [16, 12, -23]),
         overview(p, 1),
       ];
       break;
     }
     case 'xishan': {
-      const eave = XISHAN_EAVE_FOCUS,
-        caravan = XISHAN_CARAVAN_FOCUS;
-      const waterfall = ground(p, 14.6, -28, 1.1);
+      const caravan = XISHAN_CARAVAN_FOCUS;
       frames = [
         overview(p, 0),
-        frame(0.1, '行旅与前景溪石', offset(caravan, -10, 3, 13), caravan, true),
-        frame(0.22, '驮包、缰绳与行旅', offset(caravan, -3.2, 1.2, 5.5), caravan, true),
-        frame(0.34, '树间亭屋', offset(eave, -8, 2, 11), eave, true),
-        frame(0.43, '亭檐与瓦脊', offset(eave, -4, 1, 7), eave, true),
-        frame(0.63, '贴壁飞瀑', offset(waterfall, 14, 7, 22), waterfall),
-        frame(0.87, '仰望主峰', [22, 21, 66], [0, 50, -32]),
+        frame(0.1, '行旅与前景溪石', offset(caravan, -20, 7, 27), offset(caravan, -4, 3, -7), true),
+        frame(0.22, '山径上的驮队', offset(caravan, -10, 4, 16), offset(caravan, -1, 1, -2), true),
+        frame(0.34, '树间亭屋', [70, 31, 170], [12, 40, -24], true),
+        frame(0.43, '亭屋与叠嶂', [90, 35, 205], [9, 38, -20], true),
+        frame(0.63, '山壁间的飞瀑', [54, 44, 125], [12, 62, -32]),
+        frame(0.87, '仰望主峰', [28, 30, 100], [0, 50, -32]),
         overview(p, 1),
       ];
       break;
@@ -142,10 +140,10 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       frames = [
         overview(p, 0),
         frame(0.11, '村庄与教堂', [-6, 9, 31], [0, 8, -22]),
-        frame(0.22, '柏树轮廓', offset(cypress, 7, 2, 8), cypress, true),
-        frame(0.34, '街边屋顶', offset(window, 7, 3.5, 12), offset(window, 0, 1.1, 0)),
-        frame(0.44, '窗格与暖光', offset(window, 2.5, 0.8, 6), window, true),
-        frame(0.65, '笔触星河', [3, 8, 4], [-27, 21, -80]),
+        frame(0.22, '柏树与星空', offset(cypress, 36, 16, 75), offset(cypress, 14, 23, -6), true),
+        frame(0.34, '街巷与屋顶', [18, 16, 34], [-4, 7, -16]),
+        frame(0.44, '暖窗与沉静村庄', offset(window, 9, 6, 20), offset(window, 2, 2, -6), true),
+        frame(0.65, '笔触星河', [8, 19, 44], [-20, 27, -80]),
         frame(0.87, '弯月与蓝丘', [42, 22, 72], [6, 25, -50]),
         overview(p, 1),
       ];
@@ -158,10 +156,10 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       frames = [
         overview(p, 0),
         frame(0.11, '尚无城市的海湾', [-44, 14, 42], [-26, 6, -27]),
-        frame(0.22, '田园茅屋', [2, 5.2, hutZ + 8], [-3, 3.5, hutZ], true),
-        frame(0.34, '茅檐与门口', [0.5, 3.6, hutZ + 5.6], [-3, 2.8, hutZ + 1.4], true),
-        frame(0.44, '柱础与檐口', [10, 4.5, -3], [5.9, 4.9, -10.1], true),
-        frame(0.65, '倒柱与残石', [9, 3.7, -2.8], [3, 2.3, -9.4], true),
+        frame(0.22, '田园茅屋', [10, 10, hutZ + 24], [-3, 4, hutZ], true),
+        frame(0.34, '田园与城址', [5, 8, hutZ + 20], [-3, 4, hutZ - 3], true),
+        frame(0.44, '柱廊与海湾', [25, 13, 20], [5.9, 8, -14], true),
+        frame(0.65, '倒柱与残石', [21, 10, 18], [3, 4, -13], true),
         frame(0.87, '残柱之外的山海', [52, 16, 37], [8, 8, -21]),
         overview(p, 1),
       ];
@@ -171,51 +169,31 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       const { tree, stone } = winterDetails(p);
       frames = [
         overview(p, 0),
-        frame(0.11, '冬树与雪谷', offset(tree, 14, 3, 17), offset(tree, 0, 2, -3)),
-        frame(0.22, '冬枝的分杈', offset(tree, 6, 1, 7), tree, true),
-        frame(0.33, '树干与细枝', offset(tree, 4, -2, 5), offset(tree, 0, -3, 0), true),
-        frame(0.44, '近处覆雪石', offset(stone, 3.2, 1.9, 3.6), stone, true),
-        frame(0.65, '群峰雪脊', [1, 13, 19], [0, 38, -110]),
+        frame(0.11, '冬树与雪谷', offset(tree, 36, 5, 43), offset(tree, 19, 7, -30)),
+        frame(0.22, '疏枝间的群峰', offset(tree, 27, 3, 33), offset(tree, 11, 4, -15), true),
+        frame(0.33, '树影与雪地', offset(tree, 25, 0, 31), offset(tree, 9, 1, -14), true),
+        frame(0.44, '覆雪石与空谷', offset(stone, 22, 7, 28), [0, 22, -90]),
+        frame(0.65, '群峰雪脊', [1, 17, 58], [0, 38, -110]),
         frame(0.87, '雪峰上方的微星', [-5, 22, 90], [0, 45, -119]),
         overview(p, 1),
       ];
       break;
     }
     case 'qingming': {
-      const river = qingmingRiver(-20),
-        bridgeY = qingmingBridgeHeight(river + 5);
-      const boat: Vec3 = [-68, 1.9, qingmingRiver(-68) + 6];
-      frames = [
-        frame(0, '郊野村舍', [-128, 23, 12], [-106, 4, -33]),
-        frame(0.1, '郊舍瓦檐', [-102, 8.8, -24], [-106, 7.4, -30.3], true),
-        frame(0.2, '汴河货船', offset(boat, 6, 2.5, 7), boat, true),
-        frame(0.32, '虹桥卧桅过船', [-33, 4.5, river + 7], [-25, 1.6, river - 0.5], true),
-        frame(
-          0.4,
-          '虹桥木栏与铺席',
-          [-19, qingmingBridgeHeight(river + 10) + 2.1, river + 10],
-          [-23, bridgeY + 1, river + 5],
-          true,
-        ),
-        frame(0.65, '城门前的挽具与货车', [48, 5, -38.8], [46, 4, -45.2], true),
-        frame(0.83, '酒肆欢门与邻铺', [89, 6, -41], [84.4, 5.7, -48.2], true),
-        overview(p, 1),
-      ];
+      frames = [...getQingmingKeyframes()];
       break;
     }
     case 'zhangjiajie': {
       const pathX = -34,
         pathZ = landscapeRiverCenter(p, pathX) + 9;
       const stone = ground(p, pathX, pathZ, 0.1);
-      const peak = p.peaks.find((peak) => peak.x === -49) ?? p.peaks[0]!;
-      const pine = ground(p, peak.x, peak.z, 3.3);
       frames = [
         overview(p, 0),
-        frame(0.1, '溪谷与峰林', [-42, 12, 44], [-29, 21, -20]),
-        frame(0.22, '溪边石路', offset(stone, 4, 2.1, 5.2), stone, true),
-        frame(0.32, '石面与浅水', offset(stone, 2.7, 1.7, 3.5), stone, true),
-        frame(0.43, '峰顶松冠与岩壁', offset(pine, 6, 2.4, 9), pine, true),
-        frame(0.66, '云过群峰', [18, 56, 28], [5, 40, -59]),
+        frame(0.1, '溪谷与峰林', [-44, 25, 73], [-29, 35, -35]),
+        frame(0.22, '溪边石路', offset(stone, 7, 5, 16), offset(stone, 0, 2, -15), true),
+        frame(0.32, '浅水与峰林之间', offset(stone, 10, 6, 21), offset(stone, 12, 3, -20), true),
+        frame(0.43, '松冠与完整石峰', [5, 70, 95], [-35, 60, -40], true),
+        frame(0.66, '云过群峰', [28, 72, 77], [5, 42, -65]),
         frame(0.87, '谷地回望', [59, 52, 94], [-12, 31, -38]),
         overview(p, 1),
       ];
@@ -227,10 +205,10 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       frames = [
         overview(p, 0),
         frame(0.1, '临江山色', [-36, 13, 52], [-9, 11, -32]),
-        frame(0.21, '竹节与细叶', offset(bamboo, 4.2, 0.7, 6), bamboo, true),
-        frame(0.32, '竹岸之间看江', offset(bamboo, 2.8, -0.5, 4.8), bamboo, true),
-        frame(0.43, '水面与群峰倒影', [-12, 3.7, 15], [16, 10, -64]),
-        frame(0.66, '竹筏绑绳与撑篙', offset(raft, 5, 2.2, 6), raft, true),
+        frame(0.21, '竹影与临江山色', offset(bamboo, 18, 10, 54), offset(bamboo, 6, 15, -40), true),
+        frame(0.32, '竹岸之间看江', [-10, 16, 58], [12, 20, -54]),
+        frame(0.43, '水面与群峰倒影', [8, 14, 55], [16, 19, -64]),
+        frame(0.66, '竹筏与两岸', offset(raft, -16, 7, 24), offset(raft, 0, 3, -12), true),
         frame(0.87, '江天开阔', [48, 28, 97], [12, 16, -46]),
         overview(p, 1),
       ];
@@ -242,18 +220,12 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       const shelter = ground(p, 23, wuhanPath(23) + 1.6, 3.1);
       frames = [
         overview(p, 0),
-        frame(0.1, '临湖桂树与石径', [-40, 9, 34], [-18, 4, 12]),
-        frame(0.21, '桂枝的对生叶与花簇', offset(flower, 1.8, 0.7, 4.7), flower, true),
-        frame(0.32, '细雨里的花与叶', offset(flower, 1.17, 0.32, 2.8), flower, true),
-        frame(
-          0.43,
-          '湿石上的落桂与石缝',
-          offset(stone, 1.05, 0.62, 1.2),
-          offset(stone, -0.6, 0, -0.7),
-          true,
-        ),
-        frame(0.66, '湖亭的瓦檐与木柱', offset(shelter, -10, 1.8, 10), shelter, true),
-        frame(0.87, '烟水与远岸', [36, 5, 19], [6, 4, -94]),
+        frame(0.1, '临湖桂树与石径', [-38, 12, -28], [-15, 5, 15]),
+        frame(0.21, '桂枝与临湖石径', offset(flower, 5, 3.5, -14), flower, true),
+        frame(0.32, '细雨里的花与叶', offset(flower, 3.5, 2.5, -11), flower, true),
+        frame(0.43, '落桂石径与湖岸', offset(stone, 8, 6, -20), offset(stone, -2, 2, 0), true),
+        frame(0.66, '湖亭与烟水', offset(shelter, -18, 10, -30), offset(shelter, 0, 2, 0), true),
+        frame(0.87, '烟水与远岸', [36, 8, -3], [6, 4, -94]),
         overview(p, 1),
       ];
       break;
@@ -283,7 +255,7 @@ export function getCinematicView(painting: Painting, progress: number): Cinemati
   const eye = lerp(a.eye, b.eye),
     target = lerp(a.target, b.target);
   // Terrain clearance is applied after interpolation, including the space between keyframes.
-  // A camera may kneel for flowers and paving; walking still retains its own 1.8 m eye height.
+  // Clearance supplements the authored composition; it does not impose a human eye height.
   eye[1] = Math.max(eye[1], groundHeight(painting, eye[0], eye[2]) + 0.55, 0.55);
   // Check the near sightline, so low bank details are not filmed through a foreground ridge.
   for (let i = 1; i <= 8; i++) {

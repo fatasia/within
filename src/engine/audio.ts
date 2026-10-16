@@ -14,6 +14,7 @@ export interface SoundMix {
   ambience: number;
 }
 interface SoundGraph {
+  painting: PaintingId;
   music: GainNode;
   ambience: GainNode;
   output: GainNode;
@@ -21,7 +22,16 @@ interface SoundGraph {
   dispose(): void;
 }
 
-function noiseBuffer(context: SoundContext, seconds: number, seed: number): AudioBuffer {
+interface SoundBuffers {
+  noise: AudioBuffer;
+  impulse: AudioBuffer;
+  reverb?: ConvolverNode;
+}
+function* noiseBufferSteps(
+  context: SoundContext,
+  seconds: number,
+  seed: number,
+): Generator<void, AudioBuffer> {
   const buffer = context.createBuffer(
     2,
     Math.ceil(context.sampleRate * seconds),
@@ -32,6 +42,7 @@ function noiseBuffer(context: SoundContext, seconds: number, seed: number): Audi
     const samples = buffer.getChannelData(channel);
     let previous = 0;
     for (let i = 0; i < samples.length; i++) {
+      if (i > 0 && i % 8192 === 0) yield;
       previous = previous * 0.85 + (random() * 2 - 1) * 0.15;
       samples[i] = previous;
     }
@@ -39,11 +50,26 @@ function noiseBuffer(context: SoundContext, seconds: number, seed: number): Audi
   return buffer;
 }
 
+function* soundBufferSteps(context: SoundContext, id: PaintingId): Generator<void, SoundBuffers> {
+  const palette = SOUND_PALETTES[id];
+  const impulse = yield* noiseBufferSteps(context, 2.4, palette.seed * 12);
+  for (let channel = 0; channel < impulse.numberOfChannels; channel++) {
+    const data = impulse.getChannelData(channel);
+    for (let i = 0; i < data.length; i++) {
+      if (i > 0 && i % 8192 === 0) yield;
+      data[i] *= Math.pow(1 - i / data.length, 3);
+    }
+  }
+  const noise = yield* noiseBufferSteps(context, 8, palette.seed);
+  return { impulse, noise };
+}
+
 function buildGraph(
   context: SoundContext,
   id: PaintingId,
   destination: AudioNode,
   start: number,
+  buffers?: SoundBuffers,
 ): SoundGraph {
   const p = SOUND_PALETTES[id];
   const nodes = new Set<AudioNode>();
@@ -81,18 +107,20 @@ function buildGraph(
   output.connect(destination);
 
   // Quiet diffuse reflections keep instruments behind the image, rather than in front of it.
-  const reverb = own(context.createConvolver());
-  const impulse = noiseBuffer(context, 2.4, p.seed * 12);
-  for (let channel = 0; channel < impulse.numberOfChannels; channel++) {
-    const data = impulse.getChannelData(channel);
-    for (let i = 0; i < data.length; i++) data[i] *= Math.pow(1 - i / data.length, 3);
+  const reverb = buffers?.reverb ?? own(context.createConvolver());
+  let prepared = buffers;
+  if (!prepared) {
+    const steps = soundBufferSteps(context, id);
+    let step = steps.next();
+    while (!step.done) step = steps.next();
+    prepared = step.value;
   }
-  reverb.buffer = impulse;
+  if (!buffers?.reverb) reverb.buffer = prepared.impulse;
   const wet = own(context.createGain());
   wet.gain.value = 0.19;
   reverb.connect(wet);
   wet.connect(music);
-  const noise = noiseBuffer(context, 8, p.seed);
+  const noise = prepared.noise;
 
   function loopBed(kind: 'wind' | 'water' | 'rain', level: number): void {
     if (!level) return;
@@ -315,6 +343,7 @@ function buildGraph(
   }
 
   return {
+    painting: id,
     music,
     ambience,
     output,
@@ -324,6 +353,8 @@ function buildGraph(
       score.fields.forEach((item) => field(item, time));
     },
     dispose() {
+      // Cached convolution kernels outlive their graph, not its output connection.
+      if (buffers?.reverb) reverb.disconnect(wet);
       for (const source of sources) {
         source.onended = null;
         try {
@@ -351,6 +382,10 @@ export class AmbientAudio {
   private nextPhrase = 0;
   private nextTime = 0;
   private revision = 0;
+  private buildRevision = 0;
+  private graphPainting: PaintingId | null = null;
+  private buildTask: Promise<void> = Promise.resolve();
+  private buffers = new Map<string, SoundBuffers>();
   private retired = new Map<SoundGraph, ReturnType<typeof setTimeout>>();
   private timer: ReturnType<typeof setInterval> | null = null;
   private readonly visibility = (): void => {
@@ -375,6 +410,7 @@ export class AmbientAudio {
     this.enabled = enabled;
     const revision = ++this.revision;
     if (!enabled) {
+      this.buildRevision++;
       const context = this.context;
       if (context && this.master) {
         this.master.gain.cancelAndHoldAtTime(context.currentTime);
@@ -397,13 +433,21 @@ export class AmbientAudio {
       this.master.connect(this.context.destination);
     }
     const context = this.context;
-    if (!this.graph) this.rebuild();
     if (!document.hidden) {
       try {
         await context.resume();
       } catch (error) {
         if (context.state !== 'closed') throw error;
       }
+    }
+    if (
+      revision === this.revision &&
+      this.enabled &&
+      this.context === context &&
+      this.graphPainting !== this.painting
+    ) {
+      this.buildTask = this.rebuild();
+      await this.buildTask;
     }
     if (revision === this.revision && this.master && this.context === context) {
       this.master.gain.cancelAndHoldAtTime(context.currentTime);
@@ -426,7 +470,11 @@ export class AmbientAudio {
   setPainting(id: PaintingId): void {
     if (id === this.painting) return;
     this.painting = id;
-    if (this.context) this.rebuild();
+    this.buildRevision++;
+    if (this.context && this.enabled) {
+      this.buildTask = this.rebuild();
+      void this.buildTask.catch(() => {});
+    }
   }
   setMix(music: number, ambience: number): void {
     this.music = clamp(music);
@@ -454,14 +502,65 @@ export class AmbientAudio {
         0.8,
       );
   }
-  private rebuild(): void {
-    if (!this.context || !this.master) return;
+  private async rebuild(): Promise<void> {
+    const context = this.context,
+      master = this.master,
+      id = this.painting;
+    if (!context || !master || !this.enabled) return;
+    const revision = ++this.buildRevision;
+    const current = (): boolean =>
+      revision === this.buildRevision && this.context === context && this.enabled;
+    // Always let the selection paint before constructing even a cached graph.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    if (!current()) return;
+    const key = `${context.sampleRate}:${id}`;
+    let buffers = this.buffers.get(key);
+    if (!buffers) {
+      const steps = soundBufferSteps(context, id);
+      let step;
+      let sliceStart = performance.now();
+      do {
+        step = steps.next();
+        if (!step.done && performance.now() - sliceStart >= 4) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          if (!current()) {
+            steps.return(undefined as never);
+            return;
+          }
+          sliceStart = performance.now();
+        }
+      } while (!step.done);
+      buffers = step.value;
+      if (!current()) return;
+    }
+    this.buffers.delete(key);
+    this.buffers.set(key, buffers);
+    while (this.buffers.size > 3) this.buffers.delete(this.buffers.keys().next().value!);
+    if (!buffers.reverb) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      if (!current()) return;
+      buffers.reverb = context.createConvolver();
+      // This browser-native FFT cannot be subdivided. Prepare it once per cached
+      // scene, in its own task rather than adding it to graph/node scheduling.
+      buffers.reverb.buffer = buffers.impulse;
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      if (!current()) return;
+    }
+    for (const [old, timer] of this.retired) {
+      if (old.painting !== id) continue;
+      clearTimeout(timer);
+      old.dispose();
+      this.retired.delete(old);
+    }
+    // Keep the previous graph audible until its replacement is ready to crossfade.
+    const nextTime = context.currentTime + 0.06;
+    const graph = buildGraph(context, id, master, nextTime, buffers);
     if (this.timer) clearInterval(this.timer);
     if (this.graph) {
       const old = this.graph;
-      if (this.context.state === 'running') {
-        old.output.gain.cancelAndHoldAtTime(this.context.currentTime);
-        old.output.gain.linearRampToValueAtTime(0, this.context.currentTime + 0.25);
+      if (context.state === 'running') {
+        old.output.gain.cancelAndHoldAtTime(context.currentTime);
+        old.output.gain.linearRampToValueAtTime(0, context.currentTime + 0.25);
         this.retired.set(
           old,
           setTimeout(() => {
@@ -472,8 +571,9 @@ export class AmbientAudio {
       } else old.dispose();
     }
     this.nextPhrase = 0;
-    this.nextTime = this.context.currentTime + 0.06;
-    this.graph = buildGraph(this.context, this.painting, this.master, this.nextTime);
+    this.nextTime = nextTime;
+    this.graph = graph;
+    this.graphPainting = id;
     this.graph.music.gain.value = this.music;
     this.graph.ambience.gain.value = this.ambience;
     const schedule = (): void => {
@@ -481,7 +581,7 @@ export class AmbientAudio {
       // Scheduling one full phrase avoids timer jitter; buffers stop on a scene change.
       if (this.nextTime < this.context.currentTime + 2) {
         this.graph.schedule(this.nextPhrase++, this.nextTime);
-        this.nextTime += phraseDuration(SOUND_PALETTES[this.painting]);
+        this.nextTime += phraseDuration(SOUND_PALETTES[id]);
       }
     };
     schedule();
@@ -489,6 +589,9 @@ export class AmbientAudio {
   }
   dispose(): void {
     this.revision++;
+    this.buildRevision++;
+    this.buffers.clear();
+    this.graphPainting = null;
     document.removeEventListener('visibilitychange', this.visibility);
     if (this.timer) clearInterval(this.timer);
     this.timer = null;

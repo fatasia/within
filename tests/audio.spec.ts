@@ -156,6 +156,8 @@ test('rapid mute and scene switches cannot reopen the master output', async ({ p
     document.querySelector('button')!.addEventListener('click', async () => {
       try {
         await audio.start();
+        audio.setPainting('guilin');
+        await audio.buildTask;
         const stopping = audio.stop();
         audio.setPainting('qingming');
         audio.setPainting('starry');

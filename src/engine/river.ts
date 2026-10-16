@@ -156,12 +156,26 @@ export function buildRiver(painting: Painting, quality: Quality): River {
   if (reflector) {
     const renderReflection = reflector.onBeforeRender;
     const interval = quality === 'high' ? 1 / 30 : 1 / 20;
+    const reflectedView = new THREE.Matrix4();
+    const reflectedProjection = new THREE.Matrix4();
+    const reflectedSurface = new THREE.Matrix4();
+    let hasReflectedView = false;
     reflector.onBeforeRender = function (renderer, scene, camera, geo, mat, group) {
-      // At 60 fps this halves (or thirds) reflection scene renders. First frame
-      // and a lighting change always refresh, including deterministic video time.
-      if (time >= lastReflection && time - lastReflection < interval) return;
+      // A cached planar reflection is tied to its capture camera, not merely time.
+      // Holding it while the view moves makes the bank's reflection step at 20–30 Hz.
+      // Only a stationary view may reuse a target; walking, turning and zooming stay continuous.
+      const viewChanged =
+        !hasReflectedView ||
+        !reflectedView.equals(camera.matrixWorld) ||
+        !reflectedProjection.equals(camera.projectionMatrix) ||
+        !reflectedSurface.equals(this.matrixWorld);
+      if (!viewChanged && time >= lastReflection && time - lastReflection + 1e-8 < interval) return;
       lastReflection = time;
       renderReflection.call(this, renderer, scene, camera, geo, mat, group);
+      reflectedView.copy(camera.matrixWorld);
+      reflectedProjection.copy(camera.projectionMatrix);
+      reflectedSurface.copy(this.matrixWorld);
+      hasReflectedView = true;
     };
     const target = reflector.getRenderTarget();
     target.texture.minFilter = THREE.LinearFilter;

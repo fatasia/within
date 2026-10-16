@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { ArrowSquareOut, Minus, Plus } from '@phosphor-icons/react';
 import type { Painting } from '../types';
 import { ORIGINALS } from '../data/originals';
@@ -8,8 +8,15 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [failed, setFailed] = useState(false);
+  const [panorama, setPanorama] = useState(false);
+  const [overview, setOverview] = useState(false);
+  const viewport = useRef<HTMLDivElement>(null);
   const original = ORIGINALS[painting.id];
   const image = original?.images[index];
+  useLayoutEffect(() => {
+    if (panorama && !overview && viewport.current)
+      viewport.current.scrollLeft = viewport.current.scrollWidth;
+  }, [panorama, overview, index]);
   return (
     <Dialog
       title={original ? `${painting.shortTitle} · 原作` : `${painting.shortTitle} · 实景出处`}
@@ -39,10 +46,22 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
               >
                 <Plus size={18} />
               </button>
-              <button onClick={() => setZoom(1)}>适屏</button>
+              <button
+                onClick={() => {
+                  setZoom(1);
+                  if (panorama) setOverview((v) => !v);
+                }}
+              >
+                {panorama ? (overview ? '卷首' : '全览') : '适屏'}
+              </button>
             </div>
           </div>
-          <div className="original-viewport" tabIndex={0} aria-label="原作图像，可滚动查看放大细节">
+          <div
+            ref={viewport}
+            className="original-viewport"
+            tabIndex={0}
+            aria-label="原作图像，可滚动查看放大细节"
+          >
             {failed ? (
               <p>图像暂未载入，可通过下方馆藏链接查看。</p>
             ) : (
@@ -51,7 +70,21 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
                 src={`${import.meta.env.BASE_URL}${image.src.replace(/^\//, '')}`}
                 alt={image.alt}
                 onError={() => setFailed(true)}
-                style={{ width: `${zoom * 100}%`, height: zoom === 1 ? '50dvh' : 'auto' }}
+                onLoad={(event) =>
+                  setPanorama(
+                    event.currentTarget.naturalWidth / event.currentTarget.naturalHeight > 8,
+                  )
+                }
+                style={{
+                  width: panorama && !overview ? 'auto' : `${zoom * 100}%`,
+                  height: panorama
+                    ? overview
+                      ? 'auto'
+                      : `calc(min(360px, var(--view-height, 100dvh) * .4) * ${zoom})`
+                    : zoom === 1
+                      ? 'calc(var(--view-height, 100dvh) * .5)'
+                      : 'auto',
+                }}
               />
             )}
           </div>
@@ -64,9 +97,12 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
                   aria-pressed={i === index}
                   className={i === index ? 'active' : ''}
                   onClick={() => {
+                    if (i === index) return;
                     setIndex(i);
                     setZoom(1);
                     setFailed(false);
+                    setPanorama(false);
+                    setOverview(false);
                   }}
                 >
                   {item.caption}
@@ -75,6 +111,7 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
             </div>
           )}
           <p className="original-hint">
+            {panorama && '长卷从右侧卷首展开，可横向拖动，或点击“全览”查看整卷。'}
             放大后可横向、纵向滚动查看。局部图不代表整幅原作；三维场景为意境演绎。
           </p>
           <div className="original-credit">

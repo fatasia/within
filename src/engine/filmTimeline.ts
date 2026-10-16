@@ -7,14 +7,14 @@ import { clamp } from './math';
 const detailShots: Record<Painting['id'], readonly [number, number]> = {
   starry: [0.44, 0.65],
   winter: [0.22, 0.65],
-  qingming: [0.32, 0.83],
-  wuhan: [0.32, 0.43],
+  qingming: [0.36, 0.83],
+  wuhan: [0.32, 0.87],
   qianli: [0.4, 0.62],
   fuchun: [0.34, 0.65],
   xishan: [0.22, 0.63],
   empire: [0.44, 0.87],
-  zhangjiajie: [0.22, 0.66],
-  guilin: [0.32, 0.66],
+  zhangjiajie: [0.43, 0.66],
+  guilin: [0.21, 0.43],
 };
 export interface FilmShot {
   progress: number;
@@ -41,8 +41,6 @@ export function getFilmShot(painting: Painting, time: number, duration: number):
       ? 0
       : detailShots[painting.id][shot - 1]!;
   let base = empire || shot === 0 ? painting.overview : getCinematicView(painting, progress);
-  if (painting.id === 'qingming' && shot === 2)
-    base = { eye: [89, 8, -41], target: [84.4, 6.6, -48.2] };
   if (painting.id === 'winter' && shot === 1) base = { eye: [-37, 5, 111], target: [0, 22, -100] };
   if (painting.id === 'xishan' && shot === 2) base = { eye: [54, 39, 83], target: [12, 51, -34] };
   const delta = base.eye.map((n, i) => n - base.target[i]!) as unknown as Vec3;

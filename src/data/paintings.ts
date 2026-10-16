@@ -41,7 +41,7 @@ const COLLECTION: Painting[] = [
       { x: -43, z: 16, radius: 19, height: 11, seed: 11 },
       { x: 55, z: 18, radius: 21, height: 16, seed: 21 },
     ],
-    overview: { eye: [40, 30, 112], target: [0, 23, -35] },
+    overview: { eye: [46, 36, 139], target: [0, 23, -35] },
     route: [
       [-100, 2, 25],
       [-61, 2, 4],
@@ -115,7 +115,7 @@ const COLLECTION: Painting[] = [
       { x: -38, z: 12, radius: 24, height: 6, seed: 20 },
       { x: 54, z: 15, radius: 20, height: 9, seed: 29 },
     ],
-    overview: { eye: [30, 20, 105], target: [8, 14, -28] },
+    overview: { eye: [35, 25, 131], target: [8, 14, -28] },
     route: [
       [-102, 2, 24],
       [-60, 2, 2],
@@ -324,7 +324,7 @@ const COLLECTION: Painting[] = [
     },
     seed: 1836,
     peaks: EMPIRE_PEAKS,
-    overview: { eye: [24, 24, 92], target: [6, 12, -43] },
+    overview: { eye: [34, 29, 124], target: [6, 15, -43] },
     route: [
       [-91, 2, 33],
       [-54, 2, 25],

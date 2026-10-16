@@ -42,7 +42,8 @@ import { Dialog } from './components/Dialog';
 import { MiniMap } from './components/MiniMap';
 import { WalkJoystick } from './components/WalkJoystick';
 import { ENCOUNTER_TEXT } from './engine/easterEgg';
-import { afterPaint, requestDisplayOrientation } from './components/displayControls';
+import { afterPaint } from './components/displayControls';
+import { useDisplayOrientation } from './components/useDisplayOrientation';
 import { OriginalViewer } from './components/OriginalViewer';
 
 const modes: { id: ViewMode; label: string; icon: Icon }[] = [
@@ -84,8 +85,6 @@ export function App() {
     [recording, setRecording] = useState<number | null>(null),
     [portrait, setPortrait] = useState(false),
     [fullscreen, setFullscreen] = useState(false),
-    [landscape, setLandscape] = useState(() => window.innerWidth > window.innerHeight),
-    [rotating, setRotating] = useState(false),
     [musicVolume, setMusicVolume] = useState(0.58),
     [ambienceVolume, setAmbienceVolume] = useState(0.62),
     [stats, setStats] = useState<Telemetry>({ progress: 0, fps: 0, drawCalls: 0, triangles: 0 });
@@ -136,22 +135,52 @@ export function App() {
     cancelSceneChange.current?.();
     pendingPainting.current = state.painting;
     setSceneLoading(true);
-    cancelSceneChange.current = afterPaint(() => {
-      try {
-        engine.current?.configure(current.current);
-        configuredPainting.current = current.current.painting;
-      } catch (e) {
-        setError(e instanceof Error ? e.message : '画境加载失败');
-      } finally {
-        pendingPainting.current = null;
-        cancelSceneChange.current = null;
-        setSceneLoading(false);
-      }
+    let cancelled = false;
+    const selected = state.painting;
+    const cancelPaint = afterPaint(() => {
+      const instance = engine.current;
+      if (!instance) return;
+      void instance
+        .configureAsync(current.current)
+        .then(() => {
+          if (cancelled) return;
+          configuredPainting.current = selected;
+          instance.configure(current.current);
+        })
+        .catch((e: unknown) => {
+          if (!cancelled) setError(e instanceof Error ? e.message : '画境加载失败');
+        })
+        .finally(() => {
+          if (cancelled) return;
+          pendingPainting.current = null;
+          cancelSceneChange.current = null;
+          setSceneLoading(false);
+        });
     });
+    cancelSceneChange.current = () => {
+      cancelled = true;
+      cancelPaint();
+    };
   }, [state, ready]);
   useEffect(() => {
     audio.current?.setPainting(state.painting);
   }, [state.painting]);
+  useEffect(() => {
+    if (!ready) return;
+    // Actual scene renders, not substitute artwork; keep selection visually immediate
+    // while its full-resolution geometry is prepared in short tasks.
+    const previews = PAINTINGS.map((item) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.fetchPriority = 'low';
+      image.src = `${import.meta.env.BASE_URL}previews/${item.id}.webp`;
+      return image;
+    });
+    return () =>
+      previews.forEach((image) => {
+        image.src = '';
+      });
+  }, [ready]);
   useEffect(() => {
     audio.current?.setMix(musicVolume, ambienceVolume);
   }, [musicVolume, ambienceVolume]);
@@ -246,6 +275,8 @@ export function App() {
     setModal(null);
     setSettings(false);
     if (id === state.painting) return;
+    setSceneLoading(true);
+    engine.current?.suspendForSceneSwitch();
     lastProgress.current = 0;
     patch({
       painting: id,
@@ -277,24 +308,7 @@ export function App() {
       notify('当前浏览器不支持全屏；可使用浏览器的全屏功能。');
     }
   }, [notify]);
-  const rotateDisplay = useCallback(async () => {
-    if (rotating) return;
-    const target = landscape ? 'portrait' : 'landscape';
-    const label = landscape ? '竖屏' : '横屏';
-    setRotating(true);
-    const result = await requestDisplayOrientation(target);
-    setRotating(false);
-    notify(
-      result === 'locked'
-        ? `已锁定${label}`
-        : `此浏览器不能自动切换方向，请转动设备使用${label}；如未旋转，请关闭系统方向锁定。`,
-    );
-  }, [landscape, rotating, notify]);
-  useEffect(() => {
-    const sync = () => setLandscape(window.innerWidth > window.innerHeight);
-    window.addEventListener('resize', sync);
-    return () => window.removeEventListener('resize', sync);
-  }, []);
+  const { landscape, rotating, rotateDisplay } = useDisplayOrientation(state.entered, notify);
   useEffect(() => {
     const sync = () => setFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', sync);
@@ -368,6 +382,14 @@ export function App() {
         aria-busy={sceneLoading}
         data-scene-switching={sceneLoading}
       />
+      {sceneLoading && (
+        <img
+          className="scene-poster"
+          src={`${import.meta.env.BASE_URL}previews/${state.painting}.webp`}
+          alt=""
+          aria-hidden="true"
+        />
+      )}
       <div className="paper-grain" aria-hidden="true" />
       <div className="gallery-wash" aria-hidden="true" />
       <header className="site-header">

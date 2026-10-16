@@ -67,7 +67,7 @@ export const REAL_LANDSCAPES: Painting[] = [
       pillar(47, -9, 10, 72, 35),
       pillar(91, -2, 11, 61, 36),
     ],
-    overview: { eye: [48, 30, 82], target: [-15, 38, -35] },
+    overview: { eye: [55, 36, 110], target: [-15, 37, -42] },
     route: [
       [-105, 2, 24],
       [-65, 2, 23],
@@ -149,7 +149,7 @@ export const REAL_LANDSCAPES: Painting[] = [
       karst(-127, 37, 16, 36, 56),
       karst(128, 41, 18, 45, 57),
     ],
-    overview: { eye: [-52, 9, 47], target: [15, 15, -40] },
+    overview: { eye: [-49, 17, 78], target: [12, 15, -48] },
     route: [
       [-102, 2, 21],
       [-66, 2, 22],
