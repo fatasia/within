@@ -31,17 +31,20 @@ import {
   ImageSquare,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
+import { isNightScene, resolveSceneNight } from './engine/sceneLighting';
 import { PAINTINGS, getPainting, chapterAt, PERIODS } from './data/paintings';
 import { initialState, nextSpeed, readableTime, restorePreferences } from './state';
 import type { ExperienceState, PaintingId, Telemetry, TimeMode, ViewMode } from './types';
 import type { Experience } from './engine/Experience';
 import { AmbientAudio } from './engine/audio';
+import { createRoadsterMusic, type RoadsterMusic } from './engine/roadsterMusic';
 import { SOUND_PALETTES } from './engine/audioScore';
 import { ArtworkPreview } from './components/ArtworkPreview';
 import { Dialog } from './components/Dialog';
 import { MiniMap } from './components/MiniMap';
 import { WalkJoystick } from './components/WalkJoystick';
 import { ENCOUNTER_TEXT } from './engine/easterEgg';
+import { CHARACTER_ENCOUNTERS } from './engine/characterEncounters';
 import { afterPaint } from './components/displayControls';
 import { useDisplayOrientation } from './components/useDisplayOrientation';
 import { OriginalViewer } from './components/OriginalViewer';
@@ -75,6 +78,11 @@ function loadInitial(): ExperienceState {
 }
 
 export function App() {
+  const [roadsterMusicPlaying, setRoadsterMusicPlaying] = useState(false);
+  const roadsterMusic = useRef<RoadsterMusic | null>(null);
+  const [roadsterPaint,setRoadsterPaint]=useState('#c4c7cc');
+  const [roadsterSpeed,setRoadsterSpeed]=useState(0);
+  const [roadsterChallenge,setRoadsterChallenge]=useState('检查点 0/5 · 0.0s');
   const [state, setState] = useState<ExperienceState>(loadInitial),
     [ready, setReady] = useState(false),
     [sceneLoading, setSceneLoading] = useState(false),
@@ -92,7 +100,8 @@ export function App() {
     collectionList = useRef<HTMLDivElement>(null),
     engine = useRef<Experience | null>(null),
     audio = useRef<AmbientAudio | null>(null),
-    soundStarted = useRef(false),
+    soundPending = useRef(false),
+    soundHintShown = useRef(false),
     current = useRef(state),
     configuredPainting = useRef<PaintingId | null>(null),
     pendingPainting = useRef<PaintingId | null>(null),
@@ -107,6 +116,8 @@ export function App() {
     (changes: Partial<ExperienceState>) => setState((s) => ({ ...s, ...changes })),
     [],
   );
+  useEffect(()=>{if(state.painting!=='roadster'||!state.entered)return;const id=setInterval(()=>{setRoadsterSpeed(engine.current?.getRoadsterSpeed()??0);setRoadsterChallenge(engine.current?.getRoadsterChallenge()??'');},120);return()=>clearInterval(id);},[state.painting,state.entered]);
+  const driveHold=(key:'steer'|'throttle'|'brake',value:number)=>({onPointerDown:(event:import('react').PointerEvent<HTMLButtonElement>)=>{event.preventDefault();event.currentTarget.setPointerCapture(event.pointerId);patch({playing:false});engine.current?.setRoadsterInput({[key]:value});},onPointerUp:()=>engine.current?.setRoadsterInput({[key]:0}),onPointerCancel:()=>engine.current?.setRoadsterInput({[key]:0}),onLostPointerCapture:()=>engine.current?.setRoadsterInput({[key]:0})});
   const moveWalk = useCallback((x: number, forward: number) => {
     engine.current?.setWalkInput(x, forward);
   }, []);
@@ -115,7 +126,7 @@ export function App() {
       ...s,
       progress,
       playing: false,
-      mode: 'scroll',
+      mode: ['sakura','roadster'].includes(s.painting) && s.mode === 'walk' ? 'walk' : 'scroll',
       period: s.painting === 'empire' ? chapterAt(getPainting(s.painting), progress) : s.period,
     }));
   }, []);
@@ -124,6 +135,30 @@ export function App() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(''), 3500);
   }, []);
+  const playRoadsterMusic = useCallback(() => {
+    const music = roadsterMusic.current ??= createRoadsterMusic();
+    music.setVolume(musicVolume);
+    void music.play().then((result) => {
+      setRoadsterMusicPlaying(result.state === 'playing');
+      if (result.state === 'blocked' || result.state === 'error')
+        notify('点击右上角声音按钮，播放 Vadoka Bayan。');
+    });
+  }, [musicVolume, notify]);
+  const soundEnabled = state.painting === 'roadster' ? roadsterMusicPlaying : state.sound;
+  useEffect(() => {
+    if (!state.entered || state.painting !== 'roadster') {
+      roadsterMusic.current?.pause();
+      setRoadsterMusicPlaying(false);
+    }
+    // Roadster uses its own track; never mix it with the procedural score.
+    void audio.current?.setEnabled(state.sound && state.painting !== 'roadster').catch(() => {});
+  }, [state.entered, state.painting, state.sound]);
+  useEffect(() => {
+    if (state.painting !== 'roadster' && state.entered && !state.sound && !soundHintShown.current) {
+      soundHintShown.current = true;
+      notify('点击右上角开启环境声');
+    }
+  }, [state.entered, state.painting, state.sound, notify]);
   useEffect(() => {
     current.current = state;
     if (!engine.current) return;
@@ -183,28 +218,13 @@ export function App() {
   }, [ready]);
   useEffect(() => {
     audio.current?.setMix(musicVolume, ambienceVolume);
+    roadsterMusic.current?.setVolume(musicVolume);
   }, [musicVolume, ambienceVolume]);
   useEffect(() => {
     let active = true;
     audio.current = new AmbientAudio();
     audio.current.setPainting(current.current.painting);
     audio.current.setMix(0.58, 0.62);
-    const sound = audio.current;
-    // Start both buses on the first gesture, without requiring a separate sound click.
-    const activateSound = (event: Event) => {
-      if (
-        soundStarted.current ||
-        !current.current.sound ||
-        (event instanceof KeyboardEvent && !['Enter', ' '].includes(event.key))
-      )
-        return;
-      soundStarted.current = true;
-      void sound.setEnabled(true).catch(() => {
-        soundStarted.current = false;
-      });
-    };
-    document.addEventListener('click', activateSound);
-    document.addEventListener('keyup', activateSound);
     import('./engine/Experience')
       .then(({ Experience }) => {
         if (!active || !host.current) return;
@@ -230,13 +250,22 @@ export function App() {
               }
             },
             onError: (message) => setError(message),
-            onEncounter: () => {
+            onEncounter: (id) => {
+              if (id) { notify(CHARACTER_ENCOUNTERS[id] ?? '发现了一个藏在风景里的朋友。'); return; }
               setState((s) => ({ ...s, playing: false }));
               setModal('encounter');
             },
           });
+          engine.current.setRoadsterMusicClock(() => {
+            const music = roadsterMusic.current;
+            return music?.state === 'playing' ? music.currentTime : undefined;
+          });
           configuredPainting.current = current.current.painting;
-          setReady(true);
+          void engine.current.ready.then(() => {
+            if (active) setReady(true);
+          }).catch((error: unknown) => {
+            if (active) setError(error instanceof Error ? error.message : '场景准备失败');
+          });
         } catch (e) {
           setError(e instanceof Error ? e.message : '无法初始化三维场景');
         }
@@ -244,17 +273,16 @@ export function App() {
       .catch(() => setError('场景引擎加载失败，请检查网络后刷新。'));
     return () => {
       active = false;
-      document.removeEventListener('click', activateSound);
-      document.removeEventListener('keyup', activateSound);
-      soundStarted.current = false;
       cancelSceneChange.current?.();
       pendingPainting.current = null;
       engine.current?.dispose();
       engine.current = null;
       audio.current?.dispose();
+      roadsterMusic.current?.dispose();
+      roadsterMusic.current = null;
       if (toastTimer.current) clearTimeout(toastTimer.current);
     };
-  }, []);
+  }, [notify]);
   useEffect(() => {
     try {
       localStorage.setItem(
@@ -275,6 +303,7 @@ export function App() {
     setModal(null);
     setSettings(false);
     if (id === state.painting) return;
+    if (id === 'roadster' && state.entered) playRoadsterMusic();
     setSceneLoading(true);
     engine.current?.suspendForSceneSwitch();
     lastProgress.current = 0;
@@ -284,22 +313,29 @@ export function App() {
       playing: state.entered ? state.playing : false,
       mode: 'scroll',
       period: 0,
-      time: ['starry', 'winter'].includes(id) ? 'night' : 'journey',
+      time: isNightScene(id) ? 'night' : 'journey',
     });
   };
   const toggleSound = useCallback(async () => {
-    const enabled = !current.current.sound;
-    // Update intent before the click bubbles to the first-gesture listener.
-    current.current = { ...current.current, sound: enabled };
-    patch({ sound: enabled });
-    if (enabled) soundStarted.current = true;
-    try {
-      await audio.current?.setEnabled(enabled);
-    } catch {
-      soundStarted.current = false;
-      notify('浏览器暂未允许音频播放，请再次点击声音按钮。');
+    if (current.current.painting === 'roadster') {
+      if (roadsterMusic.current?.state === 'playing' || roadsterMusic.current?.state === 'loading') {
+        roadsterMusic.current.pause();
+        setRoadsterMusicPlaying(false);
+      } else playRoadsterMusic();
+      return;
     }
-  }, [patch, notify]);
+    if (soundPending.current) return;
+    soundPending.current = true;
+    const enabled = !current.current.sound;
+    try {
+      // Audio hardware is initialized only by this dedicated action, never entry.
+      await audio.current?.setEnabled(enabled);
+      current.current = { ...current.current, sound: enabled };
+      patch({ sound: enabled });
+    } catch {
+      notify('浏览器暂未允许音频播放，请再次点击声音按钮。');
+    } finally { soundPending.current = false; }
+  }, [patch, notify, playRoadsterMusic]);
   const toggleFull = useCallback(async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -327,13 +363,13 @@ export function App() {
       const s = current.current;
       if (e.code === 'Space' && s.entered) {
         e.preventDefault();
-        patch({ playing: !s.playing, mode: 'scroll' });
+        patch({ playing: !s.playing, mode: ['sakura','roadster'].includes(s.painting) && s.mode === 'walk' ? 'walk' : 'scroll' });
       } else if (e.code === 'KeyV' && s.entered) {
         patch({
           mode: modes[(modes.findIndex((m) => m.id === s.mode) + 1) % 3]!.id,
           playing: false,
         });
-      } else if (e.code === 'KeyT' && !['starry', 'winter'].includes(s.painting)) {
+      } else if (e.code === 'KeyT' && !isNightScene(s.painting)) {
         patch({ time: times[(times.findIndex((t) => t.id === s.time) + 1) % 4]!.id });
       } else if (e.code === 'KeyH') setModal('help');
       else if (e.code === 'KeyF') void toggleFull();
@@ -372,7 +408,8 @@ export function App() {
   };
   return (
     <main
-      className={`app ${state.entered ? 'is-exploring' : 'is-gallery'} ${['starry', 'winter'].includes(state.painting) ? 'is-starry' : ''} ${state.time === 'night' || (state.time === 'journey' && state.progress > 0.75) ? 'is-night' : ''} ${recording !== null ? 'is-recording' : ''}`}
+      data-painting={state.painting}
+      className={`app ${state.painting==='roadster'?'is-roadster':''} ${state.entered ? 'is-exploring' : 'is-gallery'} ${isNightScene(state.painting) ? 'is-starry' : ''} ${resolveSceneNight(state.painting, state.time, state.progress) > 0.5 ? 'is-night' : ''} ${recording !== null ? 'is-recording' : ''}`}
       style={{ '--accent': painting.accent } as React.CSSProperties}
     >
       <div
@@ -461,11 +498,13 @@ export function App() {
                 aria-pressed={state.mode === id}
                 onClick={() => {
                   patch({ mode: id, playing: false });
-                  if (id === 'walk') notify('电脑点击画面转头，Esc 释放；手机左手摇杆、右手观察');
+                  if (id === 'walk') notify(state.painting === 'roadster' ? '已坐入驾驶席；拖动转头，空格启停演示' : state.painting === 'sakura'
+                    ? '已坐入船中；拖动画面转头，空格启停行舟'
+                    : '电脑点击画面转头，Esc 释放；手机左手摇杆、右手观察');
                 }}
               >
                 <Icon size={17} />
-                <span>{label}</span>
+                <span>{state.painting === 'roadster' ? ({scroll:'跟车',orbit:'环视',walk:'驾驶席'} as const)[id] : id === 'walk' && state.painting === 'sakura' ? '乘舟' : label}</span>
               </button>
             ))}
           </div>
@@ -483,14 +522,18 @@ export function App() {
           </nav>
         )}
         <div className="header-actions">
+          {state.entered && state.painting === 'roadster' && <div className="roadster-paints" role="group" aria-label="车身喷漆">
+            {([['#c4c7cc','银白'],['#aa162d','深红'],['#1b2027','曜黑'],['#275072','深蓝'],['#dedbd0','珍珠白']] as const).map(([color,label])=><button key={color} title={label} aria-label={`${label}喷漆`} aria-pressed={roadsterPaint===color} style={{backgroundColor:color}} onClick={()=>{setRoadsterPaint(color);engine.current?.setRoadsterPaint(color);}} />)}
+          </div>}
+
           <button
             className="icon-button"
-            aria-label={state.sound ? '关闭配乐与音效' : '开启配乐与音效'}
-            aria-pressed={state.sound}
+            aria-label={soundEnabled ? '关闭配乐与音效' : '开启配乐与音效'}
+            aria-pressed={soundEnabled}
             title="配乐与场景音效"
             onClick={() => void toggleSound()}
           >
-            {state.sound ? <SpeakerHigh size={20} /> : <SpeakerSlash size={20} />}
+            {soundEnabled ? <SpeakerHigh size={20} /> : <SpeakerSlash size={20} />}
           </button>
           <button
             className="icon-button fullscreen-button"
@@ -527,11 +570,12 @@ export function App() {
               className="enter-button"
               disabled={!ready || sceneLoading || !!error}
               onClick={() => {
-                patch({ entered: true, mode: 'scroll', playing: true, progress: 0 });
-                notify('滚轮展卷 · 拖动画面 · 空格暂停');
+                if (state.painting === 'roadster') playRoadsterMusic();
+                patch({ entered: true, mode: 'scroll', playing: state.painting!=='roadster', progress: 0 });
+                notify(state.painting==='roadster'?'WASD 驾驶 · Shift 刹车 · 按钮冷气跃升':'滚轮展卷 · 拖动画面 · 空格暂停');
               }}
             >
-              <span>走进画中</span>
+              <span>{state.painting==='roadster'?'进入试场':'走进画中'}</span>
               <ArrowRight size={23} />
             </button>
             <button className="original-link" onClick={() => setModal('original')}>
@@ -688,7 +732,7 @@ export function App() {
                     key={id}
                     className={state.time === id ? 'active' : ''}
                     aria-pressed={state.time === id}
-                    disabled={['starry', 'winter'].includes(state.painting) && id !== 'night'}
+                    disabled={isNightScene(state.painting) && id !== 'night'}
                     onClick={() => patch({ time: id })}
                   >
                     <Icon size={18} />
@@ -696,8 +740,8 @@ export function App() {
                   </button>
                 ))}
               </div>
-              {['starry', 'winter'].includes(state.painting) && (
-                <p className="setting-note">此画境保留原作夜景光色。</p>
+              {isNightScene(state.painting) && (
+                <p className="setting-note">{state.painting==='roadster'?'此试场采用虚构的赛博雨夜灯光。':'此画境保留原作夜景光色。'}</p>
               )}
               <label htmlFor="quality">渲染画质</label>
               <select
@@ -741,7 +785,7 @@ export function App() {
                   <span>{SOUND_PALETTES[state.painting].description}</span>
                 </p>
                 <button onClick={() => void toggleSound()} className="sound-enable">
-                  {state.sound ? '关闭声音' : '开启声音'}
+                  {soundEnabled ? '关闭声音' : '开启声音'}
                 </button>
                 <label htmlFor="music-volume">
                   背景音乐 <span>{Math.round(musicVolume * 100)}%</span>
@@ -823,7 +867,8 @@ export function App() {
             </div>
             <p>{chapter.description}</p>
           </div>
-          {state.mode === 'walk' && <WalkJoystick onMove={moveWalk} />}
+          {state.painting === 'roadster' && <div className="roadster-actions" aria-label="赛博试场互动"><div className="roadster-speed"><strong>{Math.round(roadsterSpeed)}</strong><span>KM/H · WASD 驾驶<br/>{roadsterChallenge}</span></div><div className="roadster-drive-controls"><button aria-label="向左转向" {...driveHold('steer',-1)}>←</button><button aria-label="向右转向" {...driveHold('steer',1)}>→</button><button aria-label="油门" {...driveHold('throttle',1)}>油门</button><button aria-label="刹车" {...driveHold('brake',1)}>刹车</button><button aria-label="倒车" {...driveHold('throttle',-1)}>倒车</button></div><button onClick={()=>{engine.current?.triggerRoadster('boost');notify('冷气短跃 · 幻想互动演示');}}>冷气跃升 <span>BOOST</span></button><button onClick={()=>{engine.current?.triggerRoadster('grip');notify('风扇吸附 · 贴地演示');}}>吸附抓地 <span>GRIP</span></button><button className="roadster-dance" onClick={()=>{engine.current?.triggerRoadster('dance');notify('马斯克玩偶 · 车顶即兴舞');}}>车顶彩蛋 <span>DANCE</span></button><button className="roadster-reset" onClick={()=>{patch({progress:0,playing:false});engine.current?.triggerRoadster('reset');notify('冲过 5 道光门，刷新你的纪录');}}>重新发车 <span>RESTART</span></button><small>幻想互动 · 非实测车型能力</small></div>}
+          {state.mode === 'walk' && !['sakura','roadster'].includes(state.painting) && <WalkJoystick onMove={moveWalk} />}
           <section className="journey-panel" aria-label="游览控制">
             <div className="journey-top">
               <div className="playback">
@@ -833,7 +878,7 @@ export function App() {
                   onClick={() =>
                     patch({
                       playing: !state.playing,
-                      mode: 'scroll',
+                      mode: ['sakura','roadster'].includes(state.painting) && state.mode === 'walk' ? 'walk' : 'scroll',
                       progress: state.progress >= 1 ? 0 : state.progress,
                     })
                   }
@@ -866,12 +911,12 @@ export function App() {
                 ))}
               </div>
               <span className="time-indicator">
-                {state.time === 'night' || ['starry', 'winter'].includes(state.painting) ? (
+                {state.time === 'night' || isNightScene(state.painting) ? (
                   <Moon size={16} />
                 ) : (
                   <SunHorizon size={16} />
                 )}{' '}
-                {['starry', 'winter'].includes(state.painting)
+                {isNightScene(state.painting)
                   ? '星夜'
                   : readableTime(state.time, state.progress)}
               </span>
@@ -880,7 +925,9 @@ export function App() {
             <div className="journey-bottom">
               <span>
                 {state.mode === 'walk'
-                  ? 'WASD 行走 · 点击转头 · Esc 释放'
+                  ? state.painting === 'roadster' ? 'WASD 驾驶 · Shift 刹车 · 拖动转头' : state.painting === 'sakura'
+                    ? '船上第一视角 · 拖动转头 · 空格启停行舟'
+                    : 'WASD 行走 · 点击转头 · Esc 释放'
                   : state.mode === 'orbit'
                     ? '左拖平移 · 右拖旋转 · 滚轮缩放'
                     : '滚轮展卷 · 双指缩放 · 空格播放'}
@@ -1004,10 +1051,13 @@ export function App() {
       {modal === 'about' && (
         <Dialog title="让风景，成为一段经历。" onClose={() => setModal(null)}>
           <p className="about-lead">
-            入画是一座可以游览的数字风景画馆。七组画作、三处实景，用不同的方式看待天地与时间。
+            入画，把画卷与远方变成可以走近的风景。这里有 {PAINTINGS.length} 个三维场景：从汴河街市到黄山云海，从极地冰湾到樱谷行舟。
           </p>
           <p>
-            所有山体、树木、舟桥与建筑由程序生成，在浏览器中实时渲染。作品依据原画的构图、色彩与情绪进行三维意境演绎，并非对原画每一处细节的测绘复原。
+            随展卷沿途游览，切换漫游寻找自己的视角，也可以步行到桥边、林间与岸上。风、水、舟与光影在浏览器中实时变化；遇见喜欢的片刻，可以拍照或录成短片。
+          </p>
+          <p>
+            画作场景参考原作的构图与色彩，实景场景参考地貌、建筑与地方资料，再为游览压缩距离、安排路线。樱谷行舟等主题场景属于艺术想象，不对应单一地点。下方可查阅原作与参考出处。
           </p>
           <div className="source-list">
             {PAINTINGS.map((p) => (
@@ -1021,7 +1071,7 @@ export function App() {
             ))}
           </div>
           <p className="dialog-note">
-            「查看原作」提供画作图像与馆藏出处，可与三维演绎对照；帝国的进程包含五幅组画。三维模型与场景缩略图由程序生成，原作图像不作模型贴图。实景场景提供地域资料。配乐与场景音效由浏览器本地合成。
+            场景结合程序建模与授权素材制作；三维演绎不等同于原作或实景的测绘复原。「帝国的进程」包含五幅组画。樱谷行舟参考 Sakura Fantasy，素材署名见项目许可说明。配乐与环境音由浏览器本地合成。
           </p>
         </Dialog>
       )}

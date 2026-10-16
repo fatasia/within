@@ -23,13 +23,15 @@ export const QINGMING: Painting = {
   },
   seed: 1120,
   peaks: [],
-  overview: { eye: [-50, 25, 56], target: [-10, 8, -9] },
+  overview: { eye: [-35, 130, 195], target: [0, 4, -28] },
   route: [
     [-126, 4, -43],
     [-100, 4, -28],
     [-74, 4, -15],
     [-20, 11, 3.3],
-    [30, 4, -23],
+    [-14, 4, -21],
+    [8, 4, -29.4],
+    [30, 4, -41.5],
     [55, 4, -45],
     [92, 4, -45],
     [113, 4, -63],
@@ -56,7 +58,8 @@ export const QINGMING: Painting = {
     {
       title: '东角子门',
       subtitle: 'THE CITY GATE',
-      description: '门洞保留一条穿城通道，近看能辨砖缝、门扇与楼上窗格；越过城墙，街屋变得密集。',
+      description:
+        '门洞保留一条穿城通道，近看能辨砖缝、门扇与楼上木构柱廊；越过城墙，街屋变得密集。',
       progress: 0.65,
     },
     {

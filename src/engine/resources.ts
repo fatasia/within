@@ -94,6 +94,7 @@ export function disposeObject(object: THREE.Object3D): void {
     textures = new Set<THREE.Texture>();
   object.traverse((child) => {
     if (child instanceof THREE.InstancedMesh) child.dispose();
+    if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose();
     if (
       child instanceof THREE.Mesh ||
       child instanceof THREE.Line ||

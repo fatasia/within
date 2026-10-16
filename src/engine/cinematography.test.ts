@@ -11,7 +11,7 @@ const paintings = PAINTINGS;
 
 describe('cinematic landscape routes', () => {
   it('keeps contextual subjects without forcing every world into a macro shot', () => {
-    expect(paintings).toHaveLength(16);
+    expect(paintings).toHaveLength(18);
     for (const painting of paintings) {
       const frames = getCinematicKeyframes(painting);
       expect(frames.length, painting.id).toBeGreaterThanOrEqual(8);
@@ -24,7 +24,7 @@ describe('cinematic landscape routes', () => {
       expect(close.length, painting.id).toBeGreaterThanOrEqual(1);
       // Previous tests required a <10m shot in every world. That requirement
       // pushed the tour inside bamboo, cypress and forest crowns.
-      if (painting.id !== 'qingming')
+      if (!['qingming','roadster'].includes(painting.id))
         for (const shot of frames) {
           const view = getCinematicView(painting, shot.progress);
           expect(

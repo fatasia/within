@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import type { Painting, Quality } from '../types';
+import type { Painting, Quality, Vec3 } from '../types';
 import { clamp } from './math';
+import { SAKURA_SUN_DIRECTION } from './sakuraLight';
 
 export interface River {
   mesh: THREE.Mesh;
   update: (time: number, night: number) => void;
+  setSakuraHull: (position: Vec3, rotation: Vec3) => void;
   dispose: () => void;
 }
 
@@ -37,11 +39,19 @@ const fragmentShader = /* glsl */ `
   uniform float uNight;
   uniform float uHasReflection;
   uniform float uLakeClarity;
+  uniform float uSakura;
+  uniform vec3 uSunDirection;
+  uniform mat4 uSakuraHullInverse;
+  uniform float uSakuraHullActive;
   varying vec4 vReflection;
   varying vec3 vWorld;
   varying vec3 vView;
   #include <common>
   #include <logdepthbuf_pars_fragment>
+
+  // Waterline sampled from the original tomabune, not a rectangular cutout.
+  // Adapted from sakura-fantasy (Bill Chan, MIT); see assets/sakura/LICENSE.
+  const float HULL_WL[36] = float[36](0.558, 0.574, 0.608, 0.646, 0.674, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.685, 0.680, 0.670, 0.651, 0.624, 0.588, 0.544, 0.491, 0.426, 0.348, 0.256, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 
   float riverNoise(vec2 p) {
     vec2 cell = floor(p), f = fract(p);
@@ -68,6 +78,16 @@ const fragmentShader = /* glsl */ `
 
   void main() {
     #include <logdepthbuf_fragment>
+    if (uSakura > 0.5 && uSakuraHullActive > 0.5) {
+      vec3 hull = (uSakuraHullInverse * vec4(vWorld, 1.0)).xyz;
+      // The integrated model's longitudinal axis is +X (upstream is +Z).
+      float station = (hull.x + 4.1) / 8.3 * 35.0;
+      if (station > 0.0 && station < 35.0) {
+        int i = int(floor(station));
+        float halfWidth = mix(HULL_WL[i], HULL_WL[min(i + 1, 35)], fract(station));
+        if (abs(hull.z) < halfWidth) discard;
+      }
+    }
     // Evaluate the distance per fragment. Interpolating corner distances on the
     // kilometre-wide quad would fade even the nearest water into the horizon.
     float viewDistance = length(vView);
@@ -77,6 +97,12 @@ const fragmentShader = /* glsl */ `
     float ripple = sin(p.x * 0.75 + p.y * 1.12 + n * 5.4 + uTime * 0.3);
     float crossRipple = sin(p.x * -0.43 + p.y * 0.91 - uTime * 0.19 + n * 3.1);
     vec3 normal = normalize(vec3(ripple * 0.012, 1.0, crossRipple * 0.009));
+    if (uSakura > 0.5) {
+      // Two flow scales break a flat mirror into small, non-repeating wavelets.
+      float fine = riverNoise(p * 2.7 + vec2(uTime * .12, -uTime * .19));
+      normal = normalize(vec3(ripple * .035 + (fine - .5) * .045, 1.0,
+        crossRipple * .028 + sin(p.y * 3.7 + fine * 6.0 - uTime) * .018));
+    }
     float facing = clamp(dot(normalize(vView), normal), 0.0, 1.0);
     float fresnel = pow(1.0 - facing, 3.0);
     vec3 nightWater = vec3(0.004, 0.012, 0.021);
@@ -88,7 +114,7 @@ const fragmentShader = /* glsl */ `
     if (uHasReflection > 0.5 && vReflection.w > 0.0) {
       vec2 uv = vReflection.xy / vReflection.w;
       float distanceDamping = 1.0 - smoothstep(70.0, 460.0, viewDistance) * 0.7;
-      uv += vec2(ripple, crossRipple) * vec2(0.00072, 0.00048) * distanceDamping;
+      uv += vec2(ripple, crossRipple) * vec2(0.00072, 0.00048) * distanceDamping * (1.0 + uSakura * 1.5);
       // Texture edges fall back to the water body instead of smearing a border.
       float valid = smoothstep(0.0, 0.025, uv.x) * (1.0 - smoothstep(0.975, 1.0, uv.x))
         * smoothstep(0.0, 0.025, uv.y) * (1.0 - smoothstep(0.975, 1.0, uv.y));
@@ -96,6 +122,7 @@ const fragmentShader = /* glsl */ `
       // The target is linear HDR; absorption and tone mapping are applied once here.
       reflected *= mix(vec3(0.78, 0.9, 0.86), vec3(0.55, 0.69, 0.83), uNight);
       float reflectance = mix(0.48 + uLakeClarity * 0.14, 0.79 + uLakeClarity * 0.08, fresnel) * valid;
+      if (uSakura > 0.5) reflectance = mix(.24, .92, pow(1.0 - facing, 2.0)) * valid;
       body = mix(body, reflected, reflectance);
     }
 
@@ -104,6 +131,19 @@ const fragmentShader = /* glsl */ `
     // Broad directional sheen, never white periodic stripes.
     float sheen = pow(max(0.0, dot(normalize(vView), reflect(normalize(vec3(-0.45, -0.8, 0.3)), normal))), 100.0);
     body += mix(vec3(0.016, 0.017, 0.012), vec3(0.002, 0.004, 0.006), uNight) * sheen;
+    if (uSakura > 0.5) {
+      vec3 halfVector = normalize(normalize(vView) + uSunDirection);
+      float nh = max(dot(normal, halfVector), 0.0);
+      // Pixel-footprint filtering prevents distant sparkles from crawling.
+      float footprint = max(length(dFdx(p)), length(dFdy(p)));
+      float resolved = 1.0 - smoothstep(.15, 1.8, footprint);
+      float glitter = riverNoise(p * 7.0 + vec2(uTime * 1.7, -uTime * 1.1));
+      glitter = mix(.66, glitter, resolved);
+      float exponent = mix(90.0, 480.0, resolved);
+      float specular = pow(nh, exponent) * exponent * .025 * smoothstep(.5, .78, glitter)
+        + pow(nh, 90.0) * .45;
+      body += vec3(1.0, .78, .48) * specular * (1.0 - uNight);
+    }
     gl_FragColor = vec4(max(body, vec3(0.0)), 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -116,6 +156,7 @@ export function buildRiver(painting: Painting, quality: Quality): River {
   const resolution = quality === 'high' ? 1024 : 512;
   const waterTint = new THREE.Color(painting.palette.water);
   waterTint.lerp(new THREE.Color(painting.id === 'fuchun' ? '#777f73' : '#456e66'), 0.38);
+  if (painting.id === 'sakura') waterTint.set('#376f69');
   const shader = {
     name: 'QuietRiverReflection',
     uniforms: {
@@ -128,6 +169,10 @@ export function buildRiver(painting: Painting, quality: Quality): River {
       uNight: { value: 0 },
       uHasReflection: { value: reflectionEnabled ? 1 : 0 },
       uLakeClarity: { value: painting.id === 'wuhan' ? 1 : 0 },
+      uSakura: { value: painting.id === 'sakura' ? 1 : 0 },
+      uSunDirection: { value: new THREE.Vector3(...SAKURA_SUN_DIRECTION).normalize() },
+      uSakuraHullInverse: { value: new THREE.Matrix4() },
+      uSakuraHullActive: { value: 0 },
     },
     vertexShader,
     fragmentShader,
@@ -153,6 +198,8 @@ export function buildRiver(painting: Painting, quality: Quality): River {
   let lastReflection = -Infinity;
   let lastNight = -1;
   let disposed = false;
+  const hullPosition = new THREE.Vector3(), hullRotation = new THREE.Euler();
+  const hullOrientation = new THREE.Quaternion(), hullScale = new THREE.Vector3(1, 1, 1);
   if (reflector) {
     const renderReflection = reflector.onBeforeRender;
     const interval = quality === 'high' ? 1 / 30 : 1 / 20;
@@ -184,6 +231,15 @@ export function buildRiver(painting: Painting, quality: Quality): River {
   }
   return {
     mesh,
+    setSakuraHull(position, rotation) {
+      if (disposed || painting.id !== 'sakura') return;
+      hullPosition.set(...position);
+      hullRotation.set(...rotation);
+      hullOrientation.setFromEuler(hullRotation);
+      (material.uniforms.uSakuraHullInverse!.value as THREE.Matrix4)
+        .compose(hullPosition, hullOrientation, hullScale).invert();
+      material.uniforms.uSakuraHullActive!.value = 1;
+    },
     update(nextTime, night) {
       if (disposed) return;
       time = Number.isFinite(nextTime) ? nextTime : 0;

@@ -1,0 +1,65 @@
+import type { Painting } from '../types';
+export const ROADSTER: Painting = {
+  id: 'roadster',
+  title: 'Roadster · 未来之形',
+  shortTitle: 'Roadster',
+  english: 'THE SHAPE OF MOTION',
+  artist: 'Tesla · 影像参考重建',
+  era: '2026',
+  technique: '程序化建模 · 动态演示',
+  tagline: '雨夜霓虹，冷气跃升。',
+  introduction:
+    '依据官方多角度图片重建的新款 Roadster。环视车身、切换喷漆、坐入驾驶席，进入虚构的赛博雨夜试场，触发冷气短跃与吸附互动。模型非官方 CAD，短跃为幻想互动，不代表车型能力。',
+  accent: '#777f88',
+  palette: {
+    sky: '#07131f',
+    water: '#777d80',
+    low: '#555652',
+    high: '#929598',
+    ink: '#22272d',
+    leaf: '#555c50',
+  },
+  peaks: [],
+  seed: 2026,
+  overview: { eye: [-4.9, 2.8, -6.5], target: [0, 1.35, 0] },
+  route: [
+    [0, 0.8, 0],
+    [0, 0.8, -40],
+    [0, 0.8, -90],
+    [12, 0.8, -126],
+    [30, 0.8, -145],
+  ],
+  chapters: [
+    {
+      title: '低伏之形',
+      subtitle: 'THE SILHOUETTE',
+      progress: 0,
+      description: '从低垂车鼻绕向车侧，银色棱面与黑色玻璃舱形成对照，先看清整车的楔形比例。',
+    },
+    {
+      title: '轮廓与座舱',
+      subtitle: 'THE COCKPIT',
+      progress: 0.2,
+      description: '沿车肩看向后窗，五辐轮毂、开放轮拱与双座座舱依次展开，细节不靠贴图遮掩。',
+    },
+    {
+      title: '冷气推进',
+      subtitle: 'COLD GAS',
+      progress: 0.41,
+      description: '车尾喷口短暂释放淡白冷气，车轮随行程转动，直线加速仅作推进原理的视觉演示。',
+    },
+    {
+      title: '弯道吸附',
+      subtitle: 'GROUND EFFECT',
+      progress: 0.68,
+      description: '车辆沿宽弯循迹，车底薄尘向内收拢，展示风扇吸附概念，不把特效当作实测数据。',
+    },
+    {
+      title: '主动空气动力',
+      subtitle: 'ACTIVE AERO',
+      progress: 0.85,
+      description: '尾翼逐渐抬起并改变角度，车辆减速收束行程，座舱视角始终跟随车身而不是地面。',
+    },
+  ],
+  source: 'https://www.tesla.cn/roadster/reserve#payment',
+};

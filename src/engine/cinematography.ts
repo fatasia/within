@@ -1,3 +1,4 @@
+import { sampleRoadsterMotion } from './roadsterMotion';
 import { CatmullRomCurve3, Vector3 } from 'three';
 import type { Painting, Vec3 } from '../types';
 import { clamp, seededRandom } from './math';
@@ -91,6 +92,7 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
   if (existing) return existing;
   let frames: CinematicKeyframe[];
   switch (p.id) {
+    case 'roadster': frames=[0,.12,.24,.4,.55,.68,.85,1].map(t=>{const v=sampleRoadsterMotion(t);return frame(t,'Roadster',v.eye,v.target,true)});break;
     case 'qianli': {
       const boat = routeBoat(p, 1);
       frames = [
@@ -230,6 +232,99 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
       ];
       break;
     }
+    case 'arctic': {
+      frames = [
+        overview(p, 0),
+        frame(0.1, '冰湾初见', [-4, 11, 48], [-9, 7, -30]),
+        frame(0.24, '浮冰与企鹅', [10, 3.3, 22], [5, 1, 12], true),
+        frame(0.38, '白熊与企鹅玩耍', [-3, 5.3, 27], [-11, 1.6, 12], true),
+        frame(0.46, '雪岸玩伴', [-2, 5, 26], [-11, 1.6, 12], true),
+        frame(0.55, '极光升起', [20, 10, 60], [0, 45, -70]),
+        frame(0.7, '冰川壁近看', [-10, 18, -18], [-12, 16, -75]),
+        frame(0.86, '长夜回望', [52, 24, 88], [-6, 16, -34]),
+        overview(p, 1),
+      ];
+      break;
+    }
+    case 'dunhuang': {
+      frames = [
+        overview(p, 0),
+        frame(0.1, '沙海见窟', [-28, 16, 78], [4, 12, -40]),
+        frame(0.24, '九层楼', [-16, 12, -16], [2, 14, -42], true),
+        frame(0.38, '天光入室', [-6, 6, -20], [-12, 8, -48], true),
+        frame(0.52, '飞天与藻井', [2, 9, -30], [-4, 14, -50], true),
+        frame(0.68, '月照驼铃', [30, 22, 6], [72, 10, -26]),
+        frame(0.86, '窟前星河', [24, 18, 60], [0, 20, -50]),
+        overview(p, 1),
+      ];
+      break;
+    }
+    case 'huangshan': {
+      const pine = ground(p, -20, -6, 4.5);
+      frames = [
+        overview(p, 0),
+        frame(0.1, '石阶穿松', [-40, 10, 46], [-24, 6, 10]),
+        frame(0.24, '迎客松', offset(pine, 9.5, 1, 8), pine, true),
+        frame(0.4, '花岗岩柱峰', [6, 22, 24], [10, 30, -45]),
+        frame(0.55, '云海涌动', [26, 30, 55], [-4, 10, -40]),
+        frame(0.7, '天都远眺', [-2, 40, 30], [8, 44, -70]),
+        frame(0.86, '夕照松声', [30, 26, 80], [20, 22, -30]),
+        overview(p, 1),
+      ];
+      break;
+    }
+    case 'xihu': {
+      frames = [
+        overview(p, 0),
+        frame(0.1, '雨后湖岸', [-30, 12, 60], [0, 6, 8]),
+        frame(0.24, '断桥三人', [-16, 5, 22], [-7, 2.6, 8], true),
+        frame(0.4, '柳浪与荷', [8, 6, 30], [30, 2, 12], true),
+        frame(0.58, '雷峰塔影', [-24, 10, -6], [0, 12, -28], true),
+        frame(0.75, '乌篷双舟', [16, 4, -2], [30, 1.5, -18]),
+        frame(0.88, '南屏晚钟', [40, 16, 40], [0, 14, -30]),
+        overview(p, 1),
+      ];
+      break;
+    }
+    case 'kanas': {
+      frames = [
+        overview(p, 0),
+        frame(0.1, '湖谷入秋', [-40, 18, 70], [-10, 8, 0]),
+        frame(0.24, '白桦换色', [-36, 5, 16], [-52, 6, -4], true),
+        frame(0.4, '木屋炊烟', [1, 8, 11], [-12, 4, -8], true),
+        frame(0.58, '湖雾回湾', [20, 14, 30], [-10, 3, -26]),
+        frame(0.74, '青玉湖湾', [36, 22, 50], [0, 6, -40]),
+        frame(0.88, '牧歌暮色', [48, 18, 78], [12, 8, -16]),
+        overview(p, 1),
+      ];
+      break;
+    }
+    case 'deepsea': {
+      frames = [
+        overview(p, 0),
+        frame(0.1, '蓝光边界', [-30, 14, 70], [0, 8, -20]),
+        frame(0.26, '珊瑚峡谷', [20, 6, -18], [38, 8, -52], true),
+        frame(0.44, '鲸影经过', [-10, 14, -34], [18, 17, -62], true),
+        frame(0.6, '蓝眼泪光带', [-6, 4, 6], [-30, 2, -28], true),
+        frame(0.78, '水母上浮', [10, 10, -8], [16, 18, -30]),
+        frame(0.9, '无光之海', [40, 20, 50], [-10, 8, -50]),
+        overview(p, 1),
+      ];
+      break;
+    }
+    case 'sakura': {
+      frames = [
+        overview(p, 0),
+        frame(0.1, '谷口晨雾', [-24, 16, 90], [-6, 22, -120]),
+        frame(0.24, '樱并木夹岸', [-8, 6, -2], [10, 7, -30], true),
+        frame(0.4, '太鼓桥', [-12, 4, -14], [2, 5, -26], true),
+        frame(0.56, '街町与五重塔', [12, 8, -22], [36, 12, -42], true),
+        frame(0.72, '千本鸟居', [-18, 5, -6], [-26, 5, -34], true),
+        frame(0.88, '湖上大鸟居', [10, 9, -48], [0, 7, -80]),
+        overview(p, 1),
+      ];
+      break;
+    }
     default:
       frames = [overview(p, 0), overview(p, 1)];
   }
@@ -239,6 +334,7 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
 
 /** C1-continuous eased segments cannot overshoot through a model like a Catmull-Rom eye path. */
 export function getCinematicView(painting: Painting, progress: number): CinematicView {
+  if(painting.id==='roadster')return sampleRoadsterMotion(progress);
   const frames = getCinematicKeyframes(painting);
   const t = clamp(progress);
   let index = frames.findIndex((point) => point.progress >= t);

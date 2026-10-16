@@ -9,7 +9,7 @@ export const initialState: ExperienceState = {
   progress: 0,
   time: 'journey',
   quality: 'high',
-  sound: true,
+  sound: false,
   mist: true,
   period: 2,
 };
@@ -24,6 +24,14 @@ const ids: PaintingId[] = [
   'zhangjiajie',
   'guilin',
   'wuhan',
+  'arctic',
+  'dunhuang',
+  'huangshan',
+  'xihu',
+  'kanas',
+  'deepsea',
+  'sakura',
+  'roadster',
 ];
 export function restorePreferences(value: string | null): ExperienceState {
   if (!value) return { ...initialState };

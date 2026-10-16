@@ -16,7 +16,7 @@
   --muted: #7b8275;
   --line: rgba(53, 72, 57, 0.18);
   --serif: 'Landscape Serif', 'STSong', 'Songti SC', 'SimSun', serif;
-  --display: 'Landscape Serif', 'KaiTi', 'STKaiti', 'STSong', serif;
+  --display: var(--serif);
   --accent: #28665b;
 }
 * {
@@ -305,6 +305,12 @@ button {
   color: #768074;
   max-width: 310px;
   letter-spacing: 0.6px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  min-height: 4.4em;
+  overflow: hidden;
 }
 .enter-button {
   background: var(--accent);
@@ -445,7 +451,8 @@ button {
   overflow: hidden;
   border: 1px solid rgba(60, 70, 48, 0.07);
 }
-.artwork-thumb canvas {
+.artwork-thumb canvas,
+.artwork-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -456,7 +463,8 @@ button {
   outline: 1px solid var(--accent);
   outline-offset: 4px;
 }
-.selected .artwork-thumb canvas {
+.selected .artwork-thumb canvas,
+.selected .artwork-thumb img {
   filter: saturate(1);
 }
 .artwork-number {
@@ -573,6 +581,7 @@ button {
 .experience-title h1 {
   font: 400 36px/1.3 var(--display);
   letter-spacing: 4px;
+  white-space: nowrap;
 }
 .experience-title > span {
   display: block;
@@ -1298,9 +1307,36 @@ button {
 }
 .is-exploring:not(.is-night):not(.is-starry) .experience-title,
 .is-exploring:not(.is-night):not(.is-starry) .chapter-caption {
-  text-shadow:
-    0 1px 8px #e8e4d8,
-    0 0 25px #e8e4d8;
+  text-shadow: none;
+}
+.is-exploring .experience-title,
+.is-exploring .chapter-caption {
+  padding: 14px 18px;
+  border-radius: 6px;
+  background: rgba(242, 239, 228, 0.93);
+  color: #243c33;
+  text-shadow: none;
+  border: 1px solid rgba(60, 80, 67, 0.12);
+}
+.is-night.is-exploring .experience-title,
+.is-night.is-exploring .chapter-caption {
+  background: rgba(15, 32, 45, 0.92);
+  color: #f4f0e5;
+  border-color: rgba(210, 226, 232, 0.16);
+  text-shadow: none;
+}
+.is-exploring .experience-title > span,
+.is-exploring .chapter-caption p,
+.is-exploring .chapter-caption .eyebrow {
+  opacity: 1;
+}
+.is-exploring .chapter-caption p {
+  font-size: 12px;
+}
+.is-night .header-actions button {
+  color: #f4f0e5;
+  background: rgba(15, 32, 45, 0.8);
+  border-radius: 50%;
 }
 .settings-panel button:disabled {
   cursor: not-allowed;
@@ -1572,6 +1608,7 @@ button {
     font-size: 11px;
     line-height: 2.1;
     max-width: 245px;
+    min-height: 4.2em;
   }
   .enter-button {
     height: 48px;
@@ -2634,4 +2671,46 @@ html[data-view-rotation='90'] .dialog {
   max-width: none;
   max-height: calc(var(--view-height) - 24px);
   transform: translate(-50%, -50%) rotate(90deg);
+}
+
+.roadster-paints { display:flex;align-items:center;gap:7px;margin-right:10px; }
+.roadster-paints button { width:22px;height:22px;min-width:22px;padding:0;border-radius:50%;border:2px solid transparent;box-shadow:0 0 0 1px #8888; }
+.roadster-paints button[aria-pressed=true] { border-color:#fff;box-shadow:0 0 0 2px #777; }
+@media(max-width:650px){.roadster-paints {position:fixed;right:18px;top:78px;padding:10px;border-radius:24px;background:#efede9e8;}}
+.roadster-paints button {width:44px;height:44px;min-width:44px;border:10px solid #10202c;box-shadow:inset 0 0 0 1px #ffffff44;}
+.roadster-paints button[aria-pressed=true]{border-color:#142d3b;box-shadow:inset 0 0 0 2px #7de8ff,0 0 14px #34cae640;}
+.roadster-actions {position:fixed;z-index:18;right:max(28px,env(safe-area-inset-right));bottom:220px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.roadster-actions button {min-height:52px;min-width:134px;padding:12px 16px;background:#112a38ed;border:1px solid #58d4e877;color:#e2faff;border-radius:10px;font-size:14px;font-weight:650;box-shadow:0 6px 25px #0006;touch-action:manipulation;}
+.roadster-actions button:nth-child(2){border-color:#ea65ba88;background:#2b1b33ed;}.roadster-actions span{display:block;font-size:9px;letter-spacing:2px;opacity:.6;margin-top:4px;}.roadster-actions small{grid-column:1/-1;text-align:center;color:#b3c4d1;font-size:10px;letter-spacing:.7px;}
+@media(max-width:650px){.roadster-paints{top:calc(72px + env(safe-area-inset-top));right:12px;gap:1px;padding:4px;background:#0a1724e8;}.roadster-actions{right:14px;bottom:calc(200px + env(safe-area-inset-bottom));gap:8px;}.roadster-actions button{min-width:118px;min-height:52px;padding:10px;}}
+.roadster-actions {grid-template-columns:1fr 1fr;bottom:210px;max-width:330px;}
+.roadster-speed{grid-column:1/-1;display:flex;align-items:baseline;gap:10px;color:#e3faff;text-shadow:0 2px 10px #000;}.roadster-speed strong{font-size:34px;font-variant-numeric:tabular-nums;font-weight:500;}.roadster-speed span{font-size:9px;letter-spacing:1.4px;}
+.roadster-drive-controls{grid-column:1/-1;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}.roadster-drive-controls button{min-width:0;min-height:52px;padding:8px;font-size:14px;touch-action:none;user-select:none;}.roadster-drive-controls button:active{background:#2b6176;transform:translateY(1px);}
+@media(max-width:650px){.is-roadster.is-exploring .journey-panel{display:none;}.is-roadster .roadster-actions{bottom:calc(20px + env(safe-area-inset-bottom));left:14px;right:14px;max-width:none;}.roadster-actions .roadster-drive-controls button{height:56px;}.roadster-actions>button{min-height:52px;}.roadster-speed{justify-content:center;}.is-roadster .roadster-paints{top:calc(130px + env(safe-area-inset-top));}.is-roadster.is-exploring .chapter-marker{display:none;}}
+@media(max-width:650px){.is-roadster.is-exploring .chapter-caption{display:none;}.is-roadster.is-exploring .scene-tools{top:calc(192px + env(safe-area-inset-top));}.is-roadster .roadster-paints{top:calc(130px + env(safe-area-inset-top));}}
+
+.roadster-actions .roadster-dance {grid-column:1/-1;min-height:44px;padding:7px;display:flex;align-items:center;justify-content:center;gap:12px;}.roadster-dance span{margin:0;}
+
+.roadster-actions .roadster-dance,.roadster-actions .roadster-reset{grid-column:auto;min-width:0;min-height:44px;padding:7px;display:flex;gap:6px;align-items:center;justify-content:center;}.roadster-reset span{margin:0;}
+/* Arctic keeps the foreground animals unobstructed; full journey controls remain usable. */
+.app[data-painting="arctic"].is-exploring .journey-panel {
+  bottom: max(8px, var(--safe-bottom));
+  padding: 7px 14px;
+}
+.app[data-painting="arctic"] .journey-top { margin-bottom: 3px; }
+.app[data-painting="arctic"] .mini-map { height: 22px; }
+.app[data-painting="arctic"] .map-cursor { top: 8px; }
+.app[data-painting="arctic"] .journey-bottom { display: none; }
+.app[data-painting="arctic"].is-exploring .chapter-caption {
+  bottom: 108px;
+  padding: 14px 18px;
+}
+.app[data-painting="arctic"] .chapter-caption > p { display: none; }
+@media (max-width: 650px) {
+  .app[data-painting="arctic"] .mini-map { height: 44px; }
+  .app[data-painting="arctic"] .map-cursor { top: 19px; }
+  .app[data-painting="arctic"].is-exploring .chapter-caption { bottom: 173px; padding: 10px 14px; width: calc(100% - 48px); }
+  .app[data-painting="arctic"] .chapter-heading { flex-direction: row; align-items: center; }
+  .app[data-painting="arctic"] .chapter-caption h2 { font-size: 24px; }
+  .app[data-painting="arctic"] .chapter-caption .eyebrow { display: none; }
 }

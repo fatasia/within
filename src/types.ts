@@ -14,7 +14,9 @@ export type PaintingId =
   | 'huangshan'
   | 'xihu'
   | 'kanas'
-  | 'deepsea';
+  | 'deepsea'
+  | 'sakura'
+  | 'roadster';
 export type ViewMode = 'scroll' | 'orbit' | 'walk';
 export type TimeMode = 'journey' | 'day' | 'sunset' | 'night';
 export type Quality = 'high' | 'balanced' | 'low';

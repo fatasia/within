@@ -4,8 +4,17 @@ import type { Painting } from '../types';
 import { seededRandom } from './math';
 import { boat } from './props';
 import { curveRod, rod } from './modelGeometry';
+import {
+  roofGeometry,
+  roofTilesGeometry,
+  roofGableGeometry,
+  roofSurfaceY,
+  type RoofProfile,
+} from './qingmingRoof';
 import { disposeObject } from './resources';
 import { batchQingmingSteps } from './qingmingBatch';
+import { buildQingmingLife, prepareQingmingBoats } from './qingmingLife';
+import { featuredUpdate, registerUpdate } from './featuredShared';
 import { buildQingmingEpisodes, rammedWallSegment } from './qingmingEpisodes';
 import { prepareQingmingTransportSteps } from './qingmingTransport';
 import { buildQingmingScrollSteps, QINGMING_SCROLL_FOCI } from './qingmingScroll';
@@ -17,7 +26,13 @@ import {
   wovenBasket,
 } from './qingmingDetails';
 
-import { cityGround, qingmingRiver, qingmingBridgeHeight } from './cityLayout';
+import {
+  cityGround,
+  qingmingRiver,
+  qingmingBridgeHeight,
+  qingmingMainStreet,
+  qingmingRiverTangent,
+} from './cityLayout';
 export { qingmingRiver, qingmingBridgeHeight } from './cityLayout';
 
 type Point = [number, number, number];
@@ -142,53 +157,31 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     rod(g, v(a), v(b), r, m, 1, 5);
 
   function roof(g: THREE.Group, w: number, d: number, y: number, h: number, detail = true) {
-    // The source profile is intentionally generous at the eaves. Sink the
-    // complete roof into the wall cap so the dark underside cannot read as a
-    // detached/floating slab from the gallery camera.
-    y -= 0.45;
-    const vertices: number[] = [],
-      indices: number[] = [];
-    const columns = detail ? 8 : 4,
-      rows = detail ? 6 : 3;
-    for (let side = 0; side < 2; side++)
-      for (let i = 0; i <= columns; i++)
-        for (let j = 0; j <= rows; j++) {
-          const x = (i / columns - 0.5) * w,
-            t = j / rows;
-          vertices.push(
-            x,
-            y + h * (1 - t + 0.23 * t ** 4) + 0.13 * (Math.abs(x) / (w / 2)) ** 5,
-            ((side ? -1 : 1) * t * d) / 2,
-          );
-          if (i < columns && j < rows) {
-            const stride = rows + 1;
-            const a = side * (columns + 1) * stride + i * stride + j;
-            indices.push(a, a + stride, a + 1, a + 1, a + stride, a + stride + 1);
-          }
-        }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    geometry.setIndex(indices);
-    geometry.computeVertexNormals();
+    const profile: RoofProfile = { width: w, depth: d, base: y - 0.2, rise: h, detailed: detail };
     const roofMat = tile.clone();
     roofMat.side = THREE.DoubleSide;
-    g.add(new THREE.Mesh(geometry, roofMat));
-    // Individual barrel-tile lines and a restrained ridge are visible from street level.
-    for (let i = 0; i <= Math.ceil(w / (detail ? 0.32 : 0.7)); i++)
-      for (const s of [-1, 1]) {
-        const x = -w / 2 + (i * w) / Math.ceil(w / (detail ? 0.32 : 0.7));
-        curveRod(
-          g,
-          Array.from({ length: 5 }, (_, j) => {
-            const t = j / 4;
-            return v([x, y + h * (1 - t + 0.23 * t ** 4) + 0.05, (s * t * d) / 2]);
-          }),
-          0.045,
-          tileLight,
-          detail ? 6 : 3,
-        );
-      }
-    beam(g, [-w / 2, y + h + 0.08, 0], [w / 2, y + h + 0.08, 0], 0.1, tileLight);
+    const surface = new THREE.Mesh(roofGeometry(profile), roofMat);
+    surface.name = 'qingming-roof-surface';
+    g.add(surface);
+    const tiles = new THREE.Mesh(roofTilesGeometry(profile), tileLight);
+    tiles.name = 'qingming-roof-cover-tiles';
+    g.add(tiles);
+    beam(g, [-w / 2, y - 0.2 + h + 0.08, 0], [w / 2, y - 0.2 + h + 0.08, 0], 0.1, tileLight);
+    // A continuous fascia underneath each eave, not freestanding disks above it.
+    for (const side of [-1, 1]) {
+      curveRod(
+        g,
+        Array.from({ length: 9 }, (_, i) => {
+          const x = (i / 8 - 0.5) * w;
+          const z = (side * d) / 2;
+          return v([x, roofSurfaceY(profile, x, z) - 0.065, z]);
+        }),
+        0.055,
+        dark,
+        8,
+      );
+    }
+    return profile;
   }
 
   function sign(g: THREE.Group, x: number, y: number, z: number, index: number) {
@@ -239,11 +232,15 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         box(g, [w * 0.25, 0.08, 0.06], [xx, 4.6, d / 2 + 0.08], dark);
       }
     }
-    // Keep the curved eave 0.3m into the wall cap.  The roof profile's
-    // lowest point is y + 0.23 * roofHeight; leaving it at h + 0.05
-    // produces a visible floating seam on every shopfront.
-    const roofHeight = w * 0.24;
-    roof(g, w + 1.3, d + 1.5, h + 0.3 - 0.23 * roofHeight, roofHeight, hero);
+    // Seat the roof against the actual wall edge, not its lower, overhanging eave.
+    // Otherwise the wall cap cuts a bright horizontal line through the shallow slope.
+    const roofHeight = w * 0.34;
+    const wallT = (d - 0.3) / (d + 1.5);
+    const roofBase = h + 0.365 - roofHeight * (1 - wallT + 0.23 * wallT ** 4);
+    const mainRoof = roof(g, w + 1.3, d + 1.5, roofBase + 0.2, roofHeight, hero);
+    const gable = new THREE.Mesh(roofGableGeometry(mainRoof, w - 0.3, d - 0.3, h + 0.3), plaster);
+    gable.name = 'qingming-roof-gable';
+    g.add(gable);
     if (tall) {
       roof(g, w + 1.3, 2.4, 3.05, 0.55, hero);
       box(g, [w + 0.6, 0.15, 1], [0, 3.5, d / 2 + 0.25], wood);
@@ -287,11 +284,14 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
       for (let i = 0; i < 17; i++) {
         const xx = (i / 16 - 0.5) * (w + 0.7);
-        beam(g, [xx, h + 0.24, d / 2 - 0.05], [xx, h + 0.3, d / 2 + 0.72], 0.045);
-        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.1, 7), tileLight);
-        cap.rotation.x = Math.PI / 2;
-        cap.position.set(xx, h + 0.43, d / 2 + 0.76);
-        g.add(cap);
+        const innerZ = d / 2 - 0.05,
+          outerZ = d / 2 + 0.68;
+        beam(
+          g,
+          [xx, roofSurfaceY(mainRoof, xx, innerZ) - 0.14, innerZ],
+          [xx, roofSurfaceY(mainRoof, xx, outerZ) - 0.14, outerZ],
+          0.045,
+        ).name = 'qingming-eave-rafter';
       }
       // Replace the rigid awning board with sagging woven cloth and a loose valance.
       g.remove(awning);
@@ -428,20 +428,30 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       // Fine drooping willow shoots leave sky visible between branches.
       const leafMaterial = (i % 2 ? leaf : leafDark).clone();
       leafMaterial.side = THREE.DoubleSide;
-      for (let strand = 0; strand < 3; strand++) {
-        const angle = a + (strand - 1) * 0.65;
+      for (let strand = 0; strand < 5; strand++) {
+        const angle = a + (strand - 2) * 0.48;
         const tx = xx + Math.cos(angle) * size * 0.23,
           tz = zz + Math.sin(angle) * size * 0.23;
         const drop = size * (0.25 + strand * 0.055);
-        curveRod(
-          g,
-          [v([xx, yy, zz]), v([tx, yy - drop * 0.25, tz]), v([tx + 0.17, yy - drop, tz + 0.12])],
-          0.014,
-          leafDark,
-          5,
+        // More, finer shoots at the same tube budget: 3 sides / 4 spans instead of 4 / 5.
+        g.add(
+          new THREE.Mesh(
+            new THREE.TubeGeometry(
+              new THREE.CatmullRomCurve3([
+                v([xx, yy, zz]),
+                v([tx, yy - drop * 0.25, tz]),
+                v([tx + 0.17, yy - drop, tz + 0.12]),
+              ]),
+              4,
+              0.014,
+              3,
+              false,
+            ),
+            leafDark,
+          ),
         );
-        for (let j = 1; j < 8; j++) {
-          const t = j / 8,
+        for (let j = 1; j < 6; j++) {
+          const t = j / 6,
             lx = tx + t * 0.17,
             ly = yy - drop * t,
             lz = tz + t * 0.12;
@@ -466,10 +476,68 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
   let completed = false;
   try {
     box(city, [265, 0.04, 7], [0, 2.82, -45], earth);
-    for (let x = -126; x < 135; x += 7)
-      for (const s of [-1, 1]) {
-        box(city, [7.1, 0.05, 5], [x, 2.81, qingmingRiver(x) + s * 17], earth);
-        if (x > -60) box(city, [7, 1.2, 0.6], [x, 2.18, qingmingRiver(x) + s * 12.4], stone);
+    const approachVertices: number[] = [],
+      approachIndices: number[] = [];
+    for (let i = 0; i <= 65; i++) {
+      const x = -20 + i,
+        center = qingmingMainStreet(x),
+        width = 7.2 + 3.4 * Math.exp(-(((x + 18) / 18) ** 2));
+      for (const side of [-1, 1]) approachVertices.push(x, 2.87, center + (side * width) / 2);
+      if (i < 65) {
+        const a = i * 2;
+        approachIndices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    }
+    const approach = new THREE.BufferGeometry();
+    approach.setAttribute('position', new THREE.Float32BufferAttribute(approachVertices, 3));
+    approach.setAttribute(
+      'uv',
+      new THREE.Float32BufferAttribute(
+        approachVertices.flatMap((_, i) =>
+          i % 3 === 0 ? [approachVertices[i]! * 0.08, approachVertices[i + 2]! * 0.08] : [],
+        ),
+        2,
+      ),
+    );
+    approach.setIndex(approachIndices);
+    approach.computeVertexNormals();
+    const mainApproach = new THREE.Mesh(approach, earth);
+    mainApproach.name = 'qingming-bridge-to-gate-street';
+    city.add(mainApproach);
+    for (const side of [-1, 1]) {
+      const path: number[] = [],
+        uv: number[] = [],
+        index: number[] = [];
+      for (let i = 0; i <= 104; i++) {
+        const x = -126 + i * 2.5;
+        for (const edge of [-1, 1]) {
+          const z = qingmingRiver(x) + side * 17 + edge * 2.5;
+          path.push(x, 2.835, z);
+          uv.push(x * 0.1, z * 0.1);
+        }
+        if (i < 104) {
+          const n = i * 2;
+          index.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
+        }
+      }
+      const strip = new THREE.BufferGeometry();
+      strip.setAttribute('position', new THREE.Float32BufferAttribute(path, 3));
+      strip.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      strip.setIndex(index);
+      strip.computeVertexNormals();
+      city.add(new THREE.Mesh(strip, earth));
+    }
+    for (let x = -56; x < 135; x += 7)
+      for (const side of [-1, 1]) {
+        const slope = qingmingRiverTangent(x),
+          length = 7.1 * Math.sqrt(1 + slope * slope);
+        const quay = box(
+          city,
+          [length, 1.2, 0.6],
+          [x, 2.18, qingmingRiver(x) + side * 12.4],
+          stone,
+        );
+        quay.rotation.y = -Math.atan(slope);
         yield;
       }
     // Rural western quarter, then a progressively denser waterfront and city.
@@ -478,22 +546,44 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     for (let i = 0; i < 22; i++) {
       const x = -65 + i * 8.5;
       if (Math.abs(x + 20) < 7) continue;
-      house(x, qingmingRiver(x) - 26.5, 6.7 + random(), 6.8, i % 4 === 1, 0, i);
+      const px = x + Math.sin(i * 2.1) * 0.65;
+      const streetEdge = x > -14 ? qingmingMainStreet(x) + 10.4 : qingmingRiver(x) - 26.5;
+      const facing =
+        x > -14
+          ? Math.PI + Math.atan((qingmingMainStreet(x + 0.1) - qingmingMainStreet(x - 0.1)) / 0.2)
+          : Math.sin(i * 1.3) * 0.1;
+      house(
+        px,
+        streetEdge - (i % 4) * 0.55,
+        6.7 + random(),
+        6.2 + (i % 3) * 0.5,
+        i % 4 === 1,
+        facing,
+        i,
+      );
       yield;
     }
     for (let i = 0; i < 16; i++) {
       const x = -8 + i * 8.4;
       if (Math.abs(x - 55) < 7) continue;
-      house(x, -55, 6.7, 7.5, i === 11 || i % 3 === 0, 0, i === 11 ? 3 : i + 3);
+      house(
+        x,
+        -55 - (i % 3) * 0.7,
+        6.2 + (i % 3) * 0.25,
+        7 + (i % 2),
+        i === 11 || i % 3 === 0,
+        Math.sin(i * 0.8) * 0.08,
+        i === 11 ? 3 : i + 3,
+      );
       // Rear lanes stagger around courts instead of repeating the front street's rigid grid.
       if (x > 55 || i % 3 === 0)
         house(
-          x + Math.sin(i * 1.7) * 1.3,
-          -83 + Math.sin(i * 0.8) * 1.5,
+          x < 55 ? 75 + i * 4 : x + Math.sin(i * 1.7) * 1.3,
+          x < 55 ? -2 + (i % 2) * 1.2 : -79 + Math.sin(i * 0.8) * 4.5,
           6.5,
           8,
           i % 4 === 0,
-          0.05 * Math.sin(i),
+          i % 3 === 0 ? Math.PI / 2 : 0.13 * Math.sin(i),
           i + 5,
         );
       yield;
@@ -501,13 +591,37 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     for (let i = 0; i < 13; i++) {
       const x = -46 + i * 12;
       if (Math.abs(x + 20) < 8) continue;
-      house(x, qingmingRiver(x) + 31, 7, 6, i % 5 === 0, Math.PI, i);
+      // Reallocate existing southern-bank houses to city courts: denser composition, no extra models.
+      const town = [
+        [69, -19],
+        [79, -17],
+        [90, -20],
+        [101, -16],
+        [113, -21],
+        [125, -17],
+        [127, -2],
+      ];
+      const townAt = i >= 6 ? town[i - 6] : undefined;
+      house(
+        townAt?.[0] ?? x,
+        townAt?.[1] ?? qingmingRiver(x) + 31 + (i % 3) * 1.5,
+        6.2 + (i % 4) * 0.3,
+        6,
+        i % 5 === 0,
+        Math.PI + Math.sin(i * 1.7) * 0.14,
+        i,
+      );
       yield;
     }
     for (let i = 0; i < 36; i++) {
       const x = -64 + i * 5.4;
       if (Math.abs(x + 20) < 8) continue;
-      stall(x, qingmingRiver(x) - 18.5, 0, i);
+      stall(
+        x,
+        x > -14 ? qingmingMainStreet(x) + 5.8 : qingmingRiver(x) - 18.5,
+        x > -14 ? Math.PI : 0,
+        i,
+      );
       yield;
     }
     for (let i = 0; i < 20; i++) {
@@ -515,10 +629,12 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       yield;
     }
     for (let i = 0; i < 115; i++) {
+      // The moving walkers replace part of the crowd, rather than duplicating it.
+      if (i % 10 === 0) continue;
       const x = -125 + random() * 254;
       const z =
         i % 3 === 0
-          ? -45 + (random() - 0.5) * 4
+          ? (i % 2 ? -48 : -42.05) + (random() - 0.5) * 0.25
           : qingmingRiver(x) + (i % 2 ? 16 : -15) + (random() - 0.5) * 2;
       person(x, z, random() * Math.PI * 2, i);
       yield;
@@ -605,7 +721,8 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
     for (let i = 0; i < 18; i++) {
       const z = riverZ - 20 + i * 2.2;
-      person(-21.6 + random() * 3.3, z, i % 2 ? 0 : Math.PI, i, qingmingBridgeHeight(z));
+      if (i % 4 !== 0)
+        person(-20 + (i % 2 ? -3.2 : 3.2), z, i % 2 ? 0 : Math.PI, i, qingmingBridgeHeight(z));
       yield;
     }
     for (const z of [riverZ - 12, riverZ + 12])
@@ -614,7 +731,8 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     // Approaching from the west, the bow enters the span without an upright mast.
     const passageBoat = qingmingPassageBoat({ timber: wood, dark, cloth: linen, robe: blue, skin });
     passageBoat.position.set(-25, 0.45, riverZ - 0.5);
-    city.add(passageBoat);
+    detached.add(passageBoat);
+    const movingBoats = [passageBoat];
     yield;
 
     // The gate is aligned with the principal street; an actual open arch is retained.
@@ -667,18 +785,29 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
           box(gate, [0.2, 3.95, 0.06], [side * 4.42, 2.05, -2.9 + j * 0.7], dark);
       }
     for (let i = -7; i <= 7; i++) box(gate, [1.05, 1.05, 0.8], [i * 1.8, 10.5, 3.1], stone);
-    box(gate, [12, 4.5, 6], [0, 12.3, 0], plaster);
+    // Recessed enclosed core behind an open timber gallery, rather than a solid yellow block.
+    box(gate, [8.4, 2.3, 0.18], [0, 11.5, -1.7], plaster);
+    for (const side of [-1, 1]) box(gate, [0.18, 2.3, 3.2], [side * 4.1, 11.5, -0.2], plaster);
+    box(gate, [8.4, 0.75, 0.16], [0, 10.7, 1.3], wood);
+    for (const x of [-2.6, 0, 2.6]) {
+      box(gate, [0.22, 4.1, 0.22], [x, 12.2, -0.5], wood);
+      box(gate, [0.7, 0.18, 0.8], [x, 14.15, -0.5], wood);
+    }
     for (const face of [-1, 1])
       for (let i = -2; i <= 2; i++) {
-        box(gate, [1.15, 2.7, 0.08], [i * 2.1, 12.3, face * 3.05], dark);
-        for (let j = -1; j <= 1; j++)
-          box(gate, [0.065, 2.7, 0.08], [i * 2.1 + j * 0.3, 12.3, face * 3.12], wood);
+        box(gate, [0.25, 4.3, 0.25], [i * 2.65, 12.3, face * 2.85], wood);
+        if (Math.abs(i) === 2)
+          box(gate, [0.55, 1.5, 0.08], [i * 1.8, 11.9, face * 1.65 - 0.5], dark);
       }
+    for (const face of [-1, 1]) {
+      box(gate, [11.2, 0.24, 0.3], [0, 14.25, face * 2.85], wood);
+      box(gate, [11.2, 0.16, 0.18], [0, 10.95, face * 2.85], wood);
+    }
     // The tower parapet ends at 14.55m.  `roof`'s eave is y + 0.23*h,
     // so 13.72m seats the eave on the masonry instead of leaving a visible gap.
     // Sink the eave 0.7m into the tower cap.  The deep overhang otherwise
     // reads as a separate floating roof from the elevated home camera.
-    roof(gate, 15, 10, 13.02, 3.6);
+    roof(gate, 15, 10, 13.72, 3.6);
     for (const s of [-1, 1])
       for (let j = 0; j < 3; j++) {
         const z = -45 + s * (22 + j * 12);
@@ -691,18 +820,40 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
 
     // Cargo boats, riverside timber jetties, sacks and handcarts.
-    for (let i = 0; i < 11; i++) {
+    const moorings: [number, number, number, number, number][] = [
+      [-91, -7, 1.3, 0.08, 1],
+      [-80, -7, 1.2, -0.1, 0],
+      [-72, 6, 1.5, Math.PI + 0.12, 0],
+      [-64, -7, 1.4, 0.16, 1],
+      [-52, 5.5, 1.6, Math.PI - 0.12, 0],
+      [4, -6, 1.3, 0.12, 1],
+      [31, 6.2, 1.4, Math.PI + 0.1, 0],
+    ];
+    for (const [x, offset, scale, yaw, hasDock] of moorings) {
       yield;
-      const x = -114 + i * 23;
-      // Quiet countryside and city-end banks leave room for the main working-water sequence.
-      if (Math.abs(x + 20) < 9 || [0, 8, 10].includes(i)) continue;
       const vessel = boat();
-      vessel.position.set(x, 0.6, qingmingRiver(x) + (i % 2 ? -7 : 6));
-      vessel.scale.setScalar(i % 3 ? 1.3 : 1.8);
-      vessel.rotation.y = i % 2 ? 0.08 : Math.PI + 0.1;
-      city.add(vessel);
-      if (i % 2) {
-        const z = qingmingRiver(x) - 10;
+      // Moored working craft furl their sail against a standing mast, not seven identical full sails.
+      if (x < 0 || hasDock)
+        for (const part of vessel.children) {
+          if (!(part instanceof THREE.Mesh)) continue;
+          part.updateMatrix();
+          const bounds = new THREE.Box3().setFromObject(part);
+          if (bounds.min.y < 1.3 || bounds.max.y < 2) continue;
+          part.geometry.applyMatrix4(part.matrix);
+          part.position.set(0, 0, 0);
+          part.rotation.set(0, 0, 0);
+          part.scale.set(1, 1, 1);
+          const p = part.geometry.getAttribute('position');
+          for (let k = 0; k < p.count; k++) p.setY(k, 1.4 + (p.getY(k) - 1.4) * 0.08);
+          part.geometry.computeVertexNormals();
+        }
+      vessel.position.set(x!, 0.6, qingmingRiver(x!) + offset!);
+      vessel.scale.setScalar(scale!);
+      vessel.rotation.y = yaw!;
+      detached.add(vessel);
+      movingBoats.push(vessel);
+      if (hasDock) {
+        const z = qingmingRiver(x!) - 10;
         box(city, [8, 0.3, 4.8], [x, 2, z], wood);
         for (const a of [-1, 1])
           for (const b of [-1, 1])
@@ -712,7 +863,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
     }
     for (let i = 0; i < 8; i++) {
-      if (i === 5) continue; // Replaced by the complete gate approach rather than a duplicate cart.
+      if ([2, 3, 4, 5].includes(i)) continue; // Keep the travelling cart lane and gate queue clear.
       yield;
       const x = -90 + i * 28,
         z = -44;
@@ -776,9 +927,20 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     const livingTransport = yield* prepareQingmingTransportSteps(transport);
     detached.add(livingTransport);
     yield;
+    const streetLife = buildQingmingLife(streetMaterials);
+    detached.add(streetLife);
+    yield;
+    const riverLife = prepareQingmingBoats(movingBoats);
+    detached.add(riverLife);
     yield;
     result = yield* batchQingmingSteps(city);
-    result.add(livingTransport);
+    result.add(livingTransport, streetLife, riverLife);
+    const streetUpdate = featuredUpdate(streetLife)!;
+    const riverUpdate = featuredUpdate(riverLife)!;
+    registerUpdate(result, (time, night) => {
+      streetUpdate(time, night);
+      riverUpdate(time, night);
+    });
     result.userData.streetFoci = {
       huanmen: [84.4, 6.0, -48.2],
       counter: [76.1, 3.8, -48.7],
@@ -786,6 +948,12 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       rammedWall: [57.5, 6, -67],
     };
     result.userData.scrollFoci = QINGMING_SCROLL_FOCI;
+    result.userData.layoutRevision = {
+      bridgeToGate: true,
+      cityCourts: 10,
+      mooredBoats: moorings.map(([x, z]) => [x, qingmingRiver(x) + z]),
+      riverRecedesAtCity: true,
+    };
     result.userData.scrollSections = ['郊野', '汴河', '虹桥', '城门', '城内'];
     result.userData.bridgePassage = {
       name: 'qingming-bridge-passage-boat',

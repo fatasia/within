@@ -5,9 +5,21 @@ import {
   resolveSceneNight,
   sampleSceneLighting,
   SCENE_LIGHTING,
+  isNightScene,
 } from './sceneLighting';
 
 describe('Painting-specific seasonal light', () => {
+  it('keeps polar ice and deepwater subjects readable while retaining a dark background', () => {
+    for (const id of ['arctic', 'deepsea'] as const) {
+      expect(isNightScene(id)).toBe(true);
+      expect(resolveSceneNight(id, 'day', 0)).toBe(1);
+      const light = sampleSceneLighting(getPainting(id), 1, true, 2, createLightingState());
+      expect(light.sunIntensity).toBeGreaterThanOrEqual(1);
+      expect(light.ambientIntensity).toBeGreaterThanOrEqual(1.5);
+      expect(light.ambientColor.g).toBeGreaterThan(light.background.g);
+    }
+    expect(isNightScene('sakura')).toBe(false);
+  });
   it('defines all ten worlds and keeps every sampled light and fog range finite and restrained', () => {
     expect(Object.keys(SCENE_LIGHTING).sort()).toEqual(PAINTINGS.map((p) => p.id).sort());
     const out = createLightingState();
