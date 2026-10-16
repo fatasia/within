@@ -50,7 +50,7 @@ describe('deterministic landscape generation', () => {
 });
 describe('experience state', () => {
   it('has ordered reachable chapters and valid routes', () => {
-    expect(new Set(PAINTINGS.map((p) => p.id)).size).toBe(10);
+    expect(new Set(PAINTINGS.map((p) => p.id)).size).toBe(16);
     for (const p of PAINTINGS) {
       expect(p.route.length).toBeGreaterThan(3);
       expect(p.chapters).toHaveLength(5);

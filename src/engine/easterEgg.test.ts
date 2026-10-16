@@ -12,10 +12,10 @@ import { groundHeight } from './terrain';
 import { disposeObject } from './resources';
 
 describe('quiet visitors', () => {
-  it('gives ten scenes distinct restrained clothing colors and original warm dialogue', () => {
-    expect(Object.keys(EASTER_EGG_PROFILES)).toHaveLength(10);
+  it('gives every scene distinct restrained clothing colors and original warm dialogue', () => {
+    expect(Object.keys(EASTER_EGG_PROFILES)).toHaveLength(16);
     expect(new Set(Object.values(EASTER_EGG_PROFILES).map((profile) => profile.color)).size).toBe(
-      10,
+      16,
     );
     expect(Object.keys(ENCOUNTER_TEXT).sort()).toEqual(Object.keys(EASTER_EGG_PROFILES).sort());
     for (const text of Object.values(ENCOUNTER_TEXT)) {
