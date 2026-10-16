@@ -1987,6 +1987,10 @@ button {
 .original-link svg {
   flex: 0 0 auto;
 }
+.original-link > span {
+  display: block;
+  flex: 0 0 auto;
+}
 .tool-button {
   min-width: 44px;
   min-height: 44px;
