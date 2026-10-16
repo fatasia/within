@@ -1,4 +1,14 @@
-# 九景短片与预览验收
+# 精选合集与预览验收
+
+## 最终版本：十二景 36 秒
+
+用户确认九景是必留、非总数限制后，新增 **敦煌莫高窟、富春山居、桂林漓江**，其余九段保持原片。未加入近景表现较重复的黄山/张家界。
+
+最终文件：`artifacts/showreel-2026-10-16/within-selected-36s.mp4`，约 **36.3 MB**。12 景各 90 帧 / 3 秒，ffprobe 实测 **1080 帧**、30fps、1920×1080；容器时长 **36.021333 秒**，AAC 尾部填充 0.021333 秒。完整解码无错误，新增三景首中末检查通过。最终接触表为 `final-contact-sheet-12.jpg`，`delivery.json` 对应此 36 秒版。
+
+脚本现在要求九个指定场景必有，允许加入其他有效场景，拒绝重复或未知 ID；每段仍强制 90 帧。
+
+## 保留版本：九景 27 秒
 
 成片：`artifacts/showreel-2026-10-16/within-selected-27s.mp4`。九景各 90 帧 / 3 秒，1920×1080、30fps、H.264 / AAC，文件约 33.1 MB。
 
@@ -27,4 +37,4 @@ node scripts/render-showreel.mjs
 node scripts/render-previews.mjs
 ```
 
-分批渲染使用 `PAINTINGS='roadster,xihu'` 配合 `--clips-only`；清除该环境变量后 `--assemble-only` 合并已有九段，脚本强制检查九景齐全与每段 90 帧。脚本等待 `ready` / `sakuraAssetsReady`，资源或 Shader 出错会中止。
+分批渲染使用 `PAINTINGS='roadster,xihu'` 配合 `--clips-only`；清除该环境变量后 `--assemble-only` 合并所选片段，脚本强制检查九景必留与每段 90 帧。脚本等待 `ready` / `sakuraAssetsReady`，资源或 Shader 出错会中止。
