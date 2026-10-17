@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { buildQingmingQuartersSteps, QINGMING_QUARTERS } from './qingmingQuarters';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Painting } from '../types';
 import { seededRandom } from './math';
@@ -538,7 +539,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
   const detached = new THREE.Group();
   let completed = false;
   try {
-    box(city, [265, 0.04, 7], [0, 2.82, -45], earth);
+    box(city, [80, 0.04, 7], [93, 2.82, -45], earth);
     const approachVertices: number[] = [],
       approachIndices: number[] = [];
     for (let i = 0; i <= 65; i++) {
@@ -605,6 +606,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
     // Rural western quarter, then a progressively denser waterfront and city.
     city.add(yield* buildQingmingScrollSteps(streetMaterials));
+    city.add(yield* buildQingmingQuartersSteps(streetMaterials, tile));
     const riverCraft = buildQingmingRiverCraft(streetMaterials);
     const craftInventory = riverCraft.userData.inventory;
     city.add(riverCraft);
@@ -1028,6 +1030,8 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     result.userData.layoutRevision = {
       bridgeToGate: true,
       cityCourts: 10,
+      infillCourts: QINGMING_QUARTERS.length,
+      infillWings: QINGMING_QUARTERS.length*3,
       mooredBoats: moorings.map(([x, z]) => [x, qingmingRiver(x) + z]),
       riverRecedesAtCity: true,
     };
