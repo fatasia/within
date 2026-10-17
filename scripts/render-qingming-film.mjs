@@ -4,7 +4,7 @@ import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { once } from 'node:events';
 import { resolve, join } from 'node:path';
-const directory = resolve('artifacts/qingming-film-2026-10-16');
+const directory = resolve(process.env.OUTPUT_DIR ?? 'artifacts/qingming-film-2026-10-16');
 const ffmpeg = process.env.FFMPEG ?? 'ffmpeg';
 const execute = promisify(execFile);
 const shots = [
@@ -16,8 +16,15 @@ const shots = [
   { title: '茶食 · 临街铺面', eye: [110, 6.5, -42], target: [109.6, 4.3, -52] },
   { title: '市井 · 街巷与院落', eye: [124, 46, 20], target: [95, 4, -42] },
 ];
+if(process.env.DAY_NIGHT === '1') {
+  shots[0]={title:'郊野 · 茅舍与行旅',eye:[-103,8,-20],target:[-110,4.8,-33]};
+  shots[1]={title:'汴河 · 船工与货舟',eye:[-108,5,8],target:[-102,1.5,-3]};
+  shots[2]={title:'虹桥 · 桥市与舟运',eye:[-12,19,18],target:[-20,7,0]};
+  shots[5].night=true;shots[5].title='茶食 · 夜市灯火';
+  shots[6]={title:'茅檐 · 灯火人家',eye:[-103,8,-20],target:[-110,4.8,-33],night:true};
+}
 const duration = shots.length * 3,
-  output = join(directory, 'qingming-details-21s.mp4');
+  output = join(directory, process.env.OUTPUT_FILE ?? 'qingming-details-21s.mp4');
 await mkdir(directory, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
@@ -72,7 +79,8 @@ try {
           const i = Math.min(shots.length - 1, Math.floor(t / 3)),
             u = t - i * 3,
             shot = shots[i];
-          // The seven montage views share daylight; interactive journey lighting remains unchanged.
+          // Dusk interpretation is explicitly authored per shot, not random journey lighting.
+          e.state.time=shot.night?'night':'day';
           e.renderOfflineFrame(0.25, 8 + u, {
             eye: [shot.eye[0] + u * 0.2, shot.eye[1], shot.eye[2]],
             target: shot.target,
@@ -179,7 +187,7 @@ try {
     ).stdout,
   );
   await execute(ffmpeg, ['-hide_banner', '-v', 'error', '-i', output, '-f', 'null', '-'], opts);
-  if (Number(probe.streams.find((s) => s.codec_type === 'video')?.nb_read_frames) !== 630)
+  if (Number(probe.streams.find((s) => s.codec_type === 'video')?.nb_read_frames) !== duration * 30)
     throw Error('Incomplete film');
   await writeFile(
     join(directory, 'delivery.json'),

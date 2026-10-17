@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { buildQingmingNarrativeSteps } from './qingmingNarrative';
+import { buildQingmingNightLife, type QingmingLightSite } from './qingmingNightLife';
 import { buildQingmingQuartersSteps, QINGMING_QUARTERS } from './qingmingQuarters';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Painting } from '../types';
@@ -21,7 +23,7 @@ import { buildQingmingLife, prepareQingmingBoats } from './qingmingLife';
 import { featuredUpdate, registerUpdate } from './featuredShared';
 import { buildQingmingEpisodes, rammedWallSegment } from './qingmingEpisodes';
 import { prepareQingmingTransportSteps } from './qingmingTransport';
-import { buildQingmingScrollSteps, QINGMING_SCROLL_FOCI } from './qingmingScroll';
+import { buildQingmingScrollSteps, QINGMING_SCROLL_FOCI, QINGMING_RURAL_HOUSES } from './qingmingScroll';
 import {
   clothCanopy,
   potteryJar,
@@ -150,6 +152,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     clay: red,
     skin,
   };
+  const lightSites: QingmingLightSite[] = [];
   const signGeometry: THREE.BufferGeometry[] = [];
   const shopInventory: { kind: string; position: number[] }[] = [];
   const box = (g: THREE.Group, size: Point, p: Point, m: THREE.Material) => {
@@ -219,6 +222,17 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     const h = tall ? 6.4 : 3.9;
     const hero = Math.abs(x + 20) < 27;
     const openShop = z > -60 && x > -66;
+    const lightSite = (px: number, py: number, pz: number, kind: QingmingLightSite['kind'], size?: [number,number]) => {
+      lightSites.push({position:[x+Math.cos(facing)*px+Math.sin(facing)*pz,g.position.y+py,z-Math.sin(facing)*px+Math.cos(facing)*pz],yaw:facing,kind,size});
+    };
+    if (openShop) {
+      for (const side of (index%3===0?[-1,1]:[index%2?-1:1])) {
+        lightSite(side*w*.36,3.1,d/2+.9,'lantern');
+        beam(g,[side*w*.36,3.65,d/2],[side*w*.36,3.65,d/2+.9],.035,dark);
+      }
+    }
+    if(tall) for (let j=-1;j<=1;j++) lightSite(j*w*.29,4.6,d/2+.025,'window',[w*.215,1.17]);
+
     box(g, [w + 0.5, 0.3, d + 0.45], [0, 0.15, 0], stone);
     if (openShop) {
       // Real recessed storefront, not a door painted onto a solid building.
@@ -607,6 +621,12 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     // Rural western quarter, then a progressively denser waterfront and city.
     city.add(yield* buildQingmingScrollSteps(streetMaterials));
     city.add(yield* buildQingmingQuartersSteps(streetMaterials, tile));
+    const narrative = yield* buildQingmingNarrativeSteps(streetMaterials,tile);
+    city.add(narrative);
+    // Keep boats in the existing skinned river batch instead of freezing them into the city.
+    for(const vessel of [...narrative.children]) if(vessel.userData.riverCraft) {
+      vessel.removeFromParent();detached.add(vessel);
+    }
     const riverCraft = buildQingmingRiverCraft(streetMaterials);
     const craftInventory = riverCraft.userData.inventory;
     city.add(riverCraft);
@@ -704,7 +724,10 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         i % 3 === 0
           ? (i % 2 ? -48 : -42.05) + (random() - 0.5) * 0.25
           : qingmingRiver(x) + (i % 2 ? 16 : -15) + (random() - 0.5) * 2;
-      person(x, z, random() * Math.PI * 2, i);
+      const yaw=random()*Math.PI*2;
+      // The city street already has an authored moving crowd. Random duplicates intersect it.
+      if(i%3===0 && x>-12) continue;
+      person(x, z, yaw, i);
       yield;
     }
 
@@ -1000,25 +1023,37 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     const streetLife = buildQingmingLife(streetMaterials);
     detached.add(streetLife);
     yield;
-    const riverLife = prepareQingmingBoats(movingBoats);
+    const extraBoats = detached.children.filter(v=>v.userData.riverCraft) as THREE.Group[];
+    const riverLife = prepareQingmingBoats([...movingBoats,...extraBoats]);
     detached.add(riverLife);
     yield;
     const dailyLife = buildQingmingDailyLife(streetMaterials);
     detached.add(dailyLife);
     yield;
+    for (const [x,z,,d,yaw] of QINGMING_RURAL_HOUSES) {
+      const world=(px:number,py:number,pz:number):Point=>[x+Math.cos(yaw)*px+Math.sin(yaw)*pz,2.8+py,z-Math.sin(yaw)*px+Math.cos(yaw)*pz];
+      lightSites.push({kind:'lantern',position:world(-1.3,2.05,d/2+.5),yaw});
+      lightSites.push({kind:'window',position:world(.4,.95,d/2+.071),yaw,size:[1.01,1.86]});
+      beam(city,world(-1.3,2.58,d/2-.1),world(-1.3,2.58,d/2+.5),.035,dark);
+    }
+    const nightLife = buildQingmingNightLife(lightSites);
+    detached.add(nightLife);
     result = yield* batchQingmingSteps(city);
-    result.add(livingTransport, streetLife, riverLife, dailyLife);
+    result.add(livingTransport, streetLife, riverLife, dailyLife, nightLife);
     const streetUpdate = featuredUpdate(streetLife)!;
     const riverUpdate = featuredUpdate(riverLife)!;
     registerUpdate(result, (time, night) => {
       streetUpdate(time, night);
       riverUpdate(time, night);
       featuredUpdate(dailyLife)?.(time, night);
+      featuredUpdate(nightLife)?.(time, night);
     });
     result.userData.detailInventory = {
       shops: shopInventory,
       craft: craftInventory,
       daily: dailyLife.userData.inventory,
+      narratives: narrative.userData.inventory,
+      evening: nightLife.userData.inventory,
     };
     result.userData.streetFoci = {
       huanmen: [84.4, 6.0, -48.2],

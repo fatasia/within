@@ -333,9 +333,9 @@ export function getCinematicKeyframes(p: Painting): readonly CinematicKeyframe[]
 }
 
 /** C1-continuous eased segments cannot overshoot through a model like a Catmull-Rom eye path. */
-export function getCinematicView(painting: Painting, progress: number): CinematicView {
+export function getCinematicView(painting: Painting, progress: number, portrait = false): CinematicView {
   if(painting.id==='roadster')return sampleRoadsterMotion(progress);
-  const frames = getCinematicKeyframes(painting);
+  const frames = painting.id === 'qingming' && portrait ? getQingmingKeyframes(true) : getCinematicKeyframes(painting);
   const t = clamp(progress);
   let index = frames.findIndex((point) => point.progress >= t);
   if (index <= 0) index = 1;

@@ -7,6 +7,12 @@ import { disposeObject } from './resources';
 
 type Point = [number, number, number];
 const v = (p: Point) => new THREE.Vector3(...p);
+export const QINGMING_RURAL_HOUSES = [
+      [-121, -34, 6, 4.8, -0.14],
+      [-109, -34, 7, 5.6, 0.08],
+      [-114, -53, 6.4, 5, -0.18],
+      [-97, -57, 5.5, 4.5, 0.2],
+    ] as const;
 export const QINGMING_SCROLL_FOCI = {
   village: [-110, 5.2, -34] as const,
   landing: [-91, 3.7, qingmingRiver(-91) - 13] as const,
@@ -258,12 +264,7 @@ export function* buildQingmingScrollSteps(m: StreetMaterials): Generator<void, T
     const village = new THREE.Group();
     village.name = 'qingming-country-lanes';
     g.add(village);
-    for (const [x, z, w, d, yaw] of [
-      [-121, -34, 6, 4.8, -0.14],
-      [-109, -34, 7, 5.6, 0.08],
-      [-114, -53, 6.4, 5, -0.18],
-      [-97, -57, 5.5, 4.5, 0.2],
-    ]) {
+    for (const [x, z, w, d, yaw] of QINGMING_RURAL_HOUSES) {
       const house = thatchedHouse(m, w!, d!);
       house.position.set(x!, cityGround(x!, z!), z!);
       house.rotation.y = yaw!;

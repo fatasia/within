@@ -16,8 +16,8 @@ const frames: readonly CinematicKeyframe[] = [
   {
     progress: 0.2,
     subject: '汴河舟运',
-    eye: [-78, 8, 15],
-    target: [-68, 2, qingmingRiver(-68) + 6],
+    eye: [-111, 7, 18],
+    target: [-101, 1.3, qingmingRiver(-101) + 4.5],
     detail: true,
   },
   {
@@ -84,6 +84,19 @@ const frames: readonly CinematicKeyframe[] = [
 ];
 
 /** Reading-order sequence, not a reconstruction of the scroll's axonometric camera. */
-export function getQingmingKeyframes(): readonly CinematicKeyframe[] {
-  return frames;
+const portraitFrames: readonly CinematicKeyframe[] = frames.map((frame) => {
+  // A 280m establishing shot makes the city and every gesture unreadable in a narrow viewport.
+  // Preserve the same reading-order chapters, but frame a human-scale subject at each wide stop.
+  const replacements: Record<string, Pick<CinematicKeyframe, 'eye' | 'target' | 'subject'>> = {
+    '0': { eye: [-103, 8, -20], target: [-110, 4.8, -33], subject: '卷首村舍与行旅' },
+    '0.045': { eye: [-112, 9, -17], target: [-110, 4.8, -33], subject: '茅檐下的生活' },
+    '0.51': { eye: [-12, 14, river + 21], target: [-20, 8, river + 7], subject: '虹桥桥市' },
+    '0.56': { eye: [35, 11, -32], target: [48, 5, -45], subject: '门前舟车与行人' },
+    '0.975': { eye: [116, 10, -56], target: [113, 4.5, -68], subject: '巷院灯火' },
+    '1': { eye: [110, 9, -39], target: [106, 4.8, -51], subject: '街市收卷' },
+  };
+  return { ...frame, ...replacements[String(frame.progress)] };
+});
+export function getQingmingKeyframes(portrait = false): readonly CinematicKeyframe[] {
+  return portrait ? portraitFrames : frames;
 }

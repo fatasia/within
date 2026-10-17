@@ -310,6 +310,13 @@ export function prepareQingmingBoats(vessels: THREE.Group[]): THREE.Group {
     vessel.rotation.y = 0;
     const anchor = bone(root, `qingming-floating-boat-${index}`);
     anchor.add(vessel);
+    const oar = vessel.getObjectByName('qingming-working-oar');
+    const boatman = vessel.getObjectByName('qingming-working-boatman');
+    if(oar || boatman) animations.push((time)=>{
+      const cycle=time*1.5+index;
+      if(oar){oar.rotation.y=Math.sin(cycle)*.38;oar.rotation.x=Math.cos(cycle)*.16;}
+      if(boatman)boatman.rotation.z=Math.sin(cycle)*.12;
+    });
     animations.push((time) => {
       // The passage boat travels on the central reach. It eases to rest downstream,
       // rather than reversing bow-first or wrapping visibly through the bridge.
