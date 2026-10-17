@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { buildRoadsterSkyTraffic } from './roadsterSkyTraffic';
 import { scatterInstanced, type Placement } from './featuredShared';
 import { roadsterTrack } from './roadsterMotion';
 import { seededRandom } from './math';
@@ -75,6 +76,8 @@ export function buildRoadsterCyberStage() {
     }));
     scatterInstanced(group, geom, material, placement);
   }
+  const skyTraffic = buildRoadsterSkyTraffic();
+  group.add(skyTraffic.group);
   const city = buildRoadsterNeonCity(dark);
   group.add(city.group);
   const rainPos: number[] = [];
@@ -107,12 +110,14 @@ export function buildRoadsterCyberStage() {
     ready: city.ready,
     collides: city.collides,
     update(time: number, position: readonly [number, number, number]) {
+      skyTraffic.update(time);
       rainMaterial.uniforms.time!.value = time;
       rain.position.set(position[0], 0, position[2]);
       key.position.set(position[0] - 4, 4, position[2] - 2);
       rim.position.set(position[0] + 4, 3, position[2] + 3);
     },
     setQuality(quality: string) {
+      skyTraffic.setQuality(quality);
       rainGeometry.setDrawRange(0, quality === 'low' ? 160 : quality === 'balanced' ? 440 : 840);
       key.visible = quality !== 'low';
       rim.visible = quality !== 'low';

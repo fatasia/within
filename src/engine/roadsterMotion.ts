@@ -37,17 +37,17 @@ export function sampleRoadsterMotion(progress: number, elapsed = 0): RoadsterMot
     z - px * Math.sin(heading) + pz * Math.cos(heading),
   ];
   const reveal = smooth(p / 0.4);
-  const angle = -0.7 + (Math.atan2(-4.8, -6.8) + 0.7) * reveal;
-  const radius = 6.6 + (Math.hypot(4.8, 6.8) - 6.6) * reveal;
+  const angle = -0.7 + (Math.atan2(-5.4, -8.6) + 0.7) * reveal;
+  const radius = 6.6 + (Math.hypot(5.4, 8.6) - 6.6) * reveal;
   const eye =
     p < 0.4
       ? world(Math.sin(angle) * radius, 2.2 + 0.3 * reveal, -Math.cos(angle) * radius)
-      : world(-4.8, 2.5, 6.8);
+      : world(-5.4, 2.5, 8.6);
   return {
     position,
     rotation: [0, heading, 0],
     eye,
-    target: world(0, 0.64, -0.08),
+    target: world(0, 1.35, -0.65),
     cockpitEye: world(-0.38, 0.98, 0.12),
     cockpitTarget: world(-0.38, 0.88, -12),
     distance,
