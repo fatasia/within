@@ -11,14 +11,16 @@ export function createLandscapeSky(painting: Painting): THREE.Mesh {
       uTime: { value: 0 },
       uNight: { value: 0 },
       uDay: { value: new THREE.Color(painting.palette.sky) },
+      uQingming: { value: painting.id === 'qingming' ? 1 : 0 },
       uSakura: { value: painting.id === 'sakura' ? 1 : 0 },
       uUnderwater: { value: painting.id === 'deepsea' ? 1 : 0 },
       uSunDirection: { value: new THREE.Vector3(...SAKURA_SUN_DIRECTION).normalize() },
     },
     vertexShader: `varying vec3 vDirection;void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
     fragmentShader: `varying vec3 vDirection;uniform vec3 uDay;uniform float uNight;uniform float uTime;
-    uniform float uSakura;uniform float uUnderwater;uniform vec3 uSunDirection;
+    uniform float uQingming;uniform float uSakura;uniform float uUnderwater;uniform vec3 uSunDirection;
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+    float cloudNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.)),f.x),f.y);}
     void main(){
       vec3 d=normalize(vDirection);float altitude=smoothstep(-.08,.65,d.y);
       float dusk=sin(uNight*3.14159);
@@ -36,6 +38,14 @@ export function createLandscapeSky(painting: Painting): THREE.Mesh {
       color+=vec3(.68,.72,.61)*(moon*.9+exp(-md*34.)*.09)*smoothstep(.38,.95,uNight);
       float sunDistance=length(d-normalize(vec3(-.8,.15,-1.)));
       color+=vec3(.4,.18,.06)*exp(-sunDistance*3.)*dusk*.5;
+      if(uQingming>.5){
+        vec3 daylight=mix(vec3(.60,.69,.72),vec3(.18,.36,.52),altitude);
+        vec2 cp=d.xz/max(.12,d.y+.12)*2.2+vec2(uTime*.004,0.);
+        float cloud=cloudNoise(cp)*.57+cloudNoise(cp*2.03)*.28+cloudNoise(cp*4.1)*.15;
+        float veil=smoothstep(.49,.76,cloud)*smoothstep(.015,.15,d.y)*.45;
+        daylight=mix(daylight,vec3(.82,.83,.79),veil);
+        color=mix(daylight,color,smoothstep(.05,.9,uNight));
+      }
       if(uSakura>.5){
         float sd=length(d-uSunDirection);
         float disc=1.-smoothstep(.008,.0095,sd);

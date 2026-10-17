@@ -14,16 +14,16 @@ export const QINGMING: Painting = {
     '由卷首村舍与疏林，沿汴河经过虹桥，穿过城门走到卷尾街坊。五段场景串起全卷叙事，可打开北宋原本完整画卷逐段对照。',
   accent: '#805a38',
   palette: {
-    sky: '#e7decc',
-    water: '#8b9f94',
-    low: '#b8aa80',
-    high: '#8b8e6a',
+    sky: '#c5d2d7',
+    water: '#698882',
+    low: '#a39b89',
+    high: '#868778',
     ink: '#4a4737',
     leaf: '#69765a',
   },
   seed: 1120,
   peaks: [],
-  overview: { eye: [-35, 130, 195], target: [0, 4, -28] },
+  overview: { eye: [-49, 32, 44], target: [-15, 5, -5] },
   route: [
     [-126, 4, -43],
     [-100, 4, -28],
@@ -38,9 +38,9 @@ export const QINGMING: Painting = {
   ],
   chapters: [
     {
-      title: '郊野春行',
+      title: '汴京展卷',
       subtitle: 'THE OUTSKIRTS',
-      description: '先见疏林、茅檐和篱院，村人在门前停留；土路向河岸伸去，城内的密集街屋还在远方。',
+      description: '虹桥横跨汴河，两岸街屋与舟楫交错；从这里展卷，再沿郊野、河市与城门走进汴京。',
       progress: 0,
     },
     {

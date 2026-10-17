@@ -1,3 +1,4 @@
+import { fitQingmingShadow } from './qingmingRendering';
 import * as THREE from 'three';
 import { pickCharacter } from './characterEncounters';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -175,7 +176,7 @@ export class Experience {
     this.controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
     this.renderer.domElement.style.touchAction = 'none';
     this.controls.enabled = false;
-    this.scene.add(this.sun, this.ambient, this.content);
+    this.scene.add(this.sun, this.sun.target, this.ambient, this.content);
     this.sun.position.set(-80, 140, 60);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -620,7 +621,15 @@ export class Experience {
     const cap =
       this.state.quality === 'high' ? 1.75 : this.state.quality === 'balanced' ? 1.25 : 0.8;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
-    this.renderer.shadowMap.enabled = this.state.quality === 'high';
+    this.renderer.shadowMap.enabled =
+      this.state.quality === 'high' ||
+      (this.painting.id === 'qingming' && this.state.quality === 'balanced');
+    const shadowSize = this.state.quality === 'high' ? 2048 : 1024;
+    if (this.sun.shadow.mapSize.x !== shadowSize) {
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+      this.sun.shadow.mapSize.set(shadowSize, shadowSize);
+    }
     this.renderer.shadowMap.needsUpdate = true;
     this.renderer.setSize(this.host.clientWidth, this.host.clientHeight, false);
   }
@@ -1070,8 +1079,34 @@ export class Experience {
       this.scene.fog.far = light.fogFar;
     }
     this.sun.intensity = light.sunIntensity;
-    if (this.painting.id === 'sakura') this.sun.position.set(...SAKURA_SUN_DIRECTION).multiplyScalar(180);
-    else this.sun.position.set(-80, 140, 60);
+    if (this.painting.id === 'sakura') {
+      this.sun.position.set(...SAKURA_SUN_DIRECTION).multiplyScalar(180);
+      this.sun.target.position.set(0, 0, 0);
+      Object.assign(this.sun.shadow.camera, { left: -160, right: 160, top: 130, bottom: -130 });
+      this.sun.shadow.camera.updateProjectionMatrix();
+      this.sun.shadow.normalBias = 0.22;
+      this.sun.shadow.bias = -0.0004;
+    } else if (this.painting.id === 'qingming') {
+      const fit = fitQingmingShadow(this.currentEye, this.currentTarget, this.sun.shadow.mapSize.x);
+      this.sun.position.copy(fit.position);
+      this.sun.target.position.copy(fit.target);
+      Object.assign(this.sun.shadow.camera, {
+        left: -fit.extent,
+        right: fit.extent,
+        top: fit.extent,
+        bottom: -fit.extent,
+      });
+      this.sun.shadow.camera.updateProjectionMatrix();
+      this.sun.shadow.normalBias = fit.normalBias;
+      this.sun.shadow.bias = fit.bias;
+    } else {
+      this.sun.position.set(-80, 140, 60);
+      this.sun.target.position.set(0, 0, 0);
+      Object.assign(this.sun.shadow.camera, { left: -160, right: 160, top: 130, bottom: -130 });
+      this.sun.shadow.camera.updateProjectionMatrix();
+      this.sun.shadow.normalBias = 0.22;
+      this.sun.shadow.bias = -0.0004;
+    }
     this.sun.color.copy(light.sunColor);
     this.ambient.intensity = light.ambientIntensity;
     this.ambient.color.copy(light.ambientColor);

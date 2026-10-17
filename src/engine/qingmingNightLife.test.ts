@@ -39,13 +39,16 @@ describe('Qingming inhabited streets on a narrow screen', () => {
     const desktop = getQingmingKeyframes(),
       phone = getQingmingKeyframes(true);
     expect(phone.map((f) => f.progress)).toEqual(desktop.map((f) => f.progress));
-    for (const t of [0, 0.045, 0.51, 0.975, 1]) {
+    for (const t of [0.045, 0.51, 0.975, 1]) {
       const f = phone.find((f) => f.progress === t)!;
       expect(new THREE.Vector3(...f.eye).distanceTo(new THREE.Vector3(...f.target))).toBeLessThan(
         25,
       );
     }
-    expect(desktop[0]!.eye[1]).toBeGreaterThan(150);
+    expect(desktop[0]!.eye[1]).toBeLessThan(50);
+    expect(phone[0]!.target[0]).toBe(-20);
+    expect(phone[0]!.eye[1]).toBeLessThan(30);
+    expect(phone[0]!.subject).toContain('虹桥');
   });
   it('animates villagers and bridge signals in the shared skinned batch', () => {
     const group = buildQingmingDailyLife(materials()),
