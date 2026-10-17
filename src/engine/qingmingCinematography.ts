@@ -4,7 +4,8 @@ import { QINGMING_SCROLL_FOCI } from './qingmingScroll';
 
 const river = qingmingRiver(-20);
 const frames: readonly CinematicKeyframe[] = [
-  { progress: 0, subject: '卷首郊野与疏林', eye: [-136, 20, -5], target: [-111, 5, -43] },
+  { progress: 0, subject: '全卷总览：郊野至城内', eye: [0, 176, 216], target: [0, 2.8, -29] },
+  { progress: 0.045, subject: '卷首郊野与疏林', eye: [-136, 20, -5], target: [-111, 5, -43] },
   {
     progress: 0.1,
     subject: '茅檐、篱院与村人',
@@ -40,6 +41,7 @@ const frames: readonly CinematicKeyframe[] = [
     target: [-23, qingmingBridgeHeight(river + 5) + 1, river + 5],
     detail: true,
   },
+  { progress: 0.51, subject: '虹桥至城门的连续街市', eye: [1, 50, 35], target: [5, 3, -37] },
   { progress: 0.56, subject: '沿街入城', eye: [23, 14, -31], target: [48, 6, -45] },
   { progress: 0.65, subject: '砖门楼与城外交通', eye: [43, 10, -30], target: [55, 7, -45] },
   {
@@ -77,6 +79,7 @@ const frames: readonly CinematicKeyframe[] = [
     target: QINGMING_SCROLL_FOCI.courtyard,
     detail: true,
   },
+  { progress: 0.975, subject: '卷尾街坊与院落群', eye: [110, 55, -4], target: [98, 4, -72] },
   { progress: 1, subject: '城内市井收卷', eye: [138, 29, -23], target: [96, 5, -61] },
 ];
 
