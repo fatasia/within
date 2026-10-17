@@ -13,7 +13,10 @@ function metrics(group: THREE.Group) {
     draws++;
     triangles += (object.geometry.index?.count ?? object.geometry.getAttribute('position').count) / 3 * (object instanceof THREE.InstancedMesh ? object.count : 1);
     const positions = object.geometry.getAttribute('position');
-    for (let i = 0; i < positions.count; i++) expect(Number.isFinite(positions.getX(i) + positions.getY(i) + positions.getZ(i))).toBe(true);
+    // Validate every vertex without constructing hundreds of thousands of matcher objects on CI.
+    let finite=true;
+    for (let i=0;i<positions.count;i++) if(!Number.isFinite(positions.getX(i)+positions.getY(i)+positions.getZ(i))) {finite=false;break;}
+    expect(finite).toBe(true);
   });
   return { draws, triangles };
 }

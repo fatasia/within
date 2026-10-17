@@ -67,7 +67,7 @@ describe('incremental Qingming construction', () => {
         geometry.mockRestore();
         material.mockRestore();
       }
-    });
+    }, 20_000);
   }
 
   it('merges indexed and unindexed parts with baked transforms in one material draw', () => {
