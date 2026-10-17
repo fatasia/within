@@ -18,7 +18,7 @@ const shots = [
 ];
 if(process.env.DAY_NIGHT === '1') {
   shots[0]={title:'郊野 · 茅舍与行旅',eye:[-103,8,-20],target:[-110,4.8,-33]};
-  shots[1]={title:'汴河 · 船工与货舟',eye:[-108,5,8],target:[-102,1.5,-3]};
+  shots[1]={title:'汴河 · 船工与货舟',eye:[-111,7,18],target:[-101,1.3,3]};
   shots[2]={title:'虹桥 · 桥市与舟运',eye:[-12,19,18],target:[-20,7,0]};
   shots[5].night=true;shots[5].title='茶食 · 夜市灯火';
   shots[6]={title:'茅檐 · 灯火人家',eye:[-103,8,-20],target:[-110,4.8,-33],night:true};
