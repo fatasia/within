@@ -19,3 +19,7 @@
 生产入口：`assets/index-DEsIyt6d.js`。本轮只更新原站点文件，不改服务器容器、路由或权限。
 
 CloudBase默认域名预检返回HTTP 200、Content-Type=text/html，但Content-Disposition=attachment。待用户确认先更新托管文件还是使用已有备案域名，不将HTTP 200当作网页访问已修复。
+
+腾讯轻量与GitHub Pages已更新并复核入口及JS资源HTTP 200。发布提交78a0e69，Pages运行39031836541成功；轻量备份`/srv/within-backup-20261017-2016`。CloudBase本轮未发布，保留原站点，等待访问方式确认。
+
+新版独立片：`artifacts/qingming-rebuild-film-2026-10-17/qingming-streets-day-night-21s.mp4`，1080p、30fps、21秒、630帧、AAC环境音。编码后全片解码及元信息检查通过，浏览器错误为空；街市镜头已抽帧查看。
