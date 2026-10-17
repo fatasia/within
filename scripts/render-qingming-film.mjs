@@ -23,6 +23,12 @@ if(process.env.DAY_NIGHT === '1') {
   shots[5].night=true;shots[5].title='茶食 · 夜市灯火';
   shots[6]={title:'茅檐 · 灯火人家',eye:[-103,8,-20],target:[-110,4.8,-33],night:true};
 }
+if (process.env.REBUILD === '1') {
+  shots[0] = {title:'汴京 · 虹桥与河市',eye:[-49,32,44],target:[-15,5,-5]};
+  shots[2] = {title:'街市 · 桥头入城',eye:[-8,18,-8],target:[15,5,-33]};
+  shots[4] = {title:'酒肆 · 临街重楼',eye:[102,11,-34],target:[84.4,6.5,-55]};
+  shots[5] = {...shots[4],title:'灯火 · 酒肆夜市',night:true};
+}
 const duration = shots.length * 3,
   output = join(directory, process.env.OUTPUT_FILE ?? 'qingming-details-21s.mp4');
 await mkdir(directory, { recursive: true });

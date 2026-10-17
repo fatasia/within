@@ -4,7 +4,7 @@ import { QINGMING_SCROLL_FOCI } from './qingmingScroll';
 
 const river = qingmingRiver(-20);
 const frames: readonly CinematicKeyframe[] = [
-  { progress: 0, subject: '全卷总览：郊野至城内', eye: [0, 176, 216], target: [0, 2.8, -29] },
+  { progress: 0, subject: '汴京展卷：虹桥与两岸街市', eye: [-49, 32, 44], target: [-15, 5, -5] },
   { progress: 0.045, subject: '卷首郊野与疏林', eye: [-136, 20, -5], target: [-111, 5, -43] },
   {
     progress: 0.1,
@@ -61,15 +61,15 @@ const frames: readonly CinematicKeyframe[] = [
   {
     progress: 0.83,
     subject: '酒肆欢门与邻铺',
-    eye: [89, 8, -40],
-    target: [84.4, 6.2, -48.2],
+    eye: [102, 11, -34],
+    target: [84.4, 6.5, -55],
     detail: true,
   },
   {
     progress: 0.885,
     subject: '八行铺面与柜台货品',
-    eye: [105, 6.2, -43],
-    target: [109.6, 4.3, -52],
+    eye: [100, 10, -35],
+    target: [108, 5, -53],
     detail: true,
   },
   {
@@ -88,7 +88,7 @@ const portraitFrames: readonly CinematicKeyframe[] = frames.map((frame) => {
   // A 280m establishing shot makes the city and every gesture unreadable in a narrow viewport.
   // Preserve the same reading-order chapters, but frame a human-scale subject at each wide stop.
   const replacements: Record<string, Pick<CinematicKeyframe, 'eye' | 'target' | 'subject'>> = {
-    '0': { eye: [-103, 8, -20], target: [-110, 4.8, -33], subject: '卷首村舍与行旅' },
+    '0': { eye: [-42, 23, 34], target: [-20, 7, 1], subject: '虹桥与汴京河市' },
     '0.045': { eye: [-112, 9, -17], target: [-110, 4.8, -33], subject: '茅檐下的生活' },
     '0.51': { eye: [-12, 14, river + 21], target: [-20, 8, river + 7], subject: '虹桥桥市' },
     '0.56': { eye: [35, 11, -32], target: [48, 5, -45], subject: '门前舟车与行人' },

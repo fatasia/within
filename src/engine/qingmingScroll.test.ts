@@ -56,7 +56,8 @@ describe('Qingming complete-scroll sequence', () => {
     const frames = getQingmingKeyframes();
     expect(frames[0]!.progress).toBe(0);
     expect(frames.at(-1)!.progress).toBe(1);
-    expect(frames[0]!.eye[1]).toBeGreaterThan(150);
+    expect(frames[0]!.subject).toContain('虹桥');
+    expect(frames[0]!.eye[1]).toBeLessThan(50);
     expect(frames[1]!.target[0]).toBeLessThan(-100);
     expect(frames.at(-1)!.target[0]).toBeGreaterThan(90);
     expect(frames.find((frame) => frame.progress === 0.27)!.target).toEqual(
