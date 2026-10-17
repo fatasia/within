@@ -1,3 +1,9 @@
+# CloudBase 文件已同步 · 2026-10-18
+
+用户确认先更新托管文件，访问仍用腾讯轻量/GitHub Pages。CloudBase原环境within路径80/80文件上传校验成功；入口index-DEsIyt6d.js已复核。默认域名attachment响应未改，备份及详情见 docs/qingming-web-rebuild-2026-10-17.md。本条覆盖下文CloudBase待确认/未发布状态。
+
+---
+
 # 清明网页版写实路线 · 2026-10-17 晚
 
 用户已选“保留手机网页版，按写实标准重建”。本轮调整弯曲街市、五开间两层商宅、共享材质贴图与局部阴影，保留手机时间轴和昼夜动作。235项单元测试及手机E2E通过；详情 docs/qingming-web-rebuild-2026-10-17.md。仍未完成全卷逐物还原，人物/建筑精度未达到用户要求，不能宣布整项完成。CloudBase默认域名返回attachment，已询问是否只更新文件，腾讯轻量和Pages已更新至78a0e69并复核新入口；CloudBase未更新。新版21秒片在 artifacts/qingming-rebuild-film-2026-10-17/，已全解码验证。

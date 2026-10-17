@@ -23,3 +23,7 @@ CloudBase默认域名预检返回HTTP 200、Content-Type=text/html，但Content-
 腾讯轻量与GitHub Pages已更新并复核入口及JS资源HTTP 200。发布提交78a0e69，Pages运行39031836541成功；轻量备份`/srv/within-backup-20261017-2016`。CloudBase本轮未发布，保留原站点，等待访问方式确认。
 
 新版独立片：`artifacts/qingming-rebuild-film-2026-10-17/qingming-streets-day-night-21s.mp4`，1080p、30fps、21秒、630帧、AAC环境音。编码后全片解码及元信息检查通过，浏览器错误为空；街市镜头已抽帧查看。
+
+## CloudBase 文件同步 · 2026-10-18
+
+用户确认先更新文件，访问继续使用腾讯轻量与GitHub Pages。已发布既有dist到原环境的within路径，80/80文件上传和校验通过；备份`.cloudbase-backup/1792254457570/`。入口及新JS资源复核HTTP 200，入口指向`index-DEsIyt6d.js`。未更改域名、响应头或权限，默认域名的下载响应保留。以上覆盖先前“CloudBase未发布”的状态。
