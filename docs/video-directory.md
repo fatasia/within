@@ -4,6 +4,7 @@
 
 | 目录 | 内容 |
 | --- | --- |
+| `artifacts/wuhan-full-film-2026-10-18/` | 桂雨东湖完整游览 `桂雨东湖-完整游览-150s.mp4`，2分30秒、1080p/30fps、4500帧，覆盖五章及完整0–100%路线，含雨声与场景配乐。 |
 | `artifacts/showreel-2026-10-16/` | 最新 12 景各 3 秒：Roadster、清明、东湖、星月夜、山中冬夜、冰川、樱谷、深海、西湖、敦煌、富春、桂林；文件名 `场景ID-3s.mp4`。另有 36 秒合集。 |
 | `artifacts/qingming-rebuild-film-2026-10-17/` | 清明街市重建版 `qingming-streets-day-night-21s.mp4`，21秒、1080p/30fps、环境配乐，含新版街巷与酒肆昼夜。 |
 | `artifacts/qingming-living-film-2026-10-17/` | 清明日夜独立片 `qingming-living-day-night-21s.mp4`，21 秒、7 镜头、环境配乐，包含本轮手机反馈后的灯火和动作。 |
