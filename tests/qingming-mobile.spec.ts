@@ -1,0 +1,25 @@
+import {test,expect} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+test('Qingming portrait keeps the timeline, changes light and remains interactive',async({browser})=>{
+ const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+ const page=await context.newPage();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+ await page.addInitScript(()=>localStorage.setItem('ruhua.preferences.v1',JSON.stringify({painting:'qingming',quality:'balanced'})));
+ await page.goto(process.env.TEST_BASE_URL??'http://127.0.0.1:5174');
+ await page.getByRole('button',{name:'走进画中',exact:true}).click();
+ const pause=page.getByRole('button',{name:'暂停游览',exact:true});if(await pause.count())await pause.click();
+ await expect(page.locator('.mobile-dock .mini-map canvas')).toBeVisible();
+ await page.getByRole('slider',{name:'游览进度',exact:true}).fill('0');
+ await mkdir('artifacts/qingming-living',{recursive:true});
+ await page.waitForTimeout(1200);await page.screenshot({path:'artifacts/qingming-living/app-mobile-entry.png'});
+ await page.getByRole('slider',{name:'游览进度',exact:true}).fill('885');
+ await page.getByRole('button',{name:'更多操作',exact:true}).click();
+ await page.getByRole('button',{name:'画境设置',exact:true}).click();
+ await page.getByRole('button',{name:'夜色',exact:true}).click();
+ await expect(page.locator('.app')).toHaveClass(/is-night/);
+ await page.getByRole('button',{name:'关闭设置'}).click();await page.waitForTimeout(1200);
+ await page.screenshot({path:'artifacts/qingming-living/app-mobile-night.png'});
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+ await page.getByRole('button',{name:'章节',exact:true}).click();await expect(page.getByRole('dialog')).toBeVisible();
+ expect(errors).toEqual([]);await context.close();
+});

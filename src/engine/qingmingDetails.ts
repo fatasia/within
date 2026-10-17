@@ -89,8 +89,8 @@ export function qingmingCitizen(
     rod(g, v([-0.07, 1.39, 0.09]), v([0.09, 1.18, 0.13]), 0.016, trim, 1, 3);
     for (const side of [-1, 1]) {
       const wrist: Point = [side * 0.3, variant % 4 === 0 ? 1.23 : 0.88, 0.17];
-      rod(g, v([side * 0.19, 1.29, 0]), v(wrist), 0.09, robe, 1.25, 5);
-      rod(g, v(wrist), v([wrist[0], wrist[1] - 0.07, wrist[2]]), 0.045, skin, 0.7, 5);
+      rod(g, v([side * 0.19, 1.29, 0]), v(wrist), 0.09, robe, 1.25, 7);
+      ellipsoid([wrist[0], wrist[1] - .035, wrist[2]], [.038,.061,.03],skin,6);
       rod(g, v([side * 0.1, 0.33, 0]), v([side * 0.1, 0.06, side * 0.05]), 0.06, trim, 0.75, 5);
       const shoe = new THREE.Mesh(new THREE.SphereGeometry(1, 6, 3), hair);
       shoe.scale.set(0.07, 0.05, 0.13);

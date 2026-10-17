@@ -1037,7 +1037,7 @@ export class Experience {
       if (this.state.entered) {
         const shot = this.painting.id === 'roadster' ? (this.roadsterDriveState()??sampleRoadsterMotion(this.progress,this.elapsed)) : this.painting.id === 'sakura'
           ? sampleSakuraVoyage(this.progress, this.elapsed)
-          : getCinematicView(this.painting, this.progress);
+          : getCinematicView(this.painting, this.progress, this.host.clientWidth < this.host.clientHeight);
         eye = vector(shot.eye);
         target = vector(shot.target);
         if(this.painting.id==='roadster'){eye.y+=this.roadsterLift()*.6;target.y+=this.roadsterLift();}
@@ -1129,9 +1129,9 @@ export class Experience {
     this.updateAtmosphere(dt);
     if (this.painting.id === 'roadster') for (const world of this.content.children) world.userData.danceTime = this.roadsterMusicClock?.();
     this.featured?.(this.elapsed, this.night);
-    if (this.painting.id === 'qingming' ||
-      (['arctic', 'sakura', 'roadster'].includes(this.painting.id) &&
-        Math.floor(this.elapsed * 20) !== Math.floor((this.elapsed - dt) * 20)))
+    const shadowHz = this.painting.id === 'qingming' && this.host.clientWidth < 768 ? 12 : 20;
+    if (['qingming', 'arctic', 'sakura', 'roadster'].includes(this.painting.id) &&
+        Math.floor(this.elapsed * shadowHz) !== Math.floor((this.elapsed - dt) * shadowHz))
       this.renderer.shadowMap.needsUpdate = true;
     this.boats.forEach((b, i) => {
       b.position.y = 0.4 + Math.sin(this.elapsed * 0.8 + i) * 0.065;

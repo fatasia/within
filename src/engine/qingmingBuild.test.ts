@@ -33,7 +33,7 @@ describe('incremental Qingming construction', () => {
         if (!(object instanceof THREE.Mesh)) return;
         draws++;
         triangles +=
-          (object.geometry.index?.count ?? object.geometry.attributes.position!.count) / 3;
+          (object.geometry.index?.count ?? object.geometry.attributes.position!.count) / 3 * (object instanceof THREE.InstancedMesh ? object.count : 1);
       });
       expect(draws).toBeLessThan(40);
       expect(triangles).toBeLessThan(QINGMING_TRIANGLE_BUDGET);

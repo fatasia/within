@@ -17,7 +17,7 @@ it('keeps the extended full-scroll city inside its existing draw and geometry bu
       if (!(object instanceof THREE.Mesh)) return;
       meshes++;
       triangles +=
-        (object.geometry.index?.count ?? object.geometry.getAttribute('position').count) / 3;
+        (object.geometry.index?.count ?? object.geometry.getAttribute('position').count) / 3 * (object instanceof THREE.InstancedMesh ? object.count : 1);
     });
     console.log('Qingming current budget', { triangles, meshes });
     expect(triangles).toBeLessThan(QINGMING_TRIANGLE_BUDGET);
@@ -59,7 +59,7 @@ it('connects countryside, working banks and city back lanes without new material
         Array.from(object.geometry.getAttribute('position').array).every(Number.isFinite),
       ).toBe(true);
       triangles +=
-        (object.geometry.index?.count ?? object.geometry.getAttribute('position').count) / 3;
+        (object.geometry.index?.count ?? object.geometry.getAttribute('position').count) / 3 * (object instanceof THREE.InstancedMesh ? object.count : 1);
     });
     expect(trees).toBe(13);
     expect(triangles).toBeLessThan(23000);

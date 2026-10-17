@@ -23,7 +23,7 @@ describe('Qingming city', () => {
       if (!(object instanceof THREE.Mesh)) return;
       meshes++;
       const position = object.geometry.attributes.position!;
-      triangles += (object.geometry.index?.count ?? position.count) / 3;
+      triangles += (object.geometry.index?.count ?? position.count) / 3 * (object instanceof THREE.InstancedMesh ? object.count : 1);
       expect(position.array.every(Number.isFinite)).toBe(true);
     });
     expect(meshes).toBeLessThan(40);

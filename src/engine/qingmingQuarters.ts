@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { potteryJar, wovenBasket } from './qingmingDetails';
 import { roofGeometry, roofGableGeometry, roofSurfaceY } from './qingmingRoof';
 import type { StreetMaterials } from './qingmingEpisodes';
 
@@ -53,9 +54,16 @@ export function* buildQingmingQuartersSteps(
     house.rotation.y = angle;
     house.name = 'qingming-courtyard-wing';
     g.add(house);
-    const h = 2.5 + (index % 3) * 0.3;
-    box(house, w, h, d, 0, h / 2, 0, m.linen);
-    const profile = { width: w + 0.8, depth: d + 0.8, base: h + 0.04, rise: 1.05, detailed: false };
+    const h = 2.5 + (index % 4) * 0.3;
+    box(house, w, h, d, 0, h / 2, 0, index % 3 === 0 ? m.earth : m.linen);
+    box(house, w + 0.15, 0.22, d + 0.12, 0, 0.11, 0, m.stone);
+    const profile = {
+      width: w + 0.8,
+      depth: d + 0.8,
+      base: h + 0.04,
+      rise: 0.85 + (index % 3) * 0.18,
+      detailed: false,
+    };
     house.add(new THREE.Mesh(roofGeometry(profile), tile));
     house.add(new THREE.Mesh(roofGableGeometry(profile, w, d, h), m.linen));
     box(house, w + 0.7, 0.09, 0.14, 0, roofSurfaceY(profile, 0, 0) + 0.05, 0, tile);
@@ -73,7 +81,21 @@ export function* buildQingmingQuartersSteps(
     box(house, 0.95, 1.9, 0.05, 0, 0.95, d / 2 + 0.03, m.dark);
     for (const side of [-1, 1]) {
       box(house, 0.12, h, 0.12, side * (w / 2 - 0.16), h / 2, d / 2 + 0.05, m.wood);
-      box(house, 0.75, 0.75, 0.06, side * w * 0.3, 1.65, d / 2 + 0.04, m.wood);
+      box(house, 0.9, 0.85, 0.06, side * w * 0.3, 1.65, d / 2 + 0.04, m.dark);
+      for (let j = -2; j <= 2; j++)
+        box(house, 0.035, 0.85, 0.04, side * w * 0.3 + j * 0.16, 1.65, d / 2 + 0.085, m.wood);
+      box(house, 0.95, 0.06, 0.08, side * w * 0.3, 1.65, d / 2 + 0.1, m.wood);
+      const shutter = box(
+        house,
+        0.32,
+        0.86,
+        0.06,
+        side * w * 0.3 + side * 0.58,
+        1.65,
+        d / 2 + 0.2,
+        m.wood,
+      );
+      shutter.rotation.y = side * 0.6;
     }
   }
   for (const [index, q] of QINGMING_QUARTERS.entries()) {
@@ -93,6 +115,46 @@ export function* buildQingmingQuartersSteps(
     box(court, 3.4, 0.14, 0.5, 0, 2.15, d / 2, m.wood);
     for (const side of [-1, 1]) box(court, 0.13, 2.15, 0.16, side * 1.6, 1.075, d / 2, m.wood);
     box(court, 2.5, 0.035, 5, 0, 0.05, d / 2 + 2.5, m.earth);
+    // A court is an inhabited work space, not three empty boxes. Keep the centre passage open.
+    const type = index % 3;
+    court.userData.use = ['storage-yard', 'tea-court', 'household-yard'][type];
+    if (type === 0) {
+      for (let j = 0; j < 6; j++) {
+        const x = -2.7 + (j % 2) * 0.95,
+          z = -0.8 + Math.floor(j / 2) * 1.05;
+        if (j >= 3) {
+          box(court, 0.7, 0.5, 0.65, x, 0.25, z, m.wood);
+          continue;
+        }
+        const basket = wovenBasket(0.4, 0.55, m.wood);
+        basket.position.set(x, 0.08, z);
+        basket.scale.setScalar(0.75);
+        court.add(basket);
+      }
+      for (let j = 0; j < 4; j++) box(court, 2.5, 0.12, 0.16, 2.3, 0.15 + j * 0.14, -0.5, m.wood);
+    } else if (type === 1) {
+      box(court, 2, 0.14, 1.2, -1.6, 0.9, -0.6, m.wood);
+      for (const x of [-2.3, -0.9])
+        for (const z of [-1, 0.0]) box(court, 0.11, 0.9, 0.11, x, 0.45, z, m.dark);
+      for (const z of [-1.6, 0.5]) box(court, 2, 0.12, 0.36, -1.6, 0.48, z, m.wood);
+      for (let j = 0; j < 3; j++) {
+        const jar = potteryJar(m.clay);
+        jar.position.set(-2.2 + j * 0.55, 1, -0.6);
+        court.add(jar);
+      }
+    } else {
+      const well = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.65, 0.75, 0.62, 12, 1, true),
+        m.stone,
+      );
+      well.position.set(-2.2, 0.31, -0.5);
+      court.add(well);
+      box(court, 0.09, 2, 0.09, 1.7, 1, -0.6, m.wood);
+      box(court, 0.09, 2, 0.09, 3.1, 1, 2.8, m.wood);
+      const cloth = box(court, 1, 0.8, 0.025, 2.4, 1.45, 1.1, m.linen);
+      cloth.rotation.y = 0.39;
+    }
+
     yield;
   }
   root.userData.inventory = {

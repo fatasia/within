@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { StreetMaterials } from './qingmingEpisodes';
 import { qingmingCitizen } from './qingmingDetails';
 import { bakeQingmingRig } from './qingmingLife';
-import { cityGround, qingmingMainStreet, qingmingRiver } from './cityLayout';
+import { cityGround, qingmingMainStreet, qingmingRiver, qingmingBridgeHeight } from './cityLayout';
 import { rod, curveRod } from './modelGeometry';
 import { registerUpdate } from './featuredShared';
 
@@ -45,13 +45,13 @@ export function buildQingmingDailyLife(m: StreetMaterials): THREE.Group {
         trim: m.wood,
       },
       index,
-      index >= 90,
+      index >= 90 && (index < 120 || index >= 130),
     );
     b.add(model);
     if (index < 90) {
       for (const side of [-1, 1])
-        oval(b, [side * 0.047, 1.6, 0.107], [0.012, 0.014, 0.009], m.dark);
-      oval(b, [0, 1.56, 0.119], [0.021, 0.027, 0.022], m.skin);
+        oval(b, [side * 0.047, 1.6, 0.107], [0.013, 0.006, 0.006], m.dark);
+      oval(b, [0, 1.56, 0.119], [0.015, 0.025, 0.015], m.skin);
     }
     const arms = [-1, 1].map((side) => bone(b, `worker-arm-${side}`, [side * 0.19, 1.29, 0]));
     model.updateMatrixWorld(true);
@@ -74,10 +74,11 @@ export function buildQingmingDailyLife(m: StreetMaterials): THREE.Group {
       side = i < 32 ? -1 : 1,
       z = qingmingMainStreet(x) + side * (2.7 + (i % 3) * 0.4);
     const a = citizen(root, i, [x, cityGround(x, z) + 0.02, z], side < 0 ? 0.3 : Math.PI + 0.25);
-    if (i % 4 === 0)
-      updates.push((t) => {
-        a.arms[0]!.rotation.x = Math.sin(t * 1.1 + i) * 0.16;
-      });
+    updates.push((t) => {
+      a.arms[i % 2]!.rotation.x = -0.12 + Math.sin(t * (1.0 + (i % 3) * 0.16) + i) * 0.27;
+      a.root.rotation.y = (side < 0 ? 0.3 : Math.PI + 0.25) + Math.sin(t * 0.3 + i) * 0.16;
+      a.root.rotation.z = Math.sin(t * 0.65 + i) * 0.025;
+    });
   }
   // Three double-humped pack camels walk inside the gate, clear of existing donkey traffic.
   for (let i = 0; i < 3; i++) {
@@ -157,11 +158,58 @@ export function buildQingmingDailyLife(m: StreetMaterials): THREE.Group {
   // Separate moving hand-work pairs beside, not inside, the existing serving episode.
   for (let i = 0; i < 4; i++) {
     const x = 90 + i * 5.7,
-      z = -48.3;
+      z = -49.6;
     const a = citizen(root, 90 + i, [x, 2.82, z], 0);
     updates.push((t) => {
       a.arms[1]!.rotation.x = -0.45 + Math.sin(t * 1.6 + i) * 0.35;
       a.root.rotation.y = Math.sin(t * 0.35 + i) * 0.14;
+    });
+  }
+  // Bridge onlookers signal to the low-masted vessel. Hands read clearly from a phone camera.
+  for (let i = 0; i < 5; i++) {
+    const z = qingmingRiver(-20) - 10 + i * 4;
+    const a = citizen(root, 110 + i, [-23.4, qingmingBridgeHeight(z) + 0.07, z], -Math.PI / 2);
+    updates.push((t) => {
+      a.arms[0]!.rotation.x = -1.2 + Math.sin(t * 1.4 + i) * 0.45;
+      a.root.rotation.z = Math.sin(t * 0.8 + i) * 0.045;
+    });
+  }
+  // Quay workers inspect and stack goods, keeping their feet planted beside the three sheds.
+  for (let i = 0; i < 6; i++) {
+    const x = [-105, -77, -48][Math.floor(i / 2)]! + (i % 2 ? 1.5 : -1.5),
+      z = qingmingRiver(x) + 23.4;
+    const a = citizen(root, 120 + i, [x, 2.82, z], Math.PI);
+    updates.push((t) => {
+      const cycle = t * 0.8 + i;
+      a.root.rotation.x = 0.08 + Math.sin(cycle) * 0.09;
+      a.arms[0]!.rotation.x = -0.5 + Math.sin(cycle) * 0.3;
+      a.arms[1]!.rotation.x = -0.5 + Math.sin(cycle + 0.4) * 0.3;
+    });
+  }
+  // A stopped sedan queue has four bearers, not an unexplained floating cabin.
+  for (let i = 0; i < 4; i++) {
+    const a = citizen(
+      root,
+      130 + i,
+      [108 + (i < 2 ? -2.2 : 2.2), 2.82, -44.3 + (i % 2 ? -0.78 : 0.78)],
+      Math.PI / 2,
+    );
+    updates.push((t) => {
+      a.arms[0]!.rotation.x = -0.65;
+      a.arms[1]!.rotation.x = -0.65;
+      a.root.rotation.y = Math.PI / 2 + Math.sin(t * 0.4 + i) * 0.08;
+    });
+  }
+  for (let i = 0; i < 4; i++) {
+    const a = citizen(
+      root,
+      140 + i,
+      [[-113.3, -111.6, -109.6, -106.8][i]!, 2.82, -29.2 + (i % 2) * 0.8],
+      i % 2 ? Math.PI : 0.2,
+    );
+    updates.push((t) => {
+      a.arms[i % 2]!.rotation.x = -0.2 + Math.sin(t * 1.2 + i) * 0.38;
+      a.root.rotation.y = (i % 2 ? Math.PI : 0.2) + Math.sin(t * 0.4 + i) * 0.16;
     });
   }
   const mesh = bakeQingmingRig(root);
@@ -173,6 +221,10 @@ export function buildQingmingDailyLife(m: StreetMaterials): THREE.Group {
     handlers: 1,
     porters: 4,
     vendors: 4,
+    bridgeOnlookers: 5,
+    quayWorkers: 6,
+    sedanBearers: 4,
+    villagers: 4,
     draws: 1,
   };
   const update = (t: number) => {
