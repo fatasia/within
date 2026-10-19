@@ -29,8 +29,23 @@ if (process.env.REBUILD === '1') {
   shots[4] = {title:'酒肆 · 临街重楼',eye:[102,11,-34],target:[84.4,6.5,-55]};
   shots[5] = {...shots[4],title:'灯火 · 酒肆夜市',night:true};
 }
+if (process.env.LIGHTING === '1') {
+  shots.splice(0, shots.length,
+    { title: '春晓 · 汴京展卷', eye: [-51, 20, 48], target: [-15, 9, -7], timeMode: 'day' },
+    { title: '汴河 · 船工与舟楫', eye: [-52, 6, 11], target: [-42, 1.2, -2.9], timeMode: 'day' },
+    { title: '夕照 · 虹桥碎金', eye: [-51, 20, 48], target: [-15, 9, -7], timeMode: 'sunset' },
+    { title: '城门 · 暮光长影', eye: [34, 19, -29], target: [55, 11, -45], timeMode: 'sunset' },
+    { title: '酒肆 · 日暮人间', eye: [102, 11, -34], target: [84.4, 6.5, -55], timeMode: 'sunset' },
+    { title: '灯火 · 酒肆夜市', eye: [102, 11, -34], target: [84.4, 6.5, -55], timeMode: 'night' },
+    { title: '汴水 · 一河星月', eye: [-51, 20, 48], target: [-15, 9, -7], timeMode: 'night' },
+  );
+}
 const duration = shots.length * 3,
   output = join(directory, process.env.OUTPUT_FILE ?? 'qingming-details-21s.mp4');
+for (const shot of shots) {
+  if (shot.timeMode && !['day', 'sunset', 'night'].includes(shot.timeMode))
+    throw new Error(`Invalid time mode: ${shot.timeMode}`);
+}
 await mkdir(directory, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
@@ -69,6 +84,7 @@ try {
           },
         },
       );
+      await e.ready;
       e.beginOfflineFilm(1920, 1080);
       const ready = [];
       e.scene.traverse((o) => {
@@ -86,7 +102,7 @@ try {
             u = t - i * 3,
             shot = shots[i];
           // Dusk interpretation is explicitly authored per shot, not random journey lighting.
-          e.state.time=shot.night?'night':'day';
+          e.state.time=shot.timeMode ?? (shot.night?'night':'day');
           e.renderOfflineFrame(0.25, 8 + u, {
             eye: [shot.eye[0] + u * 0.2, shot.eye[1], shot.eye[2]],
             target: shot.target,

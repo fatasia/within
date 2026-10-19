@@ -1,0 +1,74 @@
+{
+  "file": "within-selected-36s.mp4",
+  "updatedAt": "2026-10-19",
+  "engineCommit": "e06f4734656ae3e3e9aae1f5350117e8686fd31f",
+  "updatedClip": "qingming",
+  "updatedClipRangeSeconds": [
+    3,
+    6
+  ],
+  "unchangedClips": [
+    {
+      "id": "roadster",
+      "file": "roadster-3s.mp4",
+      "sha256": "57740484110741b2a0eb2c4bfc33711e84b7a8a53741655a8d8afcb1c8e37899"
+    },
+    {
+      "id": "wuhan",
+      "file": "wuhan-3s.mp4",
+      "sha256": "3f0575c2161bb1837d62477cd4fb1c8c82496100b08678046629be8c43a73024"
+    },
+    {
+      "id": "starry",
+      "file": "starry-3s.mp4",
+      "sha256": "b68fe3641f7c5a1ac7b4046e54768832087e0451e2c8cbd825843519e79e24c5"
+    },
+    {
+      "id": "winter",
+      "file": "winter-3s.mp4",
+      "sha256": "536b4a1e7cec556b6b3dd182019750d74c17b23c7fb4ebbd9c3dd6c731c13360"
+    },
+    {
+      "id": "arctic",
+      "file": "arctic-3s.mp4",
+      "sha256": "4a97f563eb3cf283237b28fb9b71a65ab698f474f22cbdff33f87df03beb12c3"
+    },
+    {
+      "id": "sakura",
+      "file": "sakura-3s.mp4",
+      "sha256": "2d671695830d10b87140b4616d81cd865247dfcf021089454003ce5fa66b64d3"
+    },
+    {
+      "id": "deepsea",
+      "file": "deepsea-3s.mp4",
+      "sha256": "33b52efad799f276a6ad3f76229db72fa6fb0d5be0833f9673f3a1511d6c18ca"
+    },
+    {
+      "id": "xihu",
+      "file": "xihu-3s.mp4",
+      "sha256": "4d839ee677ff0a748e8140839ab111fef765460bdab3070e72df7d756e80571c"
+    },
+    {
+      "id": "dunhuang",
+      "file": "dunhuang-3s.mp4",
+      "sha256": "e6e2a164a510d4831351a4eef5a6535f236e53290b6f26dfe221be91c7f10bc2"
+    },
+    {
+      "id": "fuchun",
+      "file": "fuchun-3s.mp4",
+      "sha256": "f31dfa5264df6138afdbff92daaa7d999b16b82cca723318cf0595bb23ef8ba7"
+    },
+    {
+      "id": "guilin",
+      "file": "guilin-3s.mp4",
+      "sha256": "e76f1849bc0a9491786af2651cc78a4b6d99c847d8efa1f3147799a1d422b446"
+    }
+  ],
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "frames": 1080,
+  "duration": 36,
+  "bytes": 35350089,
+  "sha256": "67eeaaeb34d80df77a9264f09c195fdbe9e2b9c95e76e5d32390ba2073cc6457"
+}

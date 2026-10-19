@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8');
 const rows = readme
   .split('\n')
@@ -8,10 +9,22 @@ assert.equal(rows.length, 4);
 assert.match(rows[0], /十二景精选合集.*\/showcase\/index.html/);
 assert.match(rows[1], /Roadster/);
 assert.ok(!readme.includes('五章精选'));
+assert.ok(!readme.includes('[清明核对]'));
+assert.ok(!readme.includes('[樱谷来源]'));
 const html = await readFile(new URL('../public/showcase/index.html', import.meta.url), 'utf8');
 assert.match(html, /<video[\s\S]*?controls[\s\S]*?playsinline/);
-assert.match(html, /src="within-selected-36s.mp4"/);
+assert.match(html, /src="within-selected-36s.mp4\?v=20261019"/);
 assert.equal((html.match(/<video\b/g) ?? []).length, 1);
 const video = await stat(new URL('../public/showcase/within-selected-36s.mp4', import.meta.url));
-assert.equal(video.size, 36_178_565);
+const manifest = JSON.parse(await readFile(new URL('../public/showcase/manifest.json', import.meta.url), 'utf8'));
+assert.equal(manifest.file, 'within-selected-36s.mp4');
+assert.equal(manifest.updatedClip, 'qingming');
+assert.equal(manifest.unchangedClips.length, 11);
+assert.equal(manifest.frames, 1080);
+assert.equal(manifest.width, 1920);
+assert.equal(manifest.height, 1080);
+assert.equal(manifest.fps, 30);
+assert.equal(video.size, manifest.bytes);
+const digest = createHash('sha256').update(await readFile(new URL('../public/showcase/within-selected-36s.mp4', import.meta.url))).digest('hex');
+assert.equal(digest, manifest.sha256);
 console.log('README order, four entries, single inline player and local MP4 verified.');

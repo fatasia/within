@@ -41,6 +41,8 @@ try {
     ? catalog.filter(p => !requested || requested.includes(p.id)).map(p => existing.find(s => s.id === p.id) ?? ({ ...p, progress: defaults[p.id] ?? 0, selected: false, reason: '待目视筛选' }))
     : JSON.parse(await readFile(manifestPath, 'utf8')).filter(p => p.selected && (!requested || requested.includes(p.id)));
   if (!shots.length) throw new Error('No selected shots. Review selection.json first.');
+  if (shots.some(s => s.timeMode && !['journey', 'day', 'sunset', 'night'].includes(s.timeMode)))
+    throw new Error('Invalid timeMode in selection.json');
   const clips = [];
   for (const shot of shots) {
     if (assembleOnly) { clips.push(join(directory, `${shot.id}-3s.mp4`)); continue; }
@@ -53,6 +55,7 @@ try {
       const { renderSoundtrack } = await import('/src/engine/audio.ts');
       await document.fonts.load('400 40px "Landscape Serif"', shot.title);
       const engine = new Experience(document.getElementById('stage'), { ...initialState, painting: shot.id, quality: 'high', entered: true }, { onTelemetry() {}, onError(m) { throw Error(m); } });
+      await engine.ready;
       engine.beginOfflineFilm(1920, 1080);
       const ready = [];
       engine.scene.traverse(o => { if (o.userData.ready) ready.push(o.userData.ready); if (o.userData.sakuraAssetsReady) ready.push(o.userData.sakuraAssetsReady); });
@@ -63,6 +66,7 @@ try {
       const selectedTime = shot.time ?? (shot.id === 'arctic' ? 9 : 8);
       window.showreel = {
         frame(seconds, raw = false) {
+          if (shot.timeMode) engine.state.time = shot.timeMode;
           const p = shot.id === 'sakura' ? shot.progress + seconds / 150 : shot.progress;
           const time = selectedTime + seconds;
           const shotView = shot.id === 'sakura' ? sampleSakuraVoyage(p, time) : {
