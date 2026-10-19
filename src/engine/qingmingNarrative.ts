@@ -38,7 +38,9 @@ export function* buildQingmingNarrativeSteps(
       'river-ferry',
       'reed-covered-cargo-boat',
     ][i]!;
-    g.position.set(x, 0.55, qingmingRiver(x) + (i % 2 ? 4.5 : -4.5));
+    // Keel -0.35 and deck -0.08: a 0.15 lift keeps the hull immersed and
+    // the deck above the 0.04 water plane through the +/-0.035 heave cycle.
+    g.position.set(x, 0.15, qingmingRiver(x) + (i % 2 ? 4.5 : -4.5));
     root.add(g);
     g.userData.riverCraft = true;
     const length = i === 2 ? 6.5 : 10,

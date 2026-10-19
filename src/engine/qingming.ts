@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { buildQingmingBridgeMarket } from './qingmingBridgeMarket';
+import { buildQingmingGateRoof } from './qingmingGateRoof';
 import { createQingmingMaterials } from './qingmingRendering';
 import { buildQingmingMerchantHallSteps } from './qingmingMerchantHall';
 import { buildQingmingNarrativeSteps } from './qingmingNarrative';
@@ -61,8 +63,8 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
   const wood = mat('#736051', 'wood'),
     dark = mat('#494238', 'wood'),
     plaster = mat('#d9d2c2', 'plaster');
-  const tile = mat('#687174', 'tile'),
-    tileLight = mat('#7a8282', 'tile'),
+  const tile = mat('#555e5b', 'tile'),
+    tileLight = mat('#6a726c', 'tile'),
     stone = mat('#94958b', 'stone');
   const earth = mat('#9f9787', 'earth'),
     linen = mat('#c5bdab', 'plaster'),
@@ -580,6 +582,8 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     const riverCraft = buildQingmingRiverCraft(streetMaterials);
     const craftInventory = riverCraft.userData.inventory;
     city.add(riverCraft);
+    const bridgeMarket = buildQingmingBridgeMarket(streetMaterials);
+    city.add(bridgeMarket);
     yield;
     for (let i = 0; i < 22; i++) {
       const x = -65 + i * 8.5;
@@ -708,7 +712,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         city,
         [8.6, 0.28, 0.82 * Math.sqrt(1 + slope * slope)],
         [-20, y - 0.14, z],
-        i % 4 ? wood : ochre,
+        wood,
       );
       deck.rotation.x = Math.atan(slope);
       const grain = new THREE.Group();
@@ -816,7 +820,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         shape.closePath();
         const wedge = new THREE.Mesh(
           new THREE.ExtrudeGeometry(shape, { depth: 0.16, bevelEnabled: false, curveSegments: 2 }),
-          i % 3 ? stone : streetMaterials.clay,
+          stone,
         );
         wedge.position.set(0, 4, face > 0 ? 3.51 : -3.67);
         gate.add(wedge);
@@ -843,9 +847,14 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
     for (let i = -7; i <= 7; i++) box(gate, [1.05, 1.05, 0.8], [i * 1.8, 10.5, 3.1], stone);
     // Recessed enclosed core behind an open timber gallery, rather than a solid yellow block.
-    box(gate, [8.4, 2.3, 0.18], [0, 11.5, -1.7], plaster);
-    for (const side of [-1, 1]) box(gate, [0.18, 2.3, 3.2], [side * 4.1, 11.5, -0.2], plaster);
+    box(gate, [8.4, 3.6, 0.18], [0, 12.3, -1.7], plaster);
+    for (const side of [-1, 1]) box(gate, [0.18, 3.6, 3.2], [side * 4.1, 12.3, -0.2], plaster);
     box(gate, [8.4, 0.75, 0.16], [0, 10.7, 1.3], wood);
+    box(gate, [8.4, 0.9, 0.16], [0, 13.65, 1.3], wood);
+    for (let i = -15; i <= 15; i++)
+      box(gate, [0.055, 2.15, 0.1], [i * 0.26, 12.15, 1.38], dark);
+    for (const y of [11.35, 12.2, 13.05])
+      box(gate, [8.2, 0.06, 0.12], [0, y, 1.39], dark);
     for (const x of [-2.6, 0, 2.6]) {
       box(gate, [0.22, 4.1, 0.22], [x, 12.2, -0.5], wood);
       box(gate, [0.7, 0.18, 0.8], [x, 14.15, -0.5], wood);
@@ -860,11 +869,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       box(gate, [11.2, 0.24, 0.3], [0, 14.25, face * 2.85], wood);
       box(gate, [11.2, 0.16, 0.18], [0, 10.95, face * 2.85], wood);
     }
-    // The tower parapet ends at 14.55m.  `roof`'s eave is y + 0.23*h,
-    // so 13.72m seats the eave on the masonry instead of leaving a visible gap.
-    // Sink the eave 0.7m into the tower cap.  The deep overhang otherwise
-    // reads as a separate floating roof from the elevated home camera.
-    roof(gate, 15, 10, 13.72, 3.6);
+    gate.add(buildQingmingGateRoof(tile, wood));
     for (const s of [-1, 1])
       for (let j = 0; j < 3; j++) {
         const z = -45 + s * (22 + j * 12);
@@ -948,7 +953,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       }
       for (let k = 0; k < 3; k++) box(city, [0.65, 0.6, 1.05], [x - 0.8 + k * 0.8, 3.95, z], linen);
     }
-    for (let i = 0; i < 34; i++) {
+    for (let i = 0; i < 26; i++) {
       const x = -131 + random() * 260;
       tree(x, i < 16 ? qingmingRiver(x) + 22 : -95 + random() * 13, 4.8 + random() * 3);
       yield;
@@ -1030,6 +1035,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       narratives: narrative.userData.inventory,
       merchantHall: merchantHall.userData.inventory,
       evening: nightLife.userData.inventory,
+      bridgeMarket: bridgeMarket.userData.inventory,
     };
     result.userData.streetFoci = {
       huanmen: [84.4, 6.0, -48.2],

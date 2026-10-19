@@ -318,10 +318,10 @@ export function prepareQingmingBoats(vessels: THREE.Group[]): THREE.Group {
       if(boatman)boatman.rotation.z=Math.sin(cycle)*.12;
     });
     animations.push((time) => {
-      // The passage boat travels on the central reach. It eases to rest downstream,
-      // rather than reversing bow-first or wrapping visibly through the bridge.
+      // Ease into the bridge operation and hold there: returning to its chapter
+      // must not show an empty river after a long visit. No visible teleport/reverse.
       const travel =
-        index === 0 ? 48 * (1 - Math.exp(-time / 100)) : Math.sin(time * 0.12 + index) * 0.14;
+        index === 0 ? 3.4 * (1 - Math.exp(-time / 14)) : Math.sin(time * 0.12 + index) * 0.14;
       const x = rest.x + travel;
       anchor.position.set(
         x,

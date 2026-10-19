@@ -1043,7 +1043,10 @@ export function App() {
         </Dialog>
       )}
       {modal === 'original' && (
-        <OriginalViewer painting={painting} onClose={() => setModal(null)} />
+        <OriginalViewer painting={painting} progress={state.progress} onSeek={(progress) => {
+          seek(progress);
+          patch({ entered: true });
+        }} onClose={() => setModal(null)} />
       )}
       {modal === 'help' && (
         <Dialog title="游览指南" onClose={() => setModal(null)}>

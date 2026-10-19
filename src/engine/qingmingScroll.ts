@@ -163,6 +163,9 @@ function thatchedHouse(m: StreetMaterials, width: number, depth: number): THREE.
     ];
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(
+      verts.flatMap((_, i) => i % 3 === 0 ? [verts[i]! * 2, verts[i + 2]! * 2] : []), 2,
+    ));
     if (side > 0) {
       // Consistent outward winding without an additional double-sided material batch.
       geo.setIndex([0, 2, 1, 3, 5, 4]);
@@ -170,21 +173,23 @@ function thatchedHouse(m: StreetMaterials, width: number, depth: number): THREE.
     geo.computeVertexNormals();
     g.add(new THREE.Mesh(geo, m.earth));
     for (let course = 0; course < 3; course++)
-      for (let straw = 0; straw < 17; straw++) {
-        const x = (straw / 16 - 0.5) * (width + 0.8);
+      for (let straw = 0; straw < 49; straw++) {
+        const x = (straw / 48 - 0.5) * (width + 0.8) + Math.sin(straw * 2.7 + course) * 0.035;
         const t = course * 0.27;
         const end = Math.min(1.04, t + 0.43 + Math.sin(straw * 3.7 + course) * 0.035);
-        beam(
-          g,
-          [x, 4.04 - roofDrop - t * 1.35, side * t * (depth / 2 + 0.55)],
-          [
-            x + Math.sin(straw) * 0.07,
-            4.04 - roofDrop - end * 1.35,
-            side * end * (depth / 2 + 0.55),
-          ],
-          0.026,
-          (straw + course) % 3 ? m.linen : m.wood,
-        );
+        // Attached fibre ribbons retain fine spacing without tripling the
+        // triangle budget for cylindrical strands buried in the roof surface.
+        const fibre = new THREE.BufferGeometry();
+        const ex = x + Math.sin(straw) * 0.07;
+        fibre.setAttribute('position', new THREE.Float32BufferAttribute([
+          x - 0.015, 4.04 - roofDrop - t * 1.35, side * t * (depth / 2 + 0.55),
+          x + 0.015, 4.04 - roofDrop - t * 1.35, side * t * (depth / 2 + 0.55),
+          ex - 0.01, 4.04 - roofDrop - end * 1.35, side * end * (depth / 2 + 0.55),
+          ex + 0.01, 4.04 - roofDrop - end * 1.35, side * end * (depth / 2 + 0.55),
+        ], 3));
+        fibre.setIndex(side > 0 ? [0, 2, 1, 1, 2, 3] : [0, 1, 2, 1, 3, 2]);
+        fibre.computeVertexNormals();
+        g.add(new THREE.Mesh(fibre, (straw + course) % 3 ? m.linen : m.wood));
       }
   }
   beam(

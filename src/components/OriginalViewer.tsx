@@ -3,8 +3,11 @@ import { ArrowSquareOut, Minus, Plus } from '@phosphor-icons/react';
 import type { Painting } from '../types';
 import { ORIGINALS } from '../data/originals';
 import { Dialog } from './Dialog';
+import { QINGMING_READING_STOPS, qingmingReadingIndex } from '../data/qingmingReading';
 
-export function OriginalViewer({ painting, onClose }: { painting: Painting; onClose: () => void }) {
+export function OriginalViewer({ painting, onClose, progress = 0, onSeek }: {
+  painting: Painting; onClose: () => void; progress?: number; onSeek?: (progress: number) => void;
+}) {
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [failed, setFailed] = useState(false);
@@ -13,6 +16,17 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
   const viewport = useRef<HTMLDivElement>(null);
   const original = ORIGINALS[painting.id];
   const image = original?.images[index];
+  const readingStop = painting.id === 'qingming'
+    ? QINGMING_READING_STOPS.find(stop => stop.imageIndex === index)
+    : undefined;
+  const selectImage = (next: number) => {
+    if (next === index) return;
+    setIndex(next);
+    setZoom(1);
+    setFailed(false);
+    setPanorama(false);
+    setOverview(false);
+  };
   useLayoutEffect(() => {
     if (panorama && !overview && viewport.current)
       viewport.current.scrollLeft = viewport.current.scrollWidth;
@@ -89,6 +103,14 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
             )}
           </div>
           <p className="original-caption">{image.caption}</p>
+          {painting.id === 'qingming' && onSeek && (
+            <div className="original-pages" aria-label="原作与三维位置对照">
+              <button onClick={() => selectImage(qingmingReadingIndex(progress))}>查看当前画境对应原作</button>
+              {readingStop && <button onClick={() => { onSeek(readingStop.progress); onClose(); }}>
+                走进这一段 · {readingStop.label}
+              </button>}
+            </div>
+          )}
           {original.images.length > 1 && (
             <div className="original-pages" aria-label="选择原作图像">
               {original.images.map((item, i) => (
@@ -96,14 +118,7 @@ export function OriginalViewer({ painting, onClose }: { painting: Painting; onCl
                   key={item.src}
                   aria-pressed={i === index}
                   className={i === index ? 'active' : ''}
-                  onClick={() => {
-                    if (i === index) return;
-                    setIndex(i);
-                    setZoom(1);
-                    setFailed(false);
-                    setPanorama(false);
-                    setOverview(false);
-                  }}
+                  onClick={() => selectImage(i)}
                 >
                   {item.caption}
                 </button>

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Painting, Peak } from '../types';
 import { clamp, fbm, noise, seededRandom } from './math';
 import { landscapeGround } from './geography';
-import { cityGround } from './cityLayout';
+import { cityGround, qingmingRiver, qingmingMainStreet } from './cityLayout';
 import { getWuhanGround } from './wuhanLayout';
 import { blendXishanGround } from './xishanLayout';
 import { chinesePeakHeight, colorChineseRock, isChineseLandscape } from './chineseLandscape';
@@ -184,7 +184,7 @@ function* makePaperTextureSteps(
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(7, 7);
+  texture.repeat.setScalar(style === 'qingming' ? 42 : 7);
   return texture;
 }
 /** One stitched surface, not intersecting radial islands. */
@@ -268,7 +268,15 @@ export function* buildTerrainSteps(painting: Painting): Generator<void, TerrainR
       const elevation = clamp(height / summit);
       const n = fbm(x * 0.1, z * 0.1, painting.seed);
       color.copy(low).lerp(high, clamp(elevation * 1.4));
-      if (isChineseLandscape(painting.id)) {
+      if (painting.id === 'qingming') {
+        // Dry packed-earth paths, darker damp bank and mottled unused ground.
+        // All colour stays on the terrain, with no coplanar decorative decals.
+        const bankDistance = Math.abs(z - qingmingRiver(x));
+        const laneDistance = Math.min(Math.abs(bankDistance - 17), Math.abs(z - qingmingMainStreet(x)));
+        const dryLane = Math.exp(-laneDistance * laneDistance / 9);
+        const wetBank = Math.exp(-((bankDistance - 12.3) ** 2) / 2);
+        color.copy(low).multiplyScalar(0.84 + n * 0.27 + dryLane * 0.08 - wetBank * 0.2);
+      } else if (isChineseLandscape(painting.id)) {
         colorChineseRock(color, painting.id, x, z, elevation, painting.seed);
       } else if (winter) {
         const slopeX = groundHeight(painting, x + 0.6, z) - height;

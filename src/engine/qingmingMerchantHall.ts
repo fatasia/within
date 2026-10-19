@@ -108,7 +108,23 @@ export function* buildQingmingMerchantHallSteps(
   root.add(new THREE.Mesh(ring, tile));
   // Upper main roof and exposed rafters have one shared roof surface datum.
   roof(root, 15.7, 7.2, 6.21, 1.85);
-  for (let i = 0; i < 29; i++) box(root, 0.07, 0.09, 1, -7 + i * 0.5, 6.56, 3.3, m.dark);
+  // At the recessed wall the curved roof is higher than its eave. Close that
+  // clerestory gap instead of letting daylight show over the upper windows.
+  for (const side of [-1, 1]) {
+    const cap = box(root, 14.2, 0.8, 0.22, 0, 6.55, side * 2.7, plaster);
+    cap.name = 'merchant-upper-wall-cap';
+  }
+  const upperRoof = { width: 15.7, depth: 7.2, base: 6.21, rise: 1.85, detailed: true };
+  for (let i = 0; i < 29; i++) {
+    const x = -7 + i * 0.5;
+    const a = new THREE.Vector3(x, roofSurfaceY(upperRoof, x, 2.7) - 0.08, 2.7);
+    const b = new THREE.Vector3(x, roofSurfaceY(upperRoof, x, 3.6) - 0.08, 3.6);
+    const rafter = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, a.distanceTo(b)), m.dark);
+    rafter.name = 'merchant-attached-rafter';
+    rafter.position.copy(a).add(b).multiplyScalar(0.5);
+    rafter.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), b.sub(a).normalize());
+    root.add(rafter);
+  }
   // Rear hall and two side wings enclose a real courtyard, with a clear open passage.
   for (const [x, z, w, d, h] of [
     [-9, -11, 3.8, 8, 3],

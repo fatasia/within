@@ -84,8 +84,11 @@ describe('Qingming street and river motion', () => {
       update(0, 0);
       const start = anchor.position.clone();
       update(8, 0);
-      expect(anchor.position.x).toBeGreaterThan(start.x + 3);
+      expect(anchor.position.x).toBeGreaterThan(start.x + 0.5);
       expect(Math.abs(anchor.position.y - start.y)).toBeLessThan(0.08);
+      update(3600, 0);
+      expect(anchor.position.x).toBeLessThanOrEqual(start.x + 3.4);
+      expect(anchor.position.x).toBeGreaterThan(start.x + 3);
       update(0, 0);
       expect(anchor.position.toArray()).toEqual(start.toArray());
       expect(group.children).toHaveLength(1);
