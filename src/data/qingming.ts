@@ -23,7 +23,7 @@ export const QINGMING: Painting = {
   },
   seed: 1120,
   peaks: [],
-  overview: { eye: [-49, 32, 44], target: [-15, 5, -5] },
+  overview: { eye: [-49, 23, 46], target: [-15, 7, -7] },
   route: [
     [-126, 4, -43],
     [-100, 4, -28],

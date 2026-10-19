@@ -17,7 +17,7 @@ describe('Qingming material and merchant architecture rebuild', () => {
     expect(tile.map).not.toBe(wood.map);
     expect(wood.map!.colorSpace).toBe(THREE.SRGBColorSpace);
     expect(wood.bumpMap!.colorSpace).toBe(THREE.NoColorSpace);
-    expect((wood.map!.image as {width:number}).width).toBe(256);
+    expect((wood.map!.image as { width: number }).width).toBe(256);
     const g = new THREE.Group();
     for (const m of [wood, dark, tile]) g.add(new THREE.Mesh(new THREE.BoxGeometry(), m));
     const dispose = vi.spyOn(wood.map!, 'dispose');
@@ -31,7 +31,12 @@ describe('Qingming material and merchant architecture rebuild', () => {
     expect(close.extent).toBeLessThan(wide.extent);
     expect(close.extent).toBeGreaterThanOrEqual(28);
     expect(close.extent).toBeLessThan(40);
-    expect(close.position.clone().sub(close.target).toArray()).toEqual([-80, 140, 60]);
+    expect(
+      close.position
+        .clone()
+        .sub(close.target)
+        .distanceTo(new THREE.Vector3(-80, 140, 60)),
+    ).toBeLessThan(1e-10);
     const texel = (close.extent * 2) / 1024;
     expect(Math.abs(close.target.x - target.x)).toBeLessThanOrEqual(texel / 2);
     expect(Math.abs(close.target.z - target.z)).toBeLessThanOrEqual(texel / 2);

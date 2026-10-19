@@ -1,3 +1,4 @@
+import { qingmingLightDirection } from './qingmingEnvironment';
 import { fitQingmingShadow } from './qingmingRendering';
 import * as THREE from 'three';
 import { pickCharacter } from './characterEncounters';
@@ -26,7 +27,12 @@ import { getCinematicView, type CinematicView } from './cinematography';
 import { buildEasterEgg } from './easterEgg';
 import { buildQingmingSteps } from './qingming';
 import { buildLandscapeDetails } from './landscapes';
-import { buildFeaturedWorld, featuredUpdate, isFeaturedWorld, type FeaturedUpdate } from './featuredWorlds';
+import {
+  buildFeaturedWorld,
+  featuredUpdate,
+  isFeaturedWorld,
+  type FeaturedUpdate,
+} from './featuredWorlds';
 import { buildWuhan, updateWuhan } from './wuhan';
 import { getWuhanGround, wuhanPath, wuhanWalkHeight } from './wuhanLayout';
 import { pointerDistance, scrollZoom, walkInput, wheelPixels } from './interaction';
@@ -204,7 +210,8 @@ export class Experience {
     const version = this.sceneRequest;
     this.sceneBuilding = true;
     try {
-      this.updateCamera(10); this.updateAtmosphere(10);
+      this.updateCamera(10);
+      this.updateAtmosphere(10);
       await compileSakuraPrograms(this.renderer, this.scene, this.scene, this.camera);
     } finally {
       if (!this.disposed && version === this.sceneRequest) this.sceneBuilding = false;
@@ -308,9 +315,11 @@ export class Experience {
       const world = buildFeaturedWorld(this.painting);
       this.content.add(world);
       this.featured = featuredUpdate(world);
-      world.userData.prepareAssets?.(this.renderer, this.scene, this.camera);world.userData.setQuality?.(this.state.quality);
+      world.userData.prepareAssets?.(this.renderer, this.scene, this.camera);
+      world.userData.setQuality?.(this.state.quality);
     }
-    const custom = ['qingming', 'zhangjiajie', 'guilin', 'wuhan'].includes(this.painting.id) || featured;
+    const custom =
+      ['qingming', 'zhangjiajie', 'guilin', 'wuhan'].includes(this.painting.id) || featured;
     yield;
     const village = custom ? new THREE.Group() : buildVillage(this.painting);
     this.content.add(village);
@@ -341,19 +350,20 @@ export class Experience {
       this.lakeBirds = buildLakeBirds();
       this.content.add(this.lakeBirds.mesh);
     }
-    if (this.painting.id !== 'roadster') this.content.add(
-      buildEasterEgg(
-        this.painting,
-        this.painting.id === 'wuhan'
-          ? {
-              x: 18,
-              z: wuhanPath(18) - 0.5,
-              y: getWuhanGround(18, wuhanPath(18) - 0.5) + 0.05,
-              yaw: 0,
-            }
-          : undefined,
-      ),
-    );
+    if (this.painting.id !== 'roadster')
+      this.content.add(
+        buildEasterEgg(
+          this.painting,
+          this.painting.id === 'wuhan'
+            ? {
+                x: 18,
+                z: wuhanPath(18) - 0.5,
+                y: getWuhanGround(18, wuhanPath(18) - 0.5) + 0.05,
+                yaw: 0,
+              }
+            : undefined,
+        ),
+      );
     yield;
     this.rebuildRiver();
     if (this.painting.id === 'starry' || this.painting.id === 'winter') {
@@ -423,9 +433,15 @@ export class Experience {
       }),
     );
     this.content.add(this.birds);
-    this.birds.visible = !['winter', 'starry', 'wuhan', 'arctic', 'dunhuang', 'deepsea', 'roadster'].includes(
-      this.painting.id,
-    );
+    this.birds.visible = ![
+      'winter',
+      'starry',
+      'wuhan',
+      'arctic',
+      'dunhuang',
+      'deepsea',
+      'roadster',
+    ].includes(this.painting.id);
     if (this.painting.id === 'xishan') this.addWaterfall();
     this.content.traverse((object) => {
       if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshStandardMaterial) {
@@ -493,7 +509,8 @@ export class Experience {
           }
         }
         if (!complete) continue;
-        if (this.painting.id === 'sakura') await compileSakuraPrograms(this.renderer, this.scene, this.scene, this.camera);
+        if (this.painting.id === 'sakura')
+          await compileSakuraPrograms(this.renderer, this.scene, this.scene, this.camera);
         else await this.renderer.compileAsync(this.scene, this.camera);
         if (this.disposed || version !== this.sceneRequest) continue;
         // Geometry is ready. Reuse the normal transition path for input, quality and mode.
@@ -571,20 +588,69 @@ export class Experience {
     });
     return group;
   }
-  setRoadsterMusicClock(clock: () => number | undefined): void { this.roadsterMusicClock = clock; }
-  setRoadsterInput(input:Partial<import('./roadsterMotion').RoadsterDriveInput>):void {if(this.painting.id==='roadster'){this.state.playing=false;for(const world of this.content.children)world.userData.setDriveInput?.(input);this.emitStats();}}
-  getRoadsterChallenge():string {for(const world of this.content.children){const s=world.userData.getChallenge?.();if(s)return `${s.complete?'完成':'检查点'} ${s.passed}/${s.total} · ${s.time.toFixed(1)}s${s.best!==null?` · 最快 ${s.best.toFixed(1)}s`:''}`;}return '检查点 0/5 · 0.0s';}
-  getRoadsterSpeed():number {return this.content.children.reduce((speed,world)=>speed+Math.abs(world.userData.getDriveState?.().speed??0),0)*3.6;}
-  private roadsterDriveState():import('./roadsterMotion').RoadsterMotionSample|undefined {for(const world of this.content.children){const s=world.userData.getDriveState?.();if(s?.manual)return s;}return undefined;}
-  triggerRoadster(action:'boost'|'grip'|'dance'|'reset'):void {if(this.painting.id==='roadster')for(const world of this.content.children){if(action==='boost')world.userData.triggerBoost?.();else if(action==='dance')world.userData.triggerDance?.();else if(action==='reset')world.userData.resetVehicle?.();else world.userData.triggerGrip?.();}}
-  private roadsterLift():number {return this.content.children.reduce((lift,world)=>lift+(world.userData.getVehicleLift?.()??0),0);}
+  setRoadsterMusicClock(clock: () => number | undefined): void {
+    this.roadsterMusicClock = clock;
+  }
+  setRoadsterInput(input: Partial<import('./roadsterMotion').RoadsterDriveInput>): void {
+    if (this.painting.id === 'roadster') {
+      this.state.playing = false;
+      for (const world of this.content.children) world.userData.setDriveInput?.(input);
+      this.emitStats();
+    }
+  }
+  getRoadsterChallenge(): string {
+    for (const world of this.content.children) {
+      const s = world.userData.getChallenge?.();
+      if (s)
+        return `${s.complete ? '完成' : '检查点'} ${s.passed}/${s.total} · ${s.time.toFixed(1)}s${s.best !== null ? ` · 最快 ${s.best.toFixed(1)}s` : ''}`;
+    }
+    return '检查点 0/5 · 0.0s';
+  }
+  getRoadsterSpeed(): number {
+    return (
+      this.content.children.reduce(
+        (speed, world) => speed + Math.abs(world.userData.getDriveState?.().speed ?? 0),
+        0,
+      ) * 3.6
+    );
+  }
+  private roadsterDriveState(): import('./roadsterMotion').RoadsterMotionSample | undefined {
+    for (const world of this.content.children) {
+      const s = world.userData.getDriveState?.();
+      if (s?.manual) return s;
+    }
+    return undefined;
+  }
+  triggerRoadster(action: 'boost' | 'grip' | 'dance' | 'reset'): void {
+    if (this.painting.id === 'roadster')
+      for (const world of this.content.children) {
+        if (action === 'boost') world.userData.triggerBoost?.();
+        else if (action === 'dance') world.userData.triggerDance?.();
+        else if (action === 'reset') world.userData.resetVehicle?.();
+        else world.userData.triggerGrip?.();
+      }
+  }
+  private roadsterLift(): number {
+    return this.content.children.reduce(
+      (lift, world) => lift + (world.userData.getVehicleLift?.() ?? 0),
+      0,
+    );
+  }
   setRoadsterPaint(hex: string): void {
-    if (this.painting.id === 'roadster') for (const world of this.content.children) world.userData.setPaint?.(hex);
+    if (this.painting.id === 'roadster')
+      for (const world of this.content.children) world.userData.setPaint?.(hex);
   }
   private resetWalk(): void {
     this.walkInitialized = true;
     const p = this.painting;
-    if(p.id==='roadster'){this.yaw=0;this.pitch=0;const v=sampleRoadsterCockpit(this.progress,this.elapsed);this.currentEye.set(...v.eye);this.currentTarget.set(...v.target);return;}
+    if (p.id === 'roadster') {
+      this.yaw = 0;
+      this.pitch = 0;
+      const v = sampleRoadsterCockpit(this.progress, this.elapsed);
+      this.currentEye.set(...v.eye);
+      this.currentTarget.set(...v.target);
+      return;
+    }
     if (p.id === 'sakura') {
       this.yaw = 0;
       this.pitch = 0;
@@ -609,15 +675,17 @@ export class Experience {
       this.painting.id === 'winter' ||
       this.painting.id === 'dunhuang' ||
       this.painting.id === 'huangshan' ||
-      this.painting.id === 'deepsea' || this.painting.id === 'roadster'
+      this.painting.id === 'deepsea' ||
+      this.painting.id === 'roadster'
     )
       return;
     this.river = buildRiver(this.painting, this.state.quality);
     this.content.add(this.river.mesh);
+    if (this.painting.id === 'qingming') this.river.setQingmingFleet(this.content);
   }
   private setQuality(rebuildWater = true): void {
     if (rebuildWater) this.rebuildRiver();
-    for(const world of this.content.children)world.userData.setQuality?.(this.state.quality);
+    for (const world of this.content.children) world.userData.setQuality?.(this.state.quality);
     const cap =
       this.state.quality === 'high' ? 1.75 : this.state.quality === 'balanced' ? 1.25 : 0.8;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
@@ -861,7 +929,10 @@ export class Experience {
         ) {
           e.preventDefault();
           this.keys.add(e.code);
-          if(this.painting.id==='roadster'){this.state.playing=false;this.emitStats();}
+          if (this.painting.id === 'roadster') {
+            this.state.playing = false;
+            this.emitStats();
+          }
           if (this.state.mode === 'scroll' && ['ArrowLeft', 'ArrowRight'].includes(e.code)) {
             this.state.playing = false;
             this.emitStats();
@@ -947,7 +1018,7 @@ export class Experience {
   }
   private clearInput(): void {
     this.keys.clear();
-    for(const world of this.content.children)world.userData.clearDriveInput?.();
+    for (const world of this.content.children) world.userData.clearDriveInput?.();
     this.stick = { x: 0, y: 0 };
     for (const id of this.pointers.keys()) {
       if (this.renderer.domElement.hasPointerCapture(id))
@@ -1016,13 +1087,21 @@ export class Experience {
     this.currentTarget.copy(this.currentEye).add(look.multiplyScalar(20));
   }
   private updateCamera(dt: number): void {
-    if(this.painting.id==='roadster') for(const world of this.content.children) {world.userData.setVoyageProgress?.(this.progress);world.userData.setCockpitView?.(this.state.entered && this.state.mode==='walk' && !this.filmActive);}
+    if (this.painting.id === 'roadster')
+      for (const world of this.content.children) {
+        world.userData.setVoyageProgress?.(this.progress);
+        world.userData.setCockpitView?.(
+          this.state.entered && this.state.mode === 'walk' && !this.filmActive,
+        );
+      }
     if (this.painting.id === 'sakura') {
       const voyage = sampleSakuraVoyage(this.progress, this.elapsed);
       this.river?.setSakuraHull(voyage.boatPosition, voyage.boatRotation);
       for (const world of this.content.children) {
         world.userData.setVoyageProgress?.(this.progress);
-        world.userData.setPassengerView?.(this.state.entered && this.state.mode === 'walk' && !this.filmActive);
+        world.userData.setPassengerView?.(
+          this.state.entered && this.state.mode === 'walk' && !this.filmActive,
+        );
       }
     }
     if (this.state.mode === 'orbit' && this.state.entered && !this.filmActive) {
@@ -1037,24 +1116,52 @@ export class Experience {
         // Seat coordinates stay rigidly attached to the moving vessel, including while paused.
         this.currentEye.copy(vector(view.eye));
         this.currentTarget.copy(vector(view.target));
-      } else if (this.painting.id === 'roadster') {const d=this.roadsterDriveState();const view=d?{eye:d.cockpitEye,target:[d.cockpitEye[0]-Math.sin(d.rotation[1]+this.yaw)*12*Math.cos(this.pitch),d.cockpitEye[1]+Math.sin(this.pitch)*12,d.cockpitEye[2]-Math.cos(d.rotation[1]+this.yaw)*12*Math.cos(this.pitch)] as [number,number,number]}:sampleRoadsterCockpit(this.progress,this.elapsed,this.yaw,this.pitch);this.currentEye.set(...view.eye);this.currentTarget.set(...view.target);const lift=this.roadsterLift();this.currentEye.y+=lift;this.currentTarget.y+=lift;} else this.walk(dt);
+      } else if (this.painting.id === 'roadster') {
+        const d = this.roadsterDriveState();
+        const view = d
+          ? {
+              eye: d.cockpitEye,
+              target: [
+                d.cockpitEye[0] - Math.sin(d.rotation[1] + this.yaw) * 12 * Math.cos(this.pitch),
+                d.cockpitEye[1] + Math.sin(this.pitch) * 12,
+                d.cockpitEye[2] - Math.cos(d.rotation[1] + this.yaw) * 12 * Math.cos(this.pitch),
+              ] as [number, number, number],
+            }
+          : sampleRoadsterCockpit(this.progress, this.elapsed, this.yaw, this.pitch);
+        this.currentEye.set(...view.eye);
+        this.currentTarget.set(...view.target);
+        const lift = this.roadsterLift();
+        this.currentEye.y += lift;
+        this.currentTarget.y += lift;
+      } else this.walk(dt);
     } else {
       const overviewEye = vector(this.painting.overview.eye),
         overviewTarget = vector(this.painting.overview.target);
       let eye = overviewEye,
         target = overviewTarget;
       if (this.state.entered) {
-        const shot = this.painting.id === 'roadster' ? (this.roadsterDriveState()??sampleRoadsterMotion(this.progress,this.elapsed)) : this.painting.id === 'sakura'
-          ? sampleSakuraVoyage(this.progress, this.elapsed)
-          : getCinematicView(this.painting, this.progress, this.host.clientWidth < this.host.clientHeight);
+        const shot =
+          this.painting.id === 'roadster'
+            ? (this.roadsterDriveState() ?? sampleRoadsterMotion(this.progress, this.elapsed))
+            : this.painting.id === 'sakura'
+              ? sampleSakuraVoyage(this.progress, this.elapsed)
+              : getCinematicView(
+                  this.painting,
+                  this.progress,
+                  this.host.clientWidth < this.host.clientHeight,
+                );
         eye = vector(shot.eye);
         target = vector(shot.target);
-        if(this.painting.id==='roadster'){eye.y+=this.roadsterLift()*.6;target.y+=this.roadsterLift();}
+        if (this.painting.id === 'roadster') {
+          eye.y += this.roadsterLift() * 0.6;
+          target.y += this.roadsterLift();
+        }
       } else {
         eye.x += Math.sin(this.idleTime * 0.07) * 2;
         eye.z += Math.cos(this.idleTime * 0.07) * 2;
       }
-      if(this.painting.id==='roadster'&&this.host.clientWidth<this.host.clientHeight)eye=target.clone().add(eye.clone().sub(target).multiplyScalar(1.4));
+      if (this.painting.id === 'roadster' && this.host.clientWidth < this.host.clientHeight)
+        eye = target.clone().add(eye.clone().sub(target).multiplyScalar(1.4));
       const amount = 1 - Math.exp(-dt * 2.4);
       this.currentEye.lerp(eye, amount);
       this.currentTarget.lerp(target, amount);
@@ -1087,7 +1194,12 @@ export class Experience {
       this.sun.shadow.normalBias = 0.22;
       this.sun.shadow.bias = -0.0004;
     } else if (this.painting.id === 'qingming') {
-      const fit = fitQingmingShadow(this.currentEye, this.currentTarget, this.sun.shadow.mapSize.x);
+      const fit = fitQingmingShadow(
+        this.currentEye,
+        this.currentTarget,
+        this.sun.shadow.mapSize.x,
+        this.night,
+      );
       this.sun.position.copy(fit.position);
       this.sun.target.position.copy(fit.target);
       Object.assign(this.sun.shadow.camera, {
@@ -1117,7 +1229,10 @@ export class Experience {
     if (this.sky) {
       const uniforms = (this.sky.material as THREE.ShaderMaterial).uniforms;
       if (uniforms.uTime) uniforms.uTime.value = this.elapsed;
+      if (uniforms.uFogHorizon) uniforms.uFogHorizon.value.copy(light.fogColor);
       if (uniforms.uNight) uniforms.uNight.value = this.night;
+      if (this.painting.id === 'qingming' && uniforms.uSunDirection)
+        qingmingLightDirection(this.night, uniforms.uSunDirection.value);
     }
     if (this.halos)
       (this.halos.material as THREE.ShaderMaterial).uniforms.uNight!.value = this.night;
@@ -1147,26 +1262,50 @@ export class Experience {
     this.livingActors?.update(this.elapsed);
     this.lakeBirds?.update(this.elapsed);
     this.idleTime += dt;
-    if(this.painting.id==='roadster' && this.state.entered){const input={throttle:Number(this.keys.has('KeyW')||this.keys.has('ArrowUp'))-Number(this.keys.has('KeyS')),steer:Number(this.keys.has('KeyD')||this.keys.has('ArrowRight'))-Number(this.keys.has('KeyA')||this.keys.has('ArrowLeft')),brake:Number(this.keys.has('ArrowDown')||this.keys.has('ShiftLeft')||this.keys.has('ShiftRight'))};for(const world of this.content.children)world.userData.setKeyboardInput?.(input);}
+    if (this.painting.id === 'roadster' && this.state.entered) {
+      const input = {
+        throttle:
+          Number(this.keys.has('KeyW') || this.keys.has('ArrowUp')) - Number(this.keys.has('KeyS')),
+        steer:
+          Number(this.keys.has('KeyD') || this.keys.has('ArrowRight')) -
+          Number(this.keys.has('KeyA') || this.keys.has('ArrowLeft')),
+        brake: Number(
+          this.keys.has('ArrowDown') || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'),
+        ),
+      };
+      for (const world of this.content.children) world.userData.setKeyboardInput?.(input);
+    }
     if (
       this.state.playing &&
       this.state.entered &&
       !this.filmActive &&
-      (this.state.mode === 'scroll' || (['sakura', 'roadster'].includes(this.painting.id) && this.state.mode === 'walk'))
+      (this.state.mode === 'scroll' ||
+        (['sakura', 'roadster'].includes(this.painting.id) && this.state.mode === 'walk'))
     )
-      this.progress = clamp(this.progress + (dt * this.state.speed) / (this.painting.id === 'roadster' ? 75 : 150));
-    if (this.painting.id!=='roadster' && this.state.mode === 'scroll' && this.state.entered && !this.filmActive) {
+      this.progress = clamp(
+        this.progress + (dt * this.state.speed) / (this.painting.id === 'roadster' ? 75 : 150),
+      );
+    if (
+      this.painting.id !== 'roadster' &&
+      this.state.mode === 'scroll' &&
+      this.state.entered &&
+      !this.filmActive
+    ) {
       const direction = Number(this.keys.has('ArrowRight')) - Number(this.keys.has('ArrowLeft'));
       const boost = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight') ? 4 : 1;
       this.progress = clamp(this.progress + direction * dt * 0.075 * boost);
     }
     this.updateCamera(dt);
     this.updateAtmosphere(dt);
-    if (this.painting.id === 'roadster') for (const world of this.content.children) world.userData.danceTime = this.roadsterMusicClock?.();
+    if (this.painting.id === 'roadster')
+      for (const world of this.content.children)
+        world.userData.danceTime = this.roadsterMusicClock?.();
     this.featured?.(this.elapsed, this.night);
     const shadowHz = this.painting.id === 'qingming' && this.host.clientWidth < 768 ? 12 : 20;
-    if (['qingming', 'arctic', 'sakura', 'roadster'].includes(this.painting.id) &&
-        Math.floor(this.elapsed * shadowHz) !== Math.floor((this.elapsed - dt) * shadowHz))
+    if (
+      ['qingming', 'arctic', 'sakura', 'roadster'].includes(this.painting.id) &&
+      Math.floor(this.elapsed * shadowHz) !== Math.floor((this.elapsed - dt) * shadowHz)
+    )
       this.renderer.shadowMap.needsUpdate = true;
     this.boats.forEach((b, i) => {
       b.position.y = 0.4 + Math.sin(this.elapsed * 0.8 + i) * 0.065;
@@ -1197,7 +1336,7 @@ export class Experience {
     });
   }
   resetView(): void {
-    for(const world of this.content.children)world.userData.resetVehicle?.();
+    for (const world of this.content.children) world.userData.resetVehicle?.();
     this.progress = 0;
     this.scrollMagnification = 1;
     this.clearInput();
@@ -1271,7 +1410,8 @@ export class Experience {
     }
     this.updateAtmosphere(10);
     this.featured?.(this.elapsed, this.night);
-    if (['qingming', 'arctic', 'sakura', 'roadster'].includes(this.painting.id)) this.renderer.shadowMap.needsUpdate = true;
+    if (['qingming', 'arctic', 'sakura', 'roadster'].includes(this.painting.id))
+      this.renderer.shadowMap.needsUpdate = true;
     this.boats.forEach((b, i) => {
       b.position.y = 0.4 + Math.sin(this.elapsed * 0.8 + i) * 0.065;
       b.rotation.z = Math.sin(this.elapsed * 0.6 + i) * 0.013;

@@ -14,6 +14,19 @@ import { curveRod } from './modelGeometry';
 
 type Update = (time: number) => void;
 
+/** Slow submerged power stroke, quicker feathered recovery, continuous at the joins. */
+export function qingmingOarPose(time: number, phase = 0) {
+  const cycle = (((Math.max(0, time) * 0.24 + phase) % 1) + 1) % 1;
+  const pulling = cycle < 0.64;
+  const u = pulling ? cycle / 0.64 : (cycle - 0.64) / 0.36;
+  const ease = u * u * (3 - 2 * u);
+  return {
+    yaw: pulling ? 0.38 - 0.76 * ease : -0.38 + 0.76 * ease,
+    pitch: pulling ? -0.08 : -0.08 + Math.sin(u * Math.PI) * 0.32,
+    lean: pulling ? Math.sin(u * Math.PI) * 0.12 : -Math.sin(u * Math.PI) * 0.045,
+  };
+}
+
 /** Rigid pieces share one skinned draw; no per-frame vertex uploads or model rebuilds. */
 export function bakeQingmingRig(root: THREE.Bone): THREE.SkinnedMesh {
   root.updateMatrixWorld(true);
@@ -312,11 +325,15 @@ export function prepareQingmingBoats(vessels: THREE.Group[]): THREE.Group {
     anchor.add(vessel);
     const oar = vessel.getObjectByName('qingming-working-oar');
     const boatman = vessel.getObjectByName('qingming-working-boatman');
-    if(oar || boatman) animations.push((time)=>{
-      const cycle=time*1.5+index;
-      if(oar){oar.rotation.y=Math.sin(cycle)*.38;oar.rotation.x=Math.cos(cycle)*.16;}
-      if(boatman)boatman.rotation.z=Math.sin(cycle)*.12;
-    });
+    if (oar || boatman)
+      animations.push((time) => {
+        const pose = qingmingOarPose(time, index * 0.19);
+        if (oar) {
+          oar.rotation.y = pose.yaw;
+          oar.rotation.x = pose.pitch;
+        }
+        if (boatman) boatman.rotation.z = pose.lean;
+      });
     animations.push((time) => {
       // Ease into the bridge operation and hold there: returning to its chapter
       // must not show an empty river after a long visit. No visible teleport/reverse.

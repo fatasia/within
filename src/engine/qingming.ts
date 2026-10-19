@@ -1,3 +1,4 @@
+import { buildQingmingAirLife } from './qingmingAirLife';
 import * as THREE from 'three';
 import { buildQingmingBridgeMarket } from './qingmingBridgeMarket';
 import { buildQingmingGateRoof } from './qingmingGateRoof';
@@ -27,7 +28,11 @@ import { buildQingmingLife, prepareQingmingBoats } from './qingmingLife';
 import { featuredUpdate, registerUpdate } from './featuredShared';
 import { buildQingmingEpisodes, rammedWallSegment } from './qingmingEpisodes';
 import { prepareQingmingTransportSteps } from './qingmingTransport';
-import { buildQingmingScrollSteps, QINGMING_SCROLL_FOCI, QINGMING_RURAL_HOUSES } from './qingmingScroll';
+import {
+  buildQingmingScrollSteps,
+  QINGMING_SCROLL_FOCI,
+  QINGMING_RURAL_HOUSES,
+} from './qingmingScroll';
 import {
   clothCanopy,
   potteryJar,
@@ -160,8 +165,23 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     const h = tall ? 6.4 : 3.9;
     const hero = Math.abs(x + 20) < 27;
     const openShop = z > -60 && x > -66;
-    const lightSite = (px: number, py: number, pz: number, kind: QingmingLightSite['kind'], size?: [number,number]) => {
-      lightSites.push({position:[x+Math.cos(facing)*px+Math.sin(facing)*pz,g.position.y+py,z-Math.sin(facing)*px+Math.cos(facing)*pz],yaw:facing,kind,size});
+    const lightSite = (
+      px: number,
+      py: number,
+      pz: number,
+      kind: QingmingLightSite['kind'],
+      size?: [number, number],
+    ) => {
+      lightSites.push({
+        position: [
+          x + Math.cos(facing) * px + Math.sin(facing) * pz,
+          g.position.y + py,
+          z - Math.sin(facing) * px + Math.cos(facing) * pz,
+        ],
+        yaw: facing,
+        kind,
+        size,
+      });
     };
     if (openShop) {
       for (const side of index % 3 === 0 ? [-1, 1] : [index % 2 ? -1 : 1]) {
@@ -573,12 +593,14 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     // Rural western quarter, then a progressively denser waterfront and city.
     city.add(yield* buildQingmingScrollSteps(streetMaterials));
     city.add(yield* buildQingmingQuartersSteps(streetMaterials, tile));
-    const narrative = yield* buildQingmingNarrativeSteps(streetMaterials,tile);
+    const narrative = yield* buildQingmingNarrativeSteps(streetMaterials, tile);
     city.add(narrative);
     // Keep boats in the existing skinned river batch instead of freezing them into the city.
-    for(const vessel of [...narrative.children]) if(vessel.userData.riverCraft) {
-      vessel.removeFromParent();detached.add(vessel);
-    }
+    for (const vessel of [...narrative.children])
+      if (vessel.userData.riverCraft) {
+        vessel.removeFromParent();
+        detached.add(vessel);
+      }
     const riverCraft = buildQingmingRiverCraft(streetMaterials);
     const craftInventory = riverCraft.userData.inventory;
     city.add(riverCraft);
@@ -682,7 +704,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     }
     for (let i = 0; i < 20; i++) {
       const x = -4 + i * 6.4;
-      if (Math.abs(x-55) < 7) continue;
+      if (Math.abs(x - 55) < 7) continue;
       stall(x, qingmingMainStreet(x) - 5.3, 0, i);
       yield;
     }
@@ -694,9 +716,9 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
         i % 3 === 0
           ? (i % 2 ? -48 : -42.05) + (random() - 0.5) * 0.25
           : qingmingRiver(x) + (i % 2 ? 16 : -15) + (random() - 0.5) * 2;
-      const yaw=random()*Math.PI*2;
+      const yaw = random() * Math.PI * 2;
       // The city street already has an authored moving crowd. Random duplicates intersect it.
-      if(i%3===0 && x>-12) continue;
+      if (i % 3 === 0 && x > -12) continue;
       person(x, z, yaw, i);
       yield;
     }
@@ -851,10 +873,8 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     for (const side of [-1, 1]) box(gate, [0.18, 3.6, 3.2], [side * 4.1, 12.3, -0.2], plaster);
     box(gate, [8.4, 0.75, 0.16], [0, 10.7, 1.3], wood);
     box(gate, [8.4, 0.9, 0.16], [0, 13.65, 1.3], wood);
-    for (let i = -15; i <= 15; i++)
-      box(gate, [0.055, 2.15, 0.1], [i * 0.26, 12.15, 1.38], dark);
-    for (const y of [11.35, 12.2, 13.05])
-      box(gate, [8.2, 0.06, 0.12], [0, y, 1.39], dark);
+    for (let i = -15; i <= 15; i++) box(gate, [0.055, 2.15, 0.1], [i * 0.26, 12.15, 1.38], dark);
+    for (const y of [11.35, 12.2, 13.05]) box(gate, [8.2, 0.06, 0.12], [0, y, 1.39], dark);
     for (const x of [-2.6, 0, 2.6]) {
       box(gate, [0.22, 4.1, 0.22], [x, 12.2, -0.5], wood);
       box(gate, [0.7, 0.18, 0.8], [x, 14.15, -0.5], wood);
@@ -1019,10 +1039,12 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     const nightLife = buildQingmingNightLife(lightSites);
     detached.add(nightLife);
     result = yield* batchQingmingSteps(city);
-    result.add(livingTransport, streetLife, riverLife, dailyLife, nightLife);
+    const airLife = buildQingmingAirLife();
+    result.add(livingTransport, streetLife, riverLife, dailyLife, nightLife, airLife);
     const streetUpdate = featuredUpdate(streetLife)!;
     const riverUpdate = featuredUpdate(riverLife)!;
     registerUpdate(result, (time, night) => {
+      featuredUpdate(airLife)?.(time, night);
       streetUpdate(time, night);
       riverUpdate(time, night);
       featuredUpdate(dailyLife)?.(time, night);
@@ -1048,7 +1070,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
       bridgeToGate: true,
       cityCourts: 10,
       infillCourts: QINGMING_QUARTERS.length,
-      infillWings: QINGMING_QUARTERS.length*3,
+      infillWings: QINGMING_QUARTERS.length * 3,
       mooredBoats: moorings.map(([x, z]) => [x, qingmingRiver(x) + z]),
       riverRecedesAtCity: true,
     };

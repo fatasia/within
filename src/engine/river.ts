@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import type { Painting, Quality, Vec3 } from '../types';
 import { clamp } from './math';
+import { qingmingLightDirection } from './qingmingEnvironment';
 import { SAKURA_SUN_DIRECTION } from './sakuraLight';
 
 export interface River {
   mesh: THREE.Mesh;
   update: (time: number, night: number) => void;
+  setQingmingFleet: (root: THREE.Object3D) => void;
   setSakuraHull: (position: Vec3, rotation: Vec3) => void;
   dispose: () => void;
 }
@@ -40,6 +42,9 @@ const fragmentShader = /* glsl */ `
   uniform float uHasReflection;
   uniform float uLakeClarity;
   uniform float uSakura;
+  uniform float uQingming;
+  uniform int uWakeCount;
+  uniform vec4 uWakes[8];
   uniform vec3 uSunDirection;
   uniform mat4 uSakuraHullInverse;
   uniform float uSakuraHullActive;
@@ -92,6 +97,11 @@ const fragmentShader = /* glsl */ `
     // kilometre-wide quad would fade even the nearest water into the horizon.
     float viewDistance = length(vView);
     vec2 p = vWorld.xz;
+    if(uQingming>.5){
+      float bend=clamp((p.x-30.)/110.,0.,1.);
+      float river=5.+sin(p.x*.012)*7.+52.*bend*bend*(3.-2.*bend);
+      if(abs(p.y-river)>12.5)discard;
+    }
     float n = riverNoise(p * vec2(0.11, 0.24) + vec2(uTime * 0.017, 0.0));
     // Centimetre-scale capillary ripples; no geometric wave displacement.
     float ripple = sin(p.x * 0.75 + p.y * 1.12 + n * 5.4 + uTime * 0.3);
@@ -103,18 +113,47 @@ const fragmentShader = /* glsl */ `
       normal = normalize(vec3(ripple * .035 + (fine - .5) * .045, 1.0,
         crossRipple * .028 + sin(p.y * 3.7 + fine * 6.0 - uTime) * .018));
     }
+    float wakeLight = 0.;
+    if(uQingming > .5){
+      float footprint=max(length(dFdx(p)),length(dFdy(p)));
+      float fineFade=1.-smoothstep(.12,1.3,footprint);
+      float fine=riverNoise(p*2.3+vec2(-uTime*.21,uTime*.08));
+      float longWave=sin(dot(p,vec2(.46,.91))-uTime*.8+n*3.);
+      vec2 slope=vec2(ripple*.042+longWave*.018,crossRipple*.033);
+      slope+=vec2(sin(p.x*4.7+p.y*2.1-uTime*1.8),cos(p.y*5.2-uTime*1.3+fine*4.))*.016*fineFade;
+      // World-space elliptical waves follow the actual rig, including its yaw.
+      for(int i=0;i<8;i++){
+        if(i>=uWakeCount) break;
+        vec2 delta=p-uWakes[i].xy;
+        float c=cos(uWakes[i].z),s=sin(uWakes[i].z);
+        vec2 local=vec2(c*delta.x-s*delta.y,s*delta.x+c*delta.y);
+        float radius=length(local/vec2(3.6,1.15));
+        float envelope=smoothstep(.7,1.1,radius)*(1.-smoothstep(1.2,4.,radius));
+        float wave=sin(radius*12.-uTime*2.2+float(i))*envelope;
+        slope+=normalize(delta+vec2(.001))*wave*.035;
+        wakeLight+=pow(max(0.,wave),8.)*.035;
+      }
+      normal=normalize(vec3(slope.x,1.,slope.y));
+    }
     float facing = clamp(dot(normalize(vView), normal), 0.0, 1.0);
     float fresnel = pow(1.0 - facing, 3.0);
     vec3 nightWater = vec3(0.004, 0.012, 0.021);
     vec3 waterColor = mix(color, nightWater, uNight);
     vec3 horizon = mix(uHorizon, vec3(0.012, 0.027, 0.047), uNight);
     vec3 body = waterColor * (0.96 + (n - 0.5) * 0.055);
+    if(uQingming>.5){
+      float bend=clamp((p.x-30.)/110.,0.,1.);
+      float centre=5.+sin(p.x*.012)*7.+52.*bend*bend*(3.-2.*bend);
+      float edge=smoothstep(9.,12.1,abs(p.y-centre));
+      body=mix(body,waterColor*vec3(1.15,1.05,.78),edge*.35);
+    }
     body = mix(body, horizon, smoothstep(160.0, 900.0, viewDistance) * 0.28);
 
     if (uHasReflection > 0.5 && vReflection.w > 0.0) {
       vec2 uv = vReflection.xy / vReflection.w;
       float distanceDamping = 1.0 - smoothstep(70.0, 460.0, viewDistance) * 0.7;
-      uv += vec2(ripple, crossRipple) * vec2(0.00072, 0.00048) * distanceDamping * (1.0 + uSakura * 1.5);
+      uv += vec2(ripple, crossRipple) * vec2(0.00072, 0.00048) * distanceDamping * (1.0 + uSakura * 1.5 + uQingming * 2.5);
+      if(uQingming>.5) uv+=normal.xz*.085*distanceDamping;
       // Texture edges fall back to the water body instead of smearing a border.
       float valid = smoothstep(0.0, 0.025, uv.x) * (1.0 - smoothstep(0.975, 1.0, uv.x))
         * smoothstep(0.0, 0.025, uv.y) * (1.0 - smoothstep(0.975, 1.0, uv.y));
@@ -123,6 +162,7 @@ const fragmentShader = /* glsl */ `
       reflected *= mix(vec3(0.78, 0.9, 0.86), vec3(0.55, 0.69, 0.83), uNight);
       float reflectance = mix(0.48 + uLakeClarity * 0.14, 0.79 + uLakeClarity * 0.08, fresnel) * valid;
       if (uSakura > 0.5) reflectance = mix(.24, .92, pow(1.0 - facing, 2.0)) * valid;
+      if (uQingming > .5) reflectance = mix(.25,.88,pow(1.-facing,2.)) * valid;
       body = mix(body, reflected, reflectance);
     }
 
@@ -131,7 +171,7 @@ const fragmentShader = /* glsl */ `
     // Broad directional sheen, never white periodic stripes.
     float sheen = pow(max(0.0, dot(normalize(vView), reflect(normalize(vec3(-0.45, -0.8, 0.3)), normal))), 100.0);
     body += mix(vec3(0.016, 0.017, 0.012), vec3(0.002, 0.004, 0.006), uNight) * sheen;
-    if (uSakura > 0.5) {
+    if (uSakura > 0.5 || uQingming > 0.5) {
       vec3 halfVector = normalize(normalize(vView) + uSunDirection);
       float nh = max(dot(normal, halfVector), 0.0);
       // Pixel-footprint filtering prevents distant sparkles from crawling.
@@ -142,7 +182,13 @@ const fragmentShader = /* glsl */ `
       float exponent = mix(90.0, 480.0, resolved);
       float specular = pow(nh, exponent) * exponent * .025 * smoothstep(.5, .78, glitter)
         + pow(nh, 90.0) * .45;
-      body += vec3(1.0, .78, .48) * specular * (1.0 - uNight);
+      vec3 lightColor=mix(vec3(1.,.78,.48),vec3(.38,.55,.85),uNight);
+      float lightStrength=uQingming>.5?mix(1.,.16,uNight):(1.-uNight);
+      body += lightColor * specular * lightStrength;
+      body += mix(vec3(.30,.40,.38),vec3(.04,.09,.12),uNight)*wakeLight;
+      if(uHasReflection<.5 && uQingming>.5)
+        body=mix(body,horizon*.72,fresnel*.6);
+
     }
     gl_FragColor = vec4(max(body, vec3(0.0)), 1.0);
     #include <tonemapping_fragment>
@@ -157,6 +203,7 @@ export function buildRiver(painting: Painting, quality: Quality): River {
   const waterTint = new THREE.Color(painting.palette.water);
   waterTint.lerp(new THREE.Color(painting.id === 'fuchun' ? '#777f73' : '#456e66'), 0.38);
   if (painting.id === 'sakura') waterTint.set('#376f69');
+  if (painting.id === 'qingming') waterTint.set('#607368');
   const shader = {
     name: 'QuietRiverReflection',
     uniforms: {
@@ -169,8 +216,16 @@ export function buildRiver(painting: Painting, quality: Quality): River {
       uNight: { value: 0 },
       uHasReflection: { value: reflectionEnabled ? 1 : 0 },
       uLakeClarity: { value: painting.id === 'wuhan' ? 1 : 0 },
+      uQingming: { value: painting.id === 'qingming' ? 1 : 0 },
+      uWakeCount: { value: 0 },
+      uWakes: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) },
       uSakura: { value: painting.id === 'sakura' ? 1 : 0 },
-      uSunDirection: { value: new THREE.Vector3(...SAKURA_SUN_DIRECTION).normalize() },
+      uSunDirection: {
+        value:
+          painting.id === 'qingming'
+            ? qingmingLightDirection(0)
+            : new THREE.Vector3(...SAKURA_SUN_DIRECTION).normalize(),
+      },
       uSakuraHullInverse: { value: new THREE.Matrix4() },
       uSakuraHullActive: { value: 0 },
     },
@@ -194,12 +249,16 @@ export function buildRiver(painting: Painting, quality: Quality): River {
   mesh.name = 'Still river with soft mountain reflections';
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.y = 0.04;
+  let fleet: THREE.Object3D[] = [];
+  const wakePosition = new THREE.Vector3();
   let time = 0;
   let lastReflection = -Infinity;
   let lastNight = -1;
   let disposed = false;
-  const hullPosition = new THREE.Vector3(), hullRotation = new THREE.Euler();
-  const hullOrientation = new THREE.Quaternion(), hullScale = new THREE.Vector3(1, 1, 1);
+  const hullPosition = new THREE.Vector3(),
+    hullRotation = new THREE.Euler();
+  const hullOrientation = new THREE.Quaternion(),
+    hullScale = new THREE.Vector3(1, 1, 1);
   if (reflector) {
     const renderReflection = reflector.onBeforeRender;
     const interval = quality === 'high' ? 1 / 30 : 1 / 20;
@@ -231,13 +290,23 @@ export function buildRiver(painting: Painting, quality: Quality): River {
   }
   return {
     mesh,
+    setQingmingFleet(root) {
+      if (disposed || painting.id !== 'qingming') return;
+      fleet = [];
+      root.traverse((object) => {
+        if (object.name.startsWith('qingming-floating-boat-') && fleet.length < 8)
+          fleet.push(object);
+      });
+      material.uniforms.uWakeCount!.value = fleet.length;
+    },
     setSakuraHull(position, rotation) {
       if (disposed || painting.id !== 'sakura') return;
       hullPosition.set(...position);
       hullRotation.set(...rotation);
       hullOrientation.setFromEuler(hullRotation);
       (material.uniforms.uSakuraHullInverse!.value as THREE.Matrix4)
-        .compose(hullPosition, hullOrientation, hullScale).invert();
+        .compose(hullPosition, hullOrientation, hullScale)
+        .invert();
       material.uniforms.uSakuraHullActive!.value = 1;
     },
     update(nextTime, night) {
@@ -248,10 +317,23 @@ export function buildRiver(painting: Painting, quality: Quality): River {
       lastNight = darkness;
       material.uniforms.uTime!.value = time;
       material.uniforms.uNight!.value = darkness;
+      if (painting.id === 'qingming') {
+        qingmingLightDirection(darkness, material.uniforms.uSunDirection!.value);
+        fleet.forEach((boat, i) => {
+          boat.getWorldPosition(wakePosition);
+          material.uniforms.uWakes!.value[i].set(
+            wakePosition.x,
+            wakePosition.z,
+            boat.rotation.y,
+            1,
+          );
+        });
+      }
     },
     dispose() {
       if (disposed) return;
       disposed = true;
+      fleet = [];
       mesh.removeFromParent();
       geometry.dispose();
       if (reflector)

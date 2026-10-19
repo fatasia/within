@@ -4,7 +4,7 @@ import { QINGMING_SCROLL_FOCI } from './qingmingScroll';
 
 const river = qingmingRiver(-20);
 const frames: readonly CinematicKeyframe[] = [
-  { progress: 0, subject: '汴京展卷：虹桥与两岸街市', eye: [-49, 32, 44], target: [-15, 5, -5] },
+  { progress: 0, subject: '汴京展卷：虹桥与两岸街市', eye: [-49, 23, 46], target: [-15, 7, -7] },
   { progress: 0.045, subject: '卷首郊野与疏林', eye: [-136, 20, -5], target: [-111, 5, -43] },
   {
     progress: 0.1,

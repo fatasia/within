@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { qingmingLightDirection } from './qingmingEnvironment';
 import { seededRandom } from './math';
 export type QingmingSurface = 'wood' | 'tile' | 'stone' | 'earth' | 'plaster';
 /** Shared neutral albedo, relief and roughness; pigment is material colour, not aged-paper yellow. */
@@ -76,7 +77,12 @@ export function createQingmingMaterials() {
   };
 }
 /** Focus shadow texels where the viewer actually is, rather than spreading 1024 texels across 320m. */
-export function fitQingmingShadow(eye: THREE.Vector3, target: THREE.Vector3, resolution: number) {
+export function fitQingmingShadow(
+  eye: THREE.Vector3,
+  target: THREE.Vector3,
+  resolution: number,
+  night = 0,
+) {
   const distance = eye.distanceTo(target),
     extent = THREE.MathUtils.clamp(distance * 0.62 + 15, 28, 180);
   const texel = (extent * 2) / resolution;
@@ -85,7 +91,9 @@ export function fitQingmingShadow(eye: THREE.Vector3, target: THREE.Vector3, res
   return {
     extent,
     target: new THREE.Vector3(x, 3, z),
-    position: new THREE.Vector3(x - 80, 143, z + 60),
+    position: qingmingLightDirection(night)
+      .multiplyScalar(Math.sqrt(29600))
+      .add(new THREE.Vector3(x, 3, z)),
     normalBias: 0.025,
     bias: -0.00008,
   };

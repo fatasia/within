@@ -2,6 +2,10 @@ import { Color } from 'three';
 import type { Painting, PaintingId, TimeMode } from '../types';
 import { clamp } from './math';
 
+const qingmingGolden = new Color('#ffc27b');
+const qingmingDuskHorizon = new Color().setRGB(0.95, 0.57, 0.29);
+const qingmingNightHorizon = new Color().setRGB(0.043, 0.072, 0.117);
+
 interface LightingPalette {
   direct: readonly [number, number];
   fill: readonly [number, number];
@@ -18,7 +22,19 @@ interface LightingPalette {
 
 /** Interpretive seasonal light, not a claim to measured lighting in the source paintings. */
 export const SCENE_LIGHTING: Readonly<Record<PaintingId, LightingPalette>> = {
-  roadster: {direct:[1.4,1.5],fill:[1.3,1.4],sun:['#bedde9','#bedde9'],ambient:['#8ca1bf','#8ca1bf'],ground:['#283347','#283347'],dusk:'#233b4b',duskStrength:0,nightSky:'#07131f',daySky:'#07131f',fog:[45,260],mist:0},
+  roadster: {
+    direct: [1.4, 1.5],
+    fill: [1.3, 1.4],
+    sun: ['#bedde9', '#bedde9'],
+    ambient: ['#8ca1bf', '#8ca1bf'],
+    ground: ['#283347', '#283347'],
+    dusk: '#233b4b',
+    duskStrength: 0,
+    nightSky: '#07131f',
+    daySky: '#07131f',
+    fog: [45, 260],
+    mist: 0,
+  },
   qianli: {
     direct: [1.55, 0.65],
     fill: [1.42, 0.96],
@@ -80,15 +96,16 @@ export const SCENE_LIGHTING: Readonly<Record<PaintingId, LightingPalette>> = {
     mist: 0.07,
   },
   qingming: {
-    direct: [1.7, 0.78],
-    fill: [0.95, 1.2],
+    direct: [2.05, 0.78],
+    fill: [0.82, 1.2],
     sun: ['#fff5e8', '#a8bdcf'],
-    ambient: ['#c7d6e1', '#bdc7c9'],
-    ground: ['#b4aa99', '#858b83'],
+    ambient: ['#c7dce9', '#8ca8cb'],
+    ground: ['#9d9583', '#858b9c'],
     dusk: '#cfb99a',
     duskStrength: 0.22,
-    nightSky: '#30434e',
-    fog: [105, 360],
+    daySky: '#c3d6d9',
+    nightSky: '#182737',
+    fog: [125, 430],
     mist: 0.065,
   },
   zhangjiajie: {
@@ -293,7 +310,9 @@ export function resolveSceneNight(id: PaintingId, time: TimeMode, progress: numb
 
 /** Shared by the renderer and UI so labels never use daylight ink over a night scene. */
 export function isNightScene(id: PaintingId): boolean {
-  return id === 'roadster' || id === 'starry' || id === 'winter' || id === 'arctic' || id === 'deepsea';
+  return (
+    id === 'roadster' || id === 'starry' || id === 'winter' || id === 'arctic' || id === 'deepsea'
+  );
 }
 
 /** Reuse out across frames; the caller owns exponential smoothing of the night value. */
@@ -338,6 +357,19 @@ export function sampleSceneLighting(
       out.sunIntensity *= 0.74;
       if (mist) out.fogFar = 520;
     }
+  }
+  if (id === 'qingming') {
+    const golden = Math.exp(-Math.pow((n - 0.4) * 6, 2));
+    out.sunColor.lerp(qingmingGolden, golden * 0.82);
+    // Fog terminates at the same linear horizon radiance as the sky shader.
+    // Hex/sRGB values here would leave a blue-grey strip below the warm dusk sky.
+    const skyGolden = Math.exp(-Math.pow((n - 0.4) * 5, 2));
+    const nightBlend = clamp((n - 0.48) / 0.4);
+    out.background
+      .setRGB(0.67, 0.77, 0.8)
+      .lerp(qingmingDuskHorizon, skyGolden * 0.78)
+      .lerp(qingmingNightHorizon, nightBlend * nightBlend * (3 - 2 * nightBlend));
+    out.sunIntensity *= 1 - golden * 0.15;
   }
   out.fogColor.copy(out.background);
   out.mistColor.copy(out.background).lerp(out.ambientColor, (1 - n) * 0.16);

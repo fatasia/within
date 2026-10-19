@@ -35,7 +35,7 @@ describe('Painting-specific seasonal light', () => {
           for (let period = 0; period < 5; period++) {
             sampleSceneLighting(painting, night, mist, period, out);
             expect(out.sunIntensity).toBeGreaterThan(0.1);
-            expect(out.sunIntensity).toBeLessThanOrEqual(1.7);
+            expect(out.sunIntensity).toBeLessThanOrEqual(painting.id === 'qingming' ? 2.1 : 1.7);
             expect(out.ambientIntensity).toBeGreaterThan(0.6);
             expect(out.ambientIntensity).toBeLessThanOrEqual(1.9);
             expect(out.fogNear).toBeGreaterThanOrEqual(40);

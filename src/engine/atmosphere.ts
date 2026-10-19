@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Painting } from '../types';
+import { qingmingLightDirection, QINGMING_CLOUD_GLSL } from './qingmingEnvironment';
 import { SAKURA_SUN_DIRECTION } from './sakuraLight';
 
 /** A world-space sky: the moon stays fixed while the viewer moves through the painting. */
@@ -11,16 +12,23 @@ export function createLandscapeSky(painting: Painting): THREE.Mesh {
       uTime: { value: 0 },
       uNight: { value: 0 },
       uDay: { value: new THREE.Color(painting.palette.sky) },
+      uFogHorizon: { value: new THREE.Color(painting.palette.sky) },
       uQingming: { value: painting.id === 'qingming' ? 1 : 0 },
       uSakura: { value: painting.id === 'sakura' ? 1 : 0 },
       uUnderwater: { value: painting.id === 'deepsea' ? 1 : 0 },
-      uSunDirection: { value: new THREE.Vector3(...SAKURA_SUN_DIRECTION).normalize() },
+      uSunDirection: {
+        value:
+          painting.id === 'qingming'
+            ? qingmingLightDirection(0)
+            : new THREE.Vector3(...SAKURA_SUN_DIRECTION).normalize(),
+      },
     },
     vertexShader: `varying vec3 vDirection;void main(){vDirection=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
-    fragmentShader: `varying vec3 vDirection;uniform vec3 uDay;uniform float uNight;uniform float uTime;
+    fragmentShader: `varying vec3 vDirection;uniform vec3 uDay;uniform vec3 uFogHorizon;uniform float uNight;uniform float uTime;
     uniform float uQingming;uniform float uSakura;uniform float uUnderwater;uniform vec3 uSunDirection;
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
     float cloudNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1.,0.)),f.x),mix(hash(i+vec2(0.,1.)),hash(i+vec2(1.)),f.x),f.y);}
+    ${QINGMING_CLOUD_GLSL}
     void main(){
       vec3 d=normalize(vDirection);float altitude=smoothstep(-.08,.65,d.y);
       float dusk=sin(uNight*3.14159);
@@ -39,12 +47,33 @@ export function createLandscapeSky(painting: Painting): THREE.Mesh {
       float sunDistance=length(d-normalize(vec3(-.8,.15,-1.)));
       color+=vec3(.4,.18,.06)*exp(-sunDistance*3.)*dusk*.5;
       if(uQingming>.5){
-        vec3 daylight=mix(vec3(.60,.69,.72),vec3(.18,.36,.52),altitude);
-        vec2 cp=d.xz/max(.12,d.y+.12)*2.2+vec2(uTime*.004,0.);
-        float cloud=cloudNoise(cp)*.57+cloudNoise(cp*2.03)*.28+cloudNoise(cp*4.1)*.15;
-        float veil=smoothstep(.49,.76,cloud)*smoothstep(.015,.15,d.y)*.45;
-        daylight=mix(daylight,vec3(.82,.83,.79),veil);
-        color=mix(daylight,color,smoothstep(.05,.9,uNight));
+        float day=1.-smoothstep(.48,.88,uNight);
+        float golden=exp(-pow((uNight-.4)*5.,2.));
+        float sd=length(d-uSunDirection);
+        vec3 low=mix(vec3(.67,.77,.80),vec3(.95,.57,.29),golden*.78);
+        vec3 high=mix(vec3(.13,.34,.56),vec3(.19,.26,.39),golden*.65);
+        vec3 daylight=mix(low,high,smoothstep(-.04,.68,d.y));
+        daylight+=vec3(1.,.58,.22)*exp(-sd*5.)*(.08+golden*.28);
+        vec3 nightSky=mix(vec3(.045,.075,.12),vec3(.005,.012,.032),altitude);
+        // Two different cloud heights and velocities: broad cumulus with a thin high veil.
+        vec2 cp=d.xz/max(.08,d.y+.09)*1.35+vec2(uTime*.008,uTime*.002);
+        float density=qmCloud(cp);
+        float cover=smoothstep(.43,.68,density)*smoothstep(.015,.12,d.y);
+        float edge=clamp((density-qmCloud(cp+uSunDirection.xz*.16))*3.5+.65,.18,1.);
+        vec3 shade=mix(vec3(.40,.51,.59),vec3(.46,.35,.35),golden);
+        vec3 lit=mix(vec3(.98,.97,.88),vec3(1.,.71,.43),golden);
+        vec3 clouds=mix(shade,lit,edge);
+        clouds+=vec3(1.,.70,.38)*pow(max(0.,1.-sd*.8),6.)*.5;
+        daylight=mix(daylight,clouds,cover*.91);
+        float cirrus=smoothstep(.55,.76,qmCloud(cp*vec2(.5,2.8)+vec2(19.,uTime*.003)));
+        daylight=mix(daylight,lit,cirrus*.17*smoothstep(.12,.5,d.y));
+        color=mix(nightSky,daylight,day);
+        color+=vec3(5.,3.8,2.3)*(1.-smoothstep(.008,.011,sd))*day;
+        // Cloud cover also attenuates the moon and stars rather than painting over them.
+        float nightClear=1.-cover*.85;
+        color+=vec3(.67,.76,.94)*(moon*.9+exp(-md*25.)*.06)*uNight*nightClear;
+        color+=vec3(.6,.7,.9)*star*smoothstep(.6,1.,uNight)*nightClear*smoothstep(.04,.3,d.y);
+        color=mix(color,vec3(.10,.13,.19),cover*(1.-day)*.34);
       }
       if(uSakura>.5){
         float sd=length(d-uSunDirection);
@@ -57,6 +86,8 @@ export function createLandscapeSky(painting: Painting): THREE.Mesh {
       if(uUnderwater>.5) color=mix(vec3(.008,.025,.045),vec3(.035,.11,.16),smoothstep(-.4,.9,d.y));
       gl_FragColor=vec4(color,1.);
       #include <tonemapping_fragment>
+      // Three applies scene fog after tone mapping; meet it in that same space.
+      if(uQingming>.5)gl_FragColor.rgb=mix(uFogHorizon,gl_FragColor.rgb,smoothstep(0.,.16,d.y));
       #include <colorspace_fragment>
     }`,
   });
