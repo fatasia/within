@@ -6,7 +6,10 @@ const rows = readme
   .split('\n')
   .filter((line) => /^\| \[(十二景|Roadster|清明上河|桂雨东湖)/.test(line));
 assert.equal(rows.length, 4);
-assert.match(rows[0], /十二景精选合集.*\/showcase\/index.html/);
+assert.match(rows[0], /十二景精选合集.*\(#showreel\)/);
+assert.match(readme, /<a id="showreel"><\/a>/);
+assert.equal((readme.match(/^https:\/\/github\.com\/user-attachments\/assets\/[\da-f-]+$/gm) ?? []).length, 1);
+assert.ok(!readme.includes('新版'));
 assert.match(rows[1], /Roadster/);
 assert.ok(!readme.includes('五章精选'));
 assert.ok(!readme.includes('[清明核对]'));
