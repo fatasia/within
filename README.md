@@ -4,6 +4,8 @@
 
 **[在线体验 · GitHub Pages](https://fatasia.github.io/within/)** · **[在线体验 · 腾讯云](http://106.55.242.154/within/)** · **[演示视频](#视频)**
 
+![入画 · 十二景精选](public/showcase/poster.jpg)
+
 - **18 个交互场景**：绘画、自然景观与 Roadster 试场。[场景目录](docs/SCENES.md)
 - **展卷、漫游与步行**：跟随镜头游览，也能走近细节；樱谷支持乘舟。
 - **动态场景**：人物舟车、风雨花瓣、昼夜光影与独立配乐。
