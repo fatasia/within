@@ -7,3 +7,6 @@ playwright-report/
 !.env.example
 .cloudbase-backup/
 *.log
+/HANDOFF.md
+/notes/
+/research/

@@ -311,7 +311,7 @@ export function buildRoadster(): THREE.Group {
     if (/^#[0-9a-f]{6}$/i.test(hex)) car.paint.color.set(hex);
   };
   group.userData.reference =
-    '依据用户提供的2026款官方多角度图片重建，非官方CAD；喷气与吸附为原理演示。';
+    '依据2026款官方多角度图片重建，非官方CAD；喷气与吸附为原理演示。';
   registerUpdate(group, update);
   update(0);
   return group;

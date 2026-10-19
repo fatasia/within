@@ -5,7 +5,6 @@ import { promisify } from 'node:util';
 import { resolve, join } from 'node:path';
 
 // Audit first, select shots in selection.json, then render exactly 90 frames per scene.
-// No old recordings or interpolated still images are used.
 const audit = process.argv.includes('--audit');
 const clipsOnly = process.argv.includes('--clips-only');
 const assembleOnly = process.argv.includes('--assemble-only');
