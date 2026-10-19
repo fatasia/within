@@ -7,7 +7,7 @@ export function qingmingLightDirection(night: number, out = new Vector3()): Vect
   const n = Number.isFinite(night) ? MathUtils.clamp(night, 0, 1) : 0;
   const dusk = MathUtils.smoothstep(n, 0, 0.45);
   const moon = MathUtils.smoothstep(n, 0.55, 1);
-  out.set(-80 - dusk * 40, 140 - dusk * 112, 60 + dusk * 10).normalize();
+  out.set(-80 + dusk * 115, 140 - dusk * 128, 60 - dusk * 160).normalize();
   return out.lerp(moonDirection, moon).normalize();
 }
 

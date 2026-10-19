@@ -1,4 +1,5 @@
 import { buildQingmingAirLife } from './qingmingAirLife';
+import { installQingmingSurfaceLight } from './qingmingSurfaceLight';
 import * as THREE from 'three';
 import { buildQingmingBridgeMarket } from './qingmingBridgeMarket';
 import { buildQingmingGateRoof } from './qingmingGateRoof';
@@ -1044,6 +1045,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     const streetUpdate = featuredUpdate(streetLife)!;
     const riverUpdate = featuredUpdate(riverLife)!;
     registerUpdate(result, (time, night) => {
+      surfaceUpdate(time, night);
       featuredUpdate(airLife)?.(time, night);
       streetUpdate(time, night);
       riverUpdate(time, night);
@@ -1114,6 +1116,7 @@ export function* buildQingmingSteps(painting: Painting): Generator<void, THREE.G
     }
     signGeometry.forEach((geometry) => geometry.dispose());
     result.name = 'qingming-city';
+    const surfaceUpdate = installQingmingSurfaceLight(result);
     completed = true;
     return result;
   } finally {

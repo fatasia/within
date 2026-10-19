@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { qingmingBackdropGeometry } from './qingmingBackdrop';
 import { qingmingRiver } from './cityLayout';
 import { registerUpdate } from './featuredShared';
 
@@ -107,17 +107,8 @@ export function buildQingmingAirLife(): THREE.Group {
   group.add(birds);
 
   // Continue the plain beyond the detailed terrain instead of exposing the global water quad.
-  const pieces = [
-    [2400, 1085, 0, -657.5],
-    [2400, 1120, 0, 640],
-    [1060, 195, -670, -17.5],
-    [1060, 195, 670, -17.5],
-  ].map(([w, d, x, z]) =>
-    new THREE.PlaneGeometry(w!, d!).rotateX(-Math.PI / 2).translate(x!, 2.79, z!),
-  );
-  const horizonGeo = mergeGeometries(pieces)!;
-  pieces.forEach((g) => g.dispose());
-  const horizonMat = new THREE.MeshStandardMaterial({ color: '#999384', roughness: 1 });
+  const horizonGeo = qingmingBackdropGeometry();
+  const horizonMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide });
   horizonMat.onBeforeCompile = (shader) => {
     shader.vertexShader = 'varying vec2 vPlain;\n' + shader.vertexShader;
     shader.vertexShader = shader.vertexShader.replace(
@@ -137,6 +128,7 @@ export function buildQingmingAirLife(): THREE.Group {
   horizonMat.customProgramCacheKey = () => 'qingming-open-plain-v1';
   const plain = new THREE.Mesh(horizonGeo, horizonMat);
   plain.name = 'qingming-distant-plain';
+  plain.userData.noShadow = true;
   group.add(plain);
   registerUpdate(group, (time, night) => {
     if (!Number.isFinite(time) || !Number.isFinite(night)) return;

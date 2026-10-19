@@ -3,7 +3,7 @@ import type { Painting, PaintingId, TimeMode } from '../types';
 import { clamp } from './math';
 
 const qingmingGolden = new Color('#ffc27b');
-const qingmingDuskHorizon = new Color().setRGB(0.95, 0.57, 0.29);
+const qingmingDuskHorizon = new Color().setRGB(0.78, 0.48, 0.24);
 const qingmingNightHorizon = new Color().setRGB(0.043, 0.072, 0.117);
 
 interface LightingPalette {
@@ -105,7 +105,7 @@ export const SCENE_LIGHTING: Readonly<Record<PaintingId, LightingPalette>> = {
     duskStrength: 0.22,
     daySky: '#c3d6d9',
     nightSky: '#182737',
-    fog: [125, 430],
+    fog: [80, 300],
     mist: 0.065,
   },
   zhangjiajie: {
@@ -366,10 +366,11 @@ export function sampleSceneLighting(
     const skyGolden = Math.exp(-Math.pow((n - 0.4) * 5, 2));
     const nightBlend = clamp((n - 0.48) / 0.4);
     out.background
-      .setRGB(0.67, 0.77, 0.8)
+      .setRGB(0.46, 0.56, 0.60)
       .lerp(qingmingDuskHorizon, skyGolden * 0.78)
       .lerp(qingmingNightHorizon, nightBlend * nightBlend * (3 - 2 * nightBlend));
     out.sunIntensity *= 1 - golden * 0.15;
+    out.ambientIntensity *= 1 + golden * 0.18;
   }
   out.fogColor.copy(out.background);
   out.mistColor.copy(out.background).lerp(out.ambientColor, (1 - n) * 0.16);

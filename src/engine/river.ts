@@ -119,7 +119,7 @@ const fragmentShader = /* glsl */ `
       float fineFade=1.-smoothstep(.12,1.3,footprint);
       float fine=riverNoise(p*2.3+vec2(-uTime*.21,uTime*.08));
       float longWave=sin(dot(p,vec2(.46,.91))-uTime*.8+n*3.);
-      vec2 slope=vec2(ripple*.042+longWave*.018,crossRipple*.033);
+      vec2 slope=vec2(ripple*.057+longWave*.028,crossRipple*.047);
       slope+=vec2(sin(p.x*4.7+p.y*2.1-uTime*1.8),cos(p.y*5.2-uTime*1.3+fine*4.))*.016*fineFade;
       // World-space elliptical waves follow the actual rig, including its yaw.
       for(int i=0;i<8;i++){
@@ -157,12 +157,12 @@ const fragmentShader = /* glsl */ `
       // Texture edges fall back to the water body instead of smearing a border.
       float valid = smoothstep(0.0, 0.025, uv.x) * (1.0 - smoothstep(0.975, 1.0, uv.x))
         * smoothstep(0.0, 0.025, uv.y) * (1.0 - smoothstep(0.975, 1.0, uv.y));
-      vec3 reflected = softReflection(clamp(uv, uTexel, 1.0 - uTexel), 0.85 + n * 0.8);
+      vec3 reflected = softReflection(clamp(uv, uTexel, 1.0 - uTexel), 0.85 + n * 0.8 + uQingming*(2.4+2.*facing));
       // The target is linear HDR; absorption and tone mapping are applied once here.
       reflected *= mix(vec3(0.78, 0.9, 0.86), vec3(0.55, 0.69, 0.83), uNight);
       float reflectance = mix(0.48 + uLakeClarity * 0.14, 0.79 + uLakeClarity * 0.08, fresnel) * valid;
       if (uSakura > 0.5) reflectance = mix(.24, .92, pow(1.0 - facing, 2.0)) * valid;
-      if (uQingming > .5) reflectance = mix(.25,.88,pow(1.-facing,2.)) * valid;
+      if (uQingming > .5) reflectance = mix(.17,.74,pow(1.-facing,2.)) * valid;
       body = mix(body, reflected, reflectance);
     }
 
@@ -183,6 +183,11 @@ const fragmentShader = /* glsl */ `
       float specular = pow(nh, exponent) * exponent * .025 * smoothstep(.5, .78, glitter)
         + pow(nh, 90.0) * .45;
       vec3 lightColor=mix(vec3(1.,.78,.48),vec3(.38,.55,.85),uNight);
+      if(uQingming>.5){
+        float golden=exp(-pow((uNight-.4)*6.,2.));
+        lightColor=mix(vec3(1.,.91,.75),vec3(1.,.57,.22),golden);
+        lightColor=mix(lightColor,vec3(.38,.55,.85),smoothstep(.55,1.,uNight));
+      }
       float lightStrength=uQingming>.5?mix(1.,.16,uNight):(1.-uNight);
       body += lightColor * specular * lightStrength;
       body += mix(vec3(.30,.40,.38),vec3(.04,.09,.12),uNight)*wakeLight;

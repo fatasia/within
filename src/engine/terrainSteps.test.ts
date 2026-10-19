@@ -46,6 +46,12 @@ describe('cooperative terrain construction', () => {
           expect(geometry.getAttribute(name).array).toEqual(expected.getAttribute(name).array);
         expect(geometry.index?.array).toEqual(expected.index?.array);
       });
+      if (id === 'qingming') {
+        const ground = staged.group.children[0] as THREE.Mesh;
+        expect(ground.userData.receiveShadowOnly).toBe(true);
+        expect(ground.receiveShadow).toBe(true);
+        expect((ground.material as THREE.MeshStandardMaterial).bumpScale).toBe(0.045);
+      }
       if (id !== 'qingming') {
         const positions = (staged.group.children[0] as THREE.Mesh).geometry.getAttribute(
           'position',

@@ -445,8 +445,8 @@ export class Experience {
     if (this.painting.id === 'xishan') this.addWaterfall();
     this.content.traverse((object) => {
       if (object instanceof THREE.Mesh && object.material instanceof THREE.MeshStandardMaterial) {
-        object.castShadow = true;
-        object.receiveShadow = true;
+        object.castShadow = !object.userData.noShadow && !object.userData.receiveShadowOnly;
+        object.receiveShadow = !object.userData.noShadow;
       }
     });
     yield;

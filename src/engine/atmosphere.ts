@@ -50,7 +50,7 @@ export function createLandscapeSky(painting: Painting): THREE.Mesh {
         float day=1.-smoothstep(.48,.88,uNight);
         float golden=exp(-pow((uNight-.4)*5.,2.));
         float sd=length(d-uSunDirection);
-        vec3 low=mix(vec3(.67,.77,.80),vec3(.95,.57,.29),golden*.78);
+        vec3 low=mix(vec3(.46,.56,.60),vec3(.78,.48,.24),golden*.78);
         vec3 high=mix(vec3(.13,.34,.56),vec3(.19,.26,.39),golden*.65);
         vec3 daylight=mix(low,high,smoothstep(-.04,.68,d.y));
         daylight+=vec3(1.,.58,.22)*exp(-sd*5.)*(.08+golden*.28);
@@ -68,7 +68,7 @@ export function createLandscapeSky(painting: Painting): THREE.Mesh {
         float cirrus=smoothstep(.55,.76,qmCloud(cp*vec2(.5,2.8)+vec2(19.,uTime*.003)));
         daylight=mix(daylight,lit,cirrus*.17*smoothstep(.12,.5,d.y));
         color=mix(nightSky,daylight,day);
-        color+=vec3(5.,3.8,2.3)*(1.-smoothstep(.008,.011,sd))*day;
+          color+=vec3(5.,3.8,2.3)*(1.-smoothstep(.008,.011,sd))*day*(1.-cover*.85);
         // Cloud cover also attenuates the moon and stars rather than painting over them.
         float nightClear=1.-cover*.85;
         color+=vec3(.67,.76,.94)*(moon*.9+exp(-md*25.)*.06)*uNight*nightClear;
@@ -87,7 +87,7 @@ export function createLandscapeSky(painting: Painting): THREE.Mesh {
       gl_FragColor=vec4(color,1.);
       #include <tonemapping_fragment>
       // Three applies scene fog after tone mapping; meet it in that same space.
-      if(uQingming>.5)gl_FragColor.rgb=mix(uFogHorizon,gl_FragColor.rgb,smoothstep(0.,.16,d.y));
+      if(uQingming>.5)gl_FragColor.rgb=mix(uFogHorizon,gl_FragColor.rgb,smoothstep(0.,.09,d.y));
       #include <colorspace_fragment>
     }`,
   });

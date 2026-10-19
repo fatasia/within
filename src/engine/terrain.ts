@@ -217,7 +217,7 @@ export function* buildTerrainSteps(painting: Painting): Generator<void, TerrainR
       roughness: 1,
       bumpMap: winter || rockLandscape ? null : texture,
       map: winter || rockLandscape ? null : texture,
-      bumpScale: painting.id === 'starry' ? 0.4 : 0.18,
+      bumpScale: painting.id === 'starry' ? 0.4 : painting.id === 'qingming' ? 0.045 : 0.18,
       side: THREE.DoubleSide,
     });
     materials.push(material);
@@ -311,6 +311,8 @@ export function* buildTerrainSteps(painting: Painting): Generator<void, TerrainR
     geometry.computeVertexNormals();
     const mesh = new THREE.Mesh(geometry, material);
     mesh.receiveShadow = true;
+    // Flat city ground receives buildings' shadows but must not self-shadow at sunset.
+    if (painting.id === 'qingming') mesh.userData.receiveShadowOnly = true;
     group.add(mesh);
     yield;
     if (
